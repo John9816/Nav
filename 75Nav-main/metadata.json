@@ -1,0 +1,7 @@
+{
+  "name": "七五导航",
+  "description": "A modern, aesthetic personal navigation dashboard with weather updates and categorized bookmarks.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

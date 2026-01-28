@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/netease-api/:path*",
+      "destination": "https://music.163.com/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
