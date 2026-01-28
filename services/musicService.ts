@@ -6,7 +6,6 @@ const TUNEHUB_API_URL = 'https://tunehub.sayqz.com/api/v1/parse';
 const TUNEHUB_API_KEY = 'th_3063e4ad2ef8075774abd413a417ce31914b60d8776c5549';
 
 // Request Cache for TuneHub API to deduplicate calls
-// Key: "id-quality", Value: Promise returning the data object
 const tuneHubCache = new Map<string, Promise<any>>();
 
 // Helper to ensure HTTPS
@@ -24,38 +23,38 @@ const toHttps = (url: string) => {
  * Checks if the direct Netease URL is available and returns valid audio.
  * Uses the local proxy /netease-api to avoid CORS issues during the HEAD check.
  */
-const checkDirectUrl = async (id: string | number): Promise<string | null> => {
-  const directUrl = `https://music.163.com/song/media/outer/url?id=${id}.mp3`;
+const checkDirectUrl = async (id: string | number): Promise<boolean> => {
   const proxyUrl = `/netease-api/song/media/outer/url?id=${id}.mp3`;
 
   try {
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 2000); // 2s timeout for direct check
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
 
     const response = await fetch(proxyUrl, { 
         method: 'HEAD',
         signal: controller.signal
     });
     
-    clearTimeout(id);
+    clearTimeout(timeoutId);
 
     if (response.ok) {
         const type = response.headers.get('content-type');
-        // If it returns audio or binary stream, it's likely valid. 
-        // If it's HTML/JSON, it's likely an error page (404 disguised as 200) or VIP block.
-        if (type && (type.includes('audio') || type.includes('octet-stream'))) {
-            return directUrl;
+        // Valid if content-type indicates audio or binary stream
+        if (type && (type.includes('audio') || type.includes('octet-stream') || type.includes('mpeg'))) {
+            // Also check content-length to avoid tiny error files if possible
+            const length = response.headers.get('content-length');
+            if (length && parseInt(length) < 5000) return false;
+            return true;
         }
     }
-    return null;
+    return false;
   } catch (e) {
-    // If check fails or times out, assume invalid and proceed to fallback
-    return null;
+    return false;
   }
 };
 
 /**
- * Fetches data from TuneHub API using the specified configuration.
+ * Fetches data from TuneHub API with deduplication.
  */
 const getTuneHubData = (id: string | number, quality: string = '320k') => {
   const key = `${id}-${quality}`;
@@ -73,7 +72,7 @@ const getTuneHubData = (id: string | number, quality: string = '320k') => {
           'Referer': 'https://tunehub.sayqz.com/test'
       },
       body: JSON.stringify({
-          platform: 'netease',
+          platform: 'netease', // Force netease as requested
           ids: String(id),
           quality: quality
       })
@@ -83,8 +82,6 @@ const getTuneHubData = (id: string | number, quality: string = '320k') => {
       return res.json();
   })
   .then(data => {
-      // TuneHub response structure based on provided example: 
-      // { success: true, data: { data: [ { url: "...", lyrics: "..." } ] } }
       if (data.success && data.data && Array.isArray(data.data.data) && data.data.data.length > 0) {
           const item = data.data.data[0];
           if (item.success) {
@@ -94,14 +91,15 @@ const getTuneHubData = (id: string | number, quality: string = '320k') => {
       throw new Error('TuneHub returned no valid data');
   })
   .catch(err => {
-      tuneHubCache.delete(key);
       console.warn("TuneHub fetch failed:", err);
+      tuneHubCache.delete(key); // Clear failed request from cache so it can be retried
       return null;
   });
 
   tuneHubCache.set(key, promise);
-  // Clear cache after 2 minutes to keep data relatively fresh but avoid spamming
-  setTimeout(() => tuneHubCache.delete(key), 120000);
+  
+  // Clear cache entry after 60 seconds to allow fresh retries later
+  setTimeout(() => tuneHubCache.delete(key), 60000);
   
   return promise;
 };
@@ -144,7 +142,7 @@ const STATIC_TOPLISTS: Playlist[] = [
 
 // Helper to map API item to Song type
 const mapApiItemToSong = (item: any): Song => {
-  const id = item.id || item.rid; // netease uses id, some others might use rid
+  const id = item.id || item.rid;
   const name = item.name || item.songName || 'Unknown Title';
   
   // Artist
@@ -167,8 +165,8 @@ const mapApiItemToSong = (item: any): Song => {
     ar: artists.length > 0 ? artists : [{ id: 0, name: 'Unknown Artist' }],
     al: album,
     dt: item.dt || item.duration || (item.durationSec ? item.durationSec * 1000 : 0) || 0,
-    source: 'netease', // Default, but might be overridden if we add source param later
-    url: undefined // URL fetched separately
+    source: 'netease', 
+    url: undefined 
   };
 };
 
@@ -195,82 +193,17 @@ const parseLrc = (lrcString: string): LyricLine[] => {
 };
 
 // ==========================================
-// Multi-Platform Aggregator
+// Multi-Platform Aggregator (Simplified for Netease Only)
 // ==========================================
 
-// 类型定义
-type Platform = 'kuwo' | 'netease' | 'qq' | string;
-
-interface MethodConfig {
-  type: string; // "http"
-  method: string; // "GET" | "POST"
-  url: string;
-  params?: Record<string, string>;
-  body?: Record<string, any>;
-  headers?: Record<string, string>;
-  transform?: string;
-}
-
-interface TemplateVariables {
-  keyword: string;
-  page: string;
-  pageSize: string;
-  limit?: string; // Alias for pageSize
-  id?: string;
-  br?: string;
-}
-
-interface NormalizedSong {
-  id: string | number;
-  name: string;
-  artist: string;
-  album: string;
-  duration: number;
-  platform: Platform;
-  platforms?: Platform[];  // 多平台可用时标记
-  cover?: string;
-  url?: string | null;
-  quality?: '128k' | '320k' | 'flac' | string;
-  raw?: unknown; // 保留原始数据备用
-}
-
-interface UpstreamResponse {
-  platform: Platform;
-  data: unknown;
-  raw: unknown;
-}
-
 interface SearchResult {
+  items: Song[];
   total: number;
-  items: NormalizedSong[];
-  platforms: PlatformStat[];
-}
-
-interface PlatformStat {
-  platform: Platform;
-  status: 'fulfilled' | 'rejected';
-  count: number;
-  error?: string;
 }
 
 class MultiPlatformAggregator {
-  private platforms: Platform[];
-  private baseUrl: string;
-  private proxyUrl: string;
-
-  constructor(
-    platforms: Platform[] = ['kuwo', 'netease', 'qq'],
-    baseUrl: string = '/api/v1/methods',
-    // Direct request without proxy
-    proxyUrl: string = '' 
-  ) {
-    this.platforms = platforms;
-    this.baseUrl = baseUrl;
-    this.proxyUrl = proxyUrl;
-  }
-
   /**
-   * 主搜索方法：仅使用网易云音乐接口
+   * Search implementation using local Netease proxy
    */
   public async search(
     keyword: string,
@@ -279,387 +212,41 @@ class MultiPlatformAggregator {
   ): Promise<SearchResult> {
     try {
       const offset = page * pageSize;
-      // Use local proxy path instead of direct URL to bypass CORS and Referer restrictions in browser
       const url = `/netease-api/api/search/get/web?s=${encodeURIComponent(keyword)}&type=1&offset=${offset}&limit=${pageSize}`;
       
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-            'Accept': 'application/json, text/plain, */*',
+            'Accept': 'application/json',
             'Accept-Language': 'zh-CN,zh;q=0.9'
         }
       });
 
-      if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const data = await response.json();
       const songs = data.result?.songs || [];
       
-      const items: NormalizedSong[] = songs.map((item: any) => ({
-          id: String(item.id),
-          name: item.name,
-          artist: item.artists ? item.artists.map((a: any) => a.name).join(', ') : (item.artist || 'Unknown'),
-          album: item.album ? item.album.name : '',
-          duration: item.duration || 0,
-          platform: 'netease',
-          cover: item.album?.picUrl || '',
-          url: undefined 
-      }));
+      const items = songs.map(mapApiItemToSong);
 
       return {
           total: items.length,
-          items: items,
-          platforms: [{ platform: 'netease', status: 'fulfilled', count: items.length }]
+          items: items
       };
 
     } catch (error) {
       console.error('Search failed:', error);
-      return {
-          total: 0,
-          items: [],
-          platforms: [{ platform: 'netease', status: 'rejected', count: 0, error: String(error) }]
-      };
+      return { total: 0, items: [] };
     }
-  }
-
-  /**
-   * 通用方法调用
-   */
-  public async executeMethod(
-    platform: Platform,
-    func: string,
-    variables: Partial<TemplateVariables> = {}
-  ): Promise<any> {
-    const config = await this.getMethodConfig(platform, func);
-    const vars: TemplateVariables = {
-        keyword: variables.keyword || '',
-        page: variables.page || '0',
-        pageSize: variables.pageSize || '20',
-        limit: variables.limit || variables.pageSize || '20',
-        id: variables.id || '',
-        br: variables.br || ''
-    };
-    
-    const response = await this.requestUpstream(config, vars, platform);
-    return response.data;
-  }
-
-  /**
-   * 获取方法配置（方法下发）
-   */
-  private async getMethodConfig(
-    platform: Platform, 
-    func: string
-  ): Promise<MethodConfig> {
-    // Hardcoded config for Netease Search to use specific API endpoint
-    if (platform === 'netease' && func === 'search') {
-       return {
-           type: "http",
-           method: "GET",
-           url: "https://music.163.com/api/search/get/web",
-           params: {
-               s: "{{keyword}}",
-               type: "1",
-               offset: "{{((page || 1) - 1) * (limit || 20)}}",
-               limit: "{{limit || 20}}"
-           },
-           headers: {
-               "Referer": "https://music.163.com/",
-               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-               "Accept": "application/json, text/plain, */*",
-               "Accept-Language": "zh-CN,zh;q=0.9"
-           },
-           transform: `function(response) {
-               var songs = response.result && response.result.songs;
-               if (!songs) return [];
-               return songs.map(function(item) {
-                 return {
-                   id: String(item.id),
-                   name: item.name,
-                   artist: item.artists.map(function(a) { return a.name; }).join(', '),
-                   album: item.album && item.album.name || ''
-                 };
-               });
-             }`
-       };
-    }
-
-    // Default fetch for other configs (unused in this specific flow but kept for structure)
-    const url = `${TUNEHUB_API_URL.replace('/api/v1/parse', '')}/api/v1/methods/${platform}/${func}`;
-    const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    if (!response.ok) throw new Error('Config fetch failed');
-    return (await response.json()).data;
-  }
-
-  /**
-   * 向上游平台发起请求
-   */
-  private async requestUpstream(
-    config: MethodConfig,
-    variables: TemplateVariables,
-    platform: Platform
-  ): Promise<UpstreamResponse> {
-    
-    // 1. 处理 Params
-    const params: Record<string, string> = {};
-    if (config.params) {
-        for (const [key, value] of Object.entries(config.params)) {
-            params[key] = this.replaceVariables(String(value), variables);
-        }
-    }
-    
-    // 2. 构建 URL
-    const urlObj = new URL(config.url);
-    // 将 params 添加到 URL
-    Object.entries(params).forEach(([key, value]) => {
-      urlObj.searchParams.set(key, value);
-    });
-
-    // 3. 处理 Body (如果是 POST)
-    let body: BodyInit | null = null;
-    if (config.method === 'POST' && config.body) {
-        // 如果 body 是 JSON 对象，需要进行变量替换
-        const processedBody: Record<string, any> = {};
-        for (const [key, value] of Object.entries(config.body)) {
-             if (typeof value === 'string') {
-                 processedBody[key] = this.replaceVariables(value, variables);
-             } else {
-                 processedBody[key] = value;
-             }
-        }
-        body = JSON.stringify(processedBody);
-    }
-
-    // 4. 处理 Headers
-    const headers: Record<string, string> = config.headers || {};
-    if (config.method === 'POST' && !headers['Content-Type']) {
-        headers['Content-Type'] = 'application/json';
-    }
-
-    // 5. 发起请求 (使用代理转发)
-    let fetchUrl = urlObj.toString();
-    
-    if (this.proxyUrl) {
-         // Simple proxy logic if needed
-         fetchUrl = `${this.proxyUrl}${encodeURIComponent(fetchUrl)}`;
-    }
-
-    const response = await fetch(fetchUrl, {
-      method: config.method,
-      headers: headers,
-      body: body
-    });
-
-    if (!response.ok) {
-      throw new Error(`Upstream HTTP ${response.status}`);
-    }
-
-    const data: unknown = await response.json();
-    
-    // 6. 执行 Transform
-    let processedData = data;
-    if (config.transform) {
-      processedData = this.executeTransform(config.transform, data);
-    }
-    
-    // 确保 processedData 是数组
-    if (!Array.isArray(processedData)) {
-        if (processedData && typeof processedData === 'object' && 'list' in (processedData as any)) {
-             processedData = (processedData as any).list;
-        }
-    }
-
-    return { platform, data: processedData, raw: data };
-  }
-
-  private replaceVariables(str: string, variables: TemplateVariables): string {
-      return str.replace(/{{(.*?)}}/g, (match, expression) => {
-          const key = expression.trim();
-          // 1. Simple replacement
-          if (key in variables) {
-              return (variables as any)[key] || '';
-          }
-
-          // 2. Expression evaluation
-          try {
-              // Convert string numbers to actual numbers for math operations
-              const ctx: Record<string, any> = {};
-              for (const [k, v] of Object.entries(variables)) {
-                  const num = Number(v);
-                  ctx[k] = (v !== '' && !isNaN(num)) ? num : v;
-              }
-
-              const keys = Object.keys(ctx);
-              const values = keys.map(k => ctx[k]);
-              
-              // Create function with variable names as arguments
-              const fn = new Function(...keys, `return ${expression}`);
-              return String(fn(...values));
-          } catch (e) {
-              return match;
-          }
-      });
-  }
-
-  /**
-   * 执行 transform 函数字符串
-   */
-  private executeTransform(
-    transformStr: string,
-    response: unknown
-  ): any {
-    try {
-      const fn = new Function('response', `return (${transformStr})(response)`);
-      return fn(response);
-    } catch (error) {
-      console.warn('Transform execution failed:', error);
-      return []; 
-    }
-  }
-
-  /**
-   * 合并多个平台的结果
-   */
-  private mergeResults(
-    results: PromiseSettledResult<UpstreamResponse>[],
-    keyword: string
-  ): NormalizedSong[] {
-    const allItems: NormalizedSong[] = [];
-
-    results.forEach((result, index) => {
-      const platform = this.platforms[index];
-      
-      if (result.status !== 'fulfilled') {
-        return;
-      }
-      
-      const val = result.value;
-      if ((val as any).error) return; 
-
-      const data = val.data;
-
-      // Validate and cast data
-      if (Array.isArray(data)) {
-          const normalized = data.map((item: any) => this.ensureNormalized(item, platform));
-          allItems.push(...normalized);
-      }
-    });
-
-    // 去重并标记多平台
-    const deduped = this.deduplicate(allItems);
-    
-    // 排序
-    return this.sortResults(deduped, keyword);
-  }
-
-  /**
-   * 确保数据符合 NormalizedSong 接口
-   */
-  private ensureNormalized(item: any, platform: Platform): NormalizedSong {
-      return {
-          id: item.id || item.rid || item.musicrid || 0,
-          name: item.name || item.songName || 'Unknown',
-          artist: item.artist || (Array.isArray(item.ar) ? item.ar.map((a:any)=>a.name).join('/') : '') || 'Unknown',
-          album: item.album || (item.al ? item.al.name : '') || '',
-          duration: Number(item.duration || item.dt || 0),
-          platform: platform,
-          cover: item.cover || item.pic || item.picUrl || '',
-          quality: item.quality,
-          url: item.url
-      };
-  }
-
-  /**
-   * 去重逻辑
-   */
-  private deduplicate(items: NormalizedSong[]): NormalizedSong[] {
-    const unique: NormalizedSong[] = [];
-    const seen = new Map<string, NormalizedSong>(); 
-
-    items.forEach(item => {
-      const fingerprint = this.generateFingerprint(item.name, item.artist);
-      const existing = seen.get(fingerprint);
-
-      if (!existing) {
-        seen.set(fingerprint, { ...item, platforms: [item.platform] });
-        unique.push(seen.get(fingerprint)!);
-      } else {
-        if (!existing.platforms?.includes(item.platform)) {
-          existing.platforms!.push(item.platform);
-        }
-        if (item.cover && !existing.cover) existing.cover = item.cover;
-      }
-    });
-
-    return unique;
-  }
-
-  private generateFingerprint(name: string, artist: string): string {
-    const normalize = (str: string) => 
-      String(str).toLowerCase()
-         .replace(/[\s\-·．•]+/g, '') 
-         .replace(/[^\w\u4e00-\u9fa5]/g, ''); 
-    
-    return `${normalize(name)}-${normalize(artist)}`;
-  }
-
-  private sortResults(items: NormalizedSong[], keyword: string): NormalizedSong[] {
-    const platformWeight: Record<string, number> = {
-      netease: 3,
-      qq: 2,
-      kuwo: 1
-    };
-
-    const lowerKeyword = keyword.toLowerCase();
-
-    return items.sort((a, b) => {
-      const aExact = a.name.toLowerCase() === lowerKeyword ? 2 : 
-                     a.name.toLowerCase().includes(lowerKeyword) ? 1 : 0;
-      const bExact = b.name.toLowerCase() === lowerKeyword ? 2 : 
-                     b.name.toLowerCase().includes(lowerKeyword) ? 1 : 0;
-      if (aExact !== bExact) return bExact - aExact;
-
-      const weightDiff = (platformWeight[b.platform] || 0) - (platformWeight[a.platform] || 0);
-      if (weightDiff !== 0) return weightDiff;
-
-      return 0;
-    });
-  }
-
-  private getPlatformStats(
-    results: PromiseSettledResult<UpstreamResponse>[]
-  ): PlatformStat[] {
-    return results.map((result, index) => {
-      const platform = this.platforms[index];
-      if (result.status === 'fulfilled' && !(result.value as any).error) {
-        const count = Array.isArray(result.value.data) ? result.value.data.length : 0;
-        return {
-          platform,
-          status: 'fulfilled',
-          count
-        };
-      } else {
-        return {
-          platform,
-          status: 'rejected',
-          count: 0,
-          error: result.status === 'rejected' ? String(result.reason) : String((result.value as any).error)
-        };
-      }
-    });
   }
 }
 
-// Instantiate the aggregator
 const aggregator = new MultiPlatformAggregator();
 
 // --- Exported Service Methods ---
 
 export const fetchTopLists = async (): Promise<Playlist[]> => {
   try {
-    // Use local proxy path for official Netease API
     const url = '/netease-api/api/toplist';
     
     const response = await fetch(url, {
@@ -670,9 +257,7 @@ export const fetchTopLists = async (): Promise<Playlist[]> => {
         }
     });
 
-    if (!response.ok) {
-        throw new Error(`Toplist fetch failed: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`Toplist fetch failed: ${response.status}`);
 
     const data = await response.json();
     const list = data.list || [];
@@ -696,7 +281,6 @@ export const fetchTopLists = async (): Promise<Playlist[]> => {
 
 export const fetchPlaylistDetails = async (id: number | string): Promise<Song[]> => {
   try {
-    // Use local proxy path for official Netease API playlist detail
     const url = `/netease-api/api/playlist/detail?id=${id}&n=100000&s=8`;
     
     const response = await fetch(url, {
@@ -707,9 +291,7 @@ export const fetchPlaylistDetails = async (id: number | string): Promise<Song[]>
         }
     });
 
-    if (!response.ok) {
-        throw new Error(`Playlist detail fetch failed: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`Playlist detail fetch failed: ${response.status}`);
 
     const data = await response.json();
     
@@ -732,15 +314,23 @@ export const fetchPlaylistDetails = async (id: number | string): Promise<Song[]>
 
 export const fetchSongDetail = async (id: number | string): Promise<Song | null> => {
   try {
-    const data = await aggregator.executeMethod('netease', 'detail', { id: String(id) });
+    const url = `/netease-api/api/song/detail?ids=[${id}]`;
+    
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'Accept-Language': 'zh-CN,zh;q=0.9'
+        }
+    });
+
+    if (!response.ok) throw new Error(`Song detail fetch failed: ${response.status}`);
+
+    const data = await response.json();
     
     let songItem = null;
     if (data && data.songs && data.songs.length > 0) {
         songItem = data.songs[0];
-    } else if (Array.isArray(data) && data.length > 0) {
-        songItem = data[0];
-    } else if (data && data.name) {
-        songItem = data;
     }
     
     if (songItem) {
@@ -755,18 +345,22 @@ export const fetchSongDetail = async (id: number | string): Promise<Song | null>
 
 /**
  * Main URL Fetching Logic:
- * 1. Checks Direct Netease URL availability first (fastest).
- * 2. If Direct fails, switches to TuneHub API (fallback).
+ * 1. Check if Direct Netease URL is valid (via HEAD request).
+ * 2. If valid, return it immediately.
+ * 3. If invalid (VIP/No Copyright), call TuneHub API (Parse) forcing 'netease'.
  */
 export const fetchSongUrl = async (id: number | string, source: string = 'netease', br: string = '320k'): Promise<string | null> => {
-  // 1. Try Direct standard Netease URL first
-  const directUrl = await checkDirectUrl(id);
-  if (directUrl) {
+  const directUrl = `https://music.163.com/song/media/outer/url?id=${id}.mp3`;
+
+  // 1. Try Direct URL first
+  const isDirectValid = await checkDirectUrl(id);
+  if (isDirectValid) {
       return directUrl;
   }
 
-  // 2. Fallback to TuneHub API if direct URL is unavailable/VIP blocked
+  // 2. Fallback to TuneHub API (Parse)
   try {
+      // Force platform to 'netease' regardless of what 'source' arg says, as per requirement
       const data = await getTuneHubData(id, br);
       if (data && data.url) {
           return toHttps(data.url);
@@ -775,8 +369,8 @@ export const fetchSongUrl = async (id: number | string, source: string = 'neteas
       console.warn("TuneHub fallback failed", e);
   }
 
-  // If both fail, return standard url and hope browser can handle it or let it error out naturally
-  return `https://music.163.com/song/media/outer/url?id=${id}.mp3`;
+  // If both fail, return directUrl anyway as a last resort
+  return directUrl;
 };
 
 export const fetchLyrics = async (id: number | string, source: string = 'netease'): Promise<LyricLine[]> => {
@@ -794,9 +388,11 @@ export const fetchLyrics = async (id: number | string, source: string = 'netease
     // console.warn("Official lyric fetch failed", e);
   }
 
-  // 2. Fallback to TuneHub (likely already cached if song url was fetched)
+  // 2. Fallback to TuneHub
   try {
-    const data = await getTuneHubData(id);
+    // Use the same quality/key logic if possible to potentially hit cache, 
+    // although lyrics usually don't depend on quality.
+    const data = await getTuneHubData(id); 
     if (data && data.lyrics) {
         return parseLrc(data.lyrics);
     }
@@ -807,27 +403,10 @@ export const fetchLyrics = async (id: number | string, source: string = 'netease
   return [];
 };
 
-// Updated searchSongs using Aggregator with Config Logic
 export const searchSongs = async (keywords: string, page: number = 1, limit: number = 10): Promise<Song[]> => {
-  try {
-    const pageIndex = page > 0 ? page - 1 : 0;
-    
-    const result = await aggregator.search(keywords, pageIndex, limit);
-    
-    // Map NormalizedSong to Application Song Interface
-    return result.items.map(item => ({
-       id: item.id,
-       name: item.name,
-       ar: [{ id: 0, name: item.artist }],
-       al: { id: 0, name: item.album, picUrl: toHttps(item.cover || '') },
-       dt: item.duration, // Should be ms
-       source: item.platform,
-       url: item.url || undefined
-    }));
-  } catch (error) {
-    console.error("Search failed:", error);
-    return [];
-  }
+  const pageIndex = page > 0 ? page - 1 : 0;
+  const result = await aggregator.search(keywords, pageIndex, limit);
+  return result.items;
 };
 
 // ... Rest of the file (Supabase favorites/history) remains unchanged ...
