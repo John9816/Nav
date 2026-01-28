@@ -718,34 +718,14 @@ export const fetchSongDetail = async (id: number | string): Promise<Song | null>
 };
 
 export const fetchSongUrl = async (id: number | string, source: string = 'netease', br: string = '320k'): Promise<string | null> => {
-  // 1. Try API via TuneHub v1/parse
+  // 1. Try API via Paugram
   try {
-      const response = await fetch('https://tunehub.sayqz.com/v1/parse', {
-          method: 'POST',
-          headers: {
-              'Accept': 'application/json, text/plain, */*',
-              'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-              'Content-Type': 'application/json',
-              'Origin': 'https://tunehub.sayqz.com',
-              'Priority': 'u=1, i',
-              'Referer': 'https://tunehub.sayqz.com/test',
-              'X-API-Key': API_KEY
-          },
-          body: JSON.stringify({
-              platform: source,
-              ids: String(id),
-              quality: br
-          })
-      });
+      const response = await fetch(`https://api.paugram.com/netease/?id=${id}`);
 
       if (response.ok) {
-          const result = await response.json();
-          // Handle response format from user example
-          if (result && result.success && result.data && Array.isArray(result.data.data) && result.data.data.length > 0) {
-              const songData = result.data.data[0];
-              if (songData && songData.success && songData.url) {
-                  return toHttps(songData.url);
-              }
+          const data = await response.json();
+          if (data && data.link) {
+              return toHttps(data.link);
           }
       }
   } catch(e) {
@@ -758,32 +738,13 @@ export const fetchSongUrl = async (id: number | string, source: string = 'neteas
 
 export const fetchLyrics = async (id: number | string, source: string = 'netease'): Promise<LyricLine[]> => {
   try {
-    // 1. Try API via TuneHub v1/parse (same as song url)
-    const response = await fetch('https://tunehub.sayqz.com/v1/parse', {
-          method: 'POST',
-          headers: {
-              'Accept': 'application/json, text/plain, */*',
-              'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-              'Content-Type': 'application/json',
-              'Origin': 'https://tunehub.sayqz.com',
-              'Priority': 'u=1, i',
-              'Referer': 'https://tunehub.sayqz.com/test',
-              'X-API-Key': API_KEY
-          },
-          body: JSON.stringify({
-              platform: source,
-              ids: String(id),
-              quality: 'flac24bit' // Quality doesn't matter for lyrics, but required
-          })
-      });
+    // 1. Try API via Paugram
+    const response = await fetch(`https://api.paugram.com/netease/?id=${id}`);
 
     if (response.ok) {
-        const result = await response.json();
-        if (result && result.success && result.data && Array.isArray(result.data.data) && result.data.data.length > 0) {
-            const songData = result.data.data[0];
-            if (songData && songData.success && songData.lyrics) {
-                return parseLrc(songData.lyrics);
-            }
+        const data = await response.json();
+        if (data && data.lyric) {
+            return parseLrc(data.lyric);
         }
     }
 
