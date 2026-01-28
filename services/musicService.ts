@@ -2,32 +2,107 @@ import { Playlist, Song, LyricLine } from '../types';
 import { supabase } from './supabaseClient';
 
 // Public Netease Cloud Music API instance (TuneHub)
-const API_BASE = 'https://tunehub.sayqz.com'; 
-const API_KEY = 'th_3063e4ad2ef8075774abd413a417ce31914b60d8776c5549';
+const TUNEHUB_API_URL = 'https://tunehub.sayqz.com/api/v1/parse';
+const TUNEHUB_API_KEY = 'th_3063e4ad2ef8075774abd413a417ce31914b60d8776c5549';
 
-// Request Cache for Paugram API to deduplicate calls
-const paugramCache = new Map<string, Promise<any>>();
+// Request Cache for TuneHub API to deduplicate calls
+// Key: "id-quality", Value: Promise returning the data object
+const tuneHubCache = new Map<string, Promise<any>>();
 
-const getPaugramData = (id: string | number) => {
-  const key = String(id);
-  if (paugramCache.has(key)) {
-    return paugramCache.get(key)!;
+// Helper to ensure HTTPS
+const toHttps = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http:')) {
+    return url.replace('http:', 'https:');
+  }
+  return url;
+};
+
+// --- API Helpers ---
+
+/**
+ * Checks if the direct Netease URL is available and returns valid audio.
+ * Uses the local proxy /netease-api to avoid CORS issues during the HEAD check.
+ */
+const checkDirectUrl = async (id: string | number): Promise<string | null> => {
+  const directUrl = `https://music.163.com/song/media/outer/url?id=${id}.mp3`;
+  const proxyUrl = `/netease-api/song/media/outer/url?id=${id}.mp3`;
+
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 2000); // 2s timeout for direct check
+
+    const response = await fetch(proxyUrl, { 
+        method: 'HEAD',
+        signal: controller.signal
+    });
+    
+    clearTimeout(id);
+
+    if (response.ok) {
+        const type = response.headers.get('content-type');
+        // If it returns audio or binary stream, it's likely valid. 
+        // If it's HTML/JSON, it's likely an error page (404 disguised as 200) or VIP block.
+        if (type && (type.includes('audio') || type.includes('octet-stream'))) {
+            return directUrl;
+        }
+    }
+    return null;
+  } catch (e) {
+    // If check fails or times out, assume invalid and proceed to fallback
+    return null;
+  }
+};
+
+/**
+ * Fetches data from TuneHub API using the specified configuration.
+ */
+const getTuneHubData = (id: string | number, quality: string = '320k') => {
+  const key = `${id}-${quality}`;
+  
+  if (tuneHubCache.has(key)) {
+    return tuneHubCache.get(key)!;
   }
 
-  const promise = fetch(`https://api.paugram.com/netease/?id=${id}`)
-    .then(async (res) => {
-        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-        return res.json();
-    })
-    .catch(err => {
-      // Don't cache errors for long, or at all
-      paugramCache.delete(key);
-      throw err;
-    });
+  const promise = fetch(TUNEHUB_API_URL, {
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/plain, */*',
+          'X-API-Key': TUNEHUB_API_KEY,
+          'Referer': 'https://tunehub.sayqz.com/test'
+      },
+      body: JSON.stringify({
+          platform: 'netease',
+          ids: String(id),
+          quality: quality
+      })
+  })
+  .then(async (res) => {
+      if (!res.ok) throw new Error(`TuneHub error ${res.status}`);
+      return res.json();
+  })
+  .then(data => {
+      // TuneHub response structure based on provided example: 
+      // { success: true, data: { data: [ { url: "...", lyrics: "..." } ] } }
+      if (data.success && data.data && Array.isArray(data.data.data) && data.data.data.length > 0) {
+          const item = data.data.data[0];
+          if (item.success) {
+              return item;
+          }
+      }
+      throw new Error('TuneHub returned no valid data');
+  })
+  .catch(err => {
+      tuneHubCache.delete(key);
+      console.warn("TuneHub fetch failed:", err);
+      return null;
+  });
 
-  paugramCache.set(key, promise);
-  // Clear cache after 2 minutes
-  setTimeout(() => paugramCache.delete(key), 120000);
+  tuneHubCache.set(key, promise);
+  // Clear cache after 2 minutes to keep data relatively fresh but avoid spamming
+  setTimeout(() => tuneHubCache.delete(key), 120000);
+  
   return promise;
 };
 
@@ -66,84 +141,6 @@ const STATIC_TOPLISTS: Playlist[] = [
     playCount: 2000000 
   }
 ];
-
-// Helper to ensure HTTPS
-const toHttps = (url: string) => {
-  if (!url) return '';
-  if (url.startsWith('http:')) {
-    return url.replace('http:', 'https:');
-  }
-  return url;
-};
-
-// Robust Fetch Helper for Netease API
-const fetchNetease = async (endpoint: string, params: Record<string, string> = {}) => {
-  // Construct URL path and search query
-  const urlObj = new URL('https://music.163.com' + endpoint);
-  Object.entries(params).forEach(([k, v]) => urlObj.searchParams.append(k, v));
-  const fullPath = urlObj.pathname + urlObj.search;
-
-  // 1. Try Local Proxy (Primary) - Maps to https://music.163.com via Vite/Vercel
-  // This handles CORS and Referer headers on the server side (vite.config.ts / vercel.json)
-  try {
-    const localUrl = `/netease-api${fullPath}`;
-    const response = await fetch(localUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (response.ok) {
-      // Some proxies return 200 but HTML error pages
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
-        return await response.json();
-      }
-    }
-  } catch (e) {
-    console.warn("Local proxy fetch failed, trying fallback...", e);
-  }
-
-  // 2. Fallback to AllOrigins Raw (Often more reliable for Netease than corsproxy.io)
-  // We use 'raw' to get the JSON directly
-  try {
-    const targetUrl = `https://music.163.com${fullPath}`;
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-    
-    const response = await fetch(proxyUrl, {
-      method: 'GET',
-      referrerPolicy: 'no-referrer' // Important: Try to hide our origin
-    });
-
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (e) {
-    // console.warn("AllOrigins fallback failed", e);
-  }
-
-  // 3. Fallback to CORS Proxy (corsproxy.io)
-  try {
-    const targetUrl = `https://music.163.com${fullPath}`;
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-    
-    const response = await fetch(proxyUrl, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      referrerPolicy: 'no-referrer' // Try to avoid sending origin that Netease might block
-    });
-
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch (e) {
-    // console.warn("Corsproxy fallback failed", e);
-  }
-
-  throw new Error(`All fallbacks failed for ${endpoint}`);
-};
 
 // Helper to map API item to Song type
 const mapApiItemToSong = (item: any): Song => {
@@ -282,15 +279,22 @@ class MultiPlatformAggregator {
   ): Promise<SearchResult> {
     try {
       const offset = page * pageSize;
+      // Use local proxy path instead of direct URL to bypass CORS and Referer restrictions in browser
+      const url = `/netease-api/api/search/get/web?s=${encodeURIComponent(keyword)}&type=1&offset=${offset}&limit=${pageSize}`;
       
-      // Use helper to fetch with fallback
-      const data = await fetchNetease('/api/search/get/web', {
-          s: keyword,
-          type: '1',
-          offset: String(offset),
-          limit: String(pageSize)
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'zh-CN,zh;q=0.9'
+        }
       });
 
+      if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
       const songs = data.result?.songs || [];
       
       const items: NormalizedSong[] = songs.map((item: any) => ({
@@ -382,26 +386,11 @@ class MultiPlatformAggregator {
        };
     }
 
-    const url = `${API_BASE}${this.baseUrl}/${platform}/${func}`;
-    const response = await fetch(url, {
-      headers: { 
-          'Accept': 'application/json',
-          'X-API-Key': API_KEY 
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const result: { code: number; data: MethodConfig; msg?: string } = 
-      await response.json();
-    
-    if (result.code !== 0) {
-      throw new Error(result.msg || 'Invalid config response');
-    }
-
-    return result.data;
+    // Default fetch for other configs (unused in this specific flow but kept for structure)
+    const url = `${TUNEHUB_API_URL.replace('/api/v1/parse', '')}/api/v1/methods/${platform}/${func}`;
+    const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!response.ok) throw new Error('Config fetch failed');
+    return (await response.json()).data;
   }
 
   /**
@@ -453,13 +442,8 @@ class MultiPlatformAggregator {
     let fetchUrl = urlObj.toString();
     
     if (this.proxyUrl) {
-         const fullProxyUrl = this.proxyUrl.startsWith('http') 
-            ? this.proxyUrl 
-            : `${API_BASE}${this.proxyUrl}`;
-         
-         // 包装成代理请求
-         // 注意：corsproxy.io 只需要将 URL 拼接到后面
-         fetchUrl = `${fullProxyUrl}${encodeURIComponent(fetchUrl)}`;
+         // Simple proxy logic if needed
+         fetchUrl = `${this.proxyUrl}${encodeURIComponent(fetchUrl)}`;
     }
 
     const response = await fetch(fetchUrl, {
@@ -514,7 +498,6 @@ class MultiPlatformAggregator {
               const fn = new Function(...keys, `return ${expression}`);
               return String(fn(...values));
           } catch (e) {
-              // console.warn(`Template evaluation failed for "${expression}":`, e);
               return match;
           }
       });
@@ -669,15 +652,29 @@ class MultiPlatformAggregator {
   }
 }
 
-// Instantiate the aggregator with proxy
+// Instantiate the aggregator
 const aggregator = new MultiPlatformAggregator();
 
-// Existing other methods (fetchTopLists, etc.) remain...
+// --- Exported Service Methods ---
 
 export const fetchTopLists = async (): Promise<Playlist[]> => {
   try {
-    // Use robust fetchNetease which includes fallbacks
-    const data = await fetchNetease('/api/toplist');
+    // Use local proxy path for official Netease API
+    const url = '/netease-api/api/toplist';
+    
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'Accept-Language': 'zh-CN,zh;q=0.9'
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`Toplist fetch failed: ${response.status}`);
+    }
+
+    const data = await response.json();
     const list = data.list || [];
     
     if (list.length > 0) {
@@ -699,12 +696,22 @@ export const fetchTopLists = async (): Promise<Playlist[]> => {
 
 export const fetchPlaylistDetails = async (id: number | string): Promise<Song[]> => {
   try {
-    // Use robust fetchNetease which includes fallbacks
-    const data = await fetchNetease('/api/playlist/detail', {
-        id: String(id),
-        n: '100000',
-        s: '8'
+    // Use local proxy path for official Netease API playlist detail
+    const url = `/netease-api/api/playlist/detail?id=${id}&n=100000&s=8`;
+    
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json',
+            'Accept-Language': 'zh-CN,zh;q=0.9'
+        }
     });
+
+    if (!response.ok) {
+        throw new Error(`Playlist detail fetch failed: ${response.status}`);
+    }
+
+    const data = await response.json();
     
     let songs: any[] = [];
     if (data && data.result && Array.isArray(data.result.tracks)) {
@@ -725,12 +732,15 @@ export const fetchPlaylistDetails = async (id: number | string): Promise<Song[]>
 
 export const fetchSongDetail = async (id: number | string): Promise<Song | null> => {
   try {
-    // Use fetchNetease to be robust
-    const data = await fetchNetease('/api/song/detail', { ids: `[${id}]` });
+    const data = await aggregator.executeMethod('netease', 'detail', { id: String(id) });
     
     let songItem = null;
     if (data && data.songs && data.songs.length > 0) {
         songItem = data.songs[0];
+    } else if (Array.isArray(data) && data.length > 0) {
+        songItem = data[0];
+    } else if (data && data.name) {
+        songItem = data;
     }
     
     if (songItem) {
@@ -743,44 +753,58 @@ export const fetchSongDetail = async (id: number | string): Promise<Song | null>
   }
 };
 
+/**
+ * Main URL Fetching Logic:
+ * 1. Checks Direct Netease URL availability first (fastest).
+ * 2. If Direct fails, switches to TuneHub API (fallback).
+ */
 export const fetchSongUrl = async (id: number | string, source: string = 'netease', br: string = '320k'): Promise<string | null> => {
-  const directUrl = `https://music.163.com/song/media/outer/url?id=${id}.mp3`;
-  
-  // 1. Try API via Paugram with request deduplication and timeout (1s)
-  try {
-      // Race: API vs Timeout
-      // If API wins and has link, we return it.
-      // If API is slow (>1s) or fails, we fall back to direct URL immediately.
-      const data = await Promise.race([
-          getPaugramData(id),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 1000))
-      ]);
-
-      if (data && data.link) {
-          return toHttps(data.link);
-      }
-  } catch(e) {
-      // console.warn("API URL fetch failed or timed out, using fallback", e);
+  // 1. Try Direct standard Netease URL first
+  const directUrl = await checkDirectUrl(id);
+  if (directUrl) {
+      return directUrl;
   }
 
-  // 2. Fallback to Direct standard Netease URL (Most reliable for free songs and FASTEST)
-  return directUrl;
+  // 2. Fallback to TuneHub API if direct URL is unavailable/VIP blocked
+  try {
+      const data = await getTuneHubData(id, br);
+      if (data && data.url) {
+          return toHttps(data.url);
+      }
+  } catch(e) {
+      console.warn("TuneHub fallback failed", e);
+  }
+
+  // If both fail, return standard url and hope browser can handle it or let it error out naturally
+  return `https://music.163.com/song/media/outer/url?id=${id}.mp3`;
 };
 
 export const fetchLyrics = async (id: number | string, source: string = 'netease'): Promise<LyricLine[]> => {
   try {
-    // 1. Try API via Paugram (Reuses same promise from fetchSongUrl if called closely)
-    const data = await getPaugramData(id);
-
-    if (data && data.lyric) {
-        return parseLrc(data.lyric);
+    // 1. Try Official API via proxy first (usually correct and fast)
+    const officialUrl = `/netease-api/api/song/lyric?id=${id}&lv=-1&kv=-1&tv=-1`;
+    const response = await fetch(officialUrl);
+    if (response.ok) {
+        const data = await response.json();
+        if (data.lrc && data.lrc.lyric) {
+            return parseLrc(data.lrc.lyric);
+        }
     }
+  } catch (e) {
+    // console.warn("Official lyric fetch failed", e);
+  }
 
-    return [];
+  // 2. Fallback to TuneHub (likely already cached if song url was fetched)
+  try {
+    const data = await getTuneHubData(id);
+    if (data && data.lyrics) {
+        return parseLrc(data.lyrics);
+    }
   } catch (error) {
     console.error(`Failed to fetch lyrics for ${id}:`, error);
-    return [];
   }
+
+  return [];
 };
 
 // Updated searchSongs using Aggregator with Config Logic
@@ -788,7 +812,6 @@ export const searchSongs = async (keywords: string, page: number = 1, limit: num
   try {
     const pageIndex = page > 0 ? page - 1 : 0;
     
-    // Use aggregator.search but ensure it uses the robust fetchNetease internally if we updated it
     const result = await aggregator.search(keywords, pageIndex, limit);
     
     // Map NormalizedSong to Application Song Interface
