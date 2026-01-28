@@ -5,6 +5,32 @@ import { supabase } from './supabaseClient';
 const API_BASE = 'https://tunehub.sayqz.com'; 
 const API_KEY = 'th_3063e4ad2ef8075774abd413a417ce31914b60d8776c5549';
 
+// Request Cache for Paugram API to deduplicate calls
+const paugramCache = new Map<string, Promise<any>>();
+
+const getPaugramData = (id: string | number) => {
+  const key = String(id);
+  if (paugramCache.has(key)) {
+    return paugramCache.get(key)!;
+  }
+
+  const promise = fetch(`https://api.paugram.com/netease/?id=${id}`)
+    .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        return res.json();
+    })
+    .catch(err => {
+      // Don't cache errors for long, or at all
+      paugramCache.delete(key);
+      throw err;
+    });
+
+  paugramCache.set(key, promise);
+  // Clear cache after 2 minutes
+  setTimeout(() => paugramCache.delete(key), 120000);
+  return promise;
+};
+
 // Static configuration for Top Lists (Fallback)
 const STATIC_TOPLISTS: Playlist[] = [
   { 
@@ -718,34 +744,36 @@ export const fetchSongDetail = async (id: number | string): Promise<Song | null>
 };
 
 export const fetchSongUrl = async (id: number | string, source: string = 'netease', br: string = '320k'): Promise<string | null> => {
-  // 1. Try API via Paugram
+  const directUrl = `https://music.163.com/song/media/outer/url?id=${id}.mp3`;
+  
+  // 1. Try API via Paugram with request deduplication and timeout (1s)
   try {
-      const response = await fetch(`https://api.paugram.com/netease/?id=${id}`);
+      // Race: API vs Timeout
+      // If API wins and has link, we return it.
+      // If API is slow (>1s) or fails, we fall back to direct URL immediately.
+      const data = await Promise.race([
+          getPaugramData(id),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 1000))
+      ]);
 
-      if (response.ok) {
-          const data = await response.json();
-          if (data && data.link) {
-              return toHttps(data.link);
-          }
+      if (data && data.link) {
+          return toHttps(data.link);
       }
   } catch(e) {
-      console.warn("API URL fetch failed, using fallback", e);
+      // console.warn("API URL fetch failed or timed out, using fallback", e);
   }
 
-  // 2. Fallback to Direct standard Netease URL (Most reliable for free songs)
-  return `https://music.163.com/song/media/outer/url?id=${id}.mp3`;
+  // 2. Fallback to Direct standard Netease URL (Most reliable for free songs and FASTEST)
+  return directUrl;
 };
 
 export const fetchLyrics = async (id: number | string, source: string = 'netease'): Promise<LyricLine[]> => {
   try {
-    // 1. Try API via Paugram
-    const response = await fetch(`https://api.paugram.com/netease/?id=${id}`);
+    // 1. Try API via Paugram (Reuses same promise from fetchSongUrl if called closely)
+    const data = await getPaugramData(id);
 
-    if (response.ok) {
-        const data = await response.json();
-        if (data && data.lyric) {
-            return parseLrc(data.lyric);
-        }
+    if (data && data.lyric) {
+        return parseLrc(data.lyric);
     }
 
     return [];
