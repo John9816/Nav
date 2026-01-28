@@ -5,10 +5,14 @@ import { supabase } from './supabaseClient';
 const TUNEHUB_API_URL = 'https://tunehub.sayqz.com/api/v1/parse';
 const TUNEHUB_API_KEY = 'th_3063e4ad2ef8075774abd413a417ce31914b60d8776c5549';
 
-// Request Cache for TuneHub API to deduplicate calls
-const tuneHubCache = new Map<string, Promise<any>>();
+// --- Caches ---
+// Prevents duplicate URL fetching for the same song/quality
+const urlPromiseCache = new Map<string, Promise<string | null>>();
+// Cache for lyrics
+const lyricCache = new Map<string, LyricLine[]>();
 
-// Helper to ensure HTTPS
+// --- Helpers ---
+
 const toHttps = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http:')) {
@@ -17,131 +21,30 @@ const toHttps = (url: string) => {
   return url;
 };
 
-// --- API Helpers ---
+const parseLrc = (lrcString: string): LyricLine[] => {
+  if (!lrcString) return [];
+  const lines = lrcString.split('\n');
+  const result: LyricLine[] = [];
+  const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
 
-/**
- * Checks if the direct Netease URL is available and returns valid audio.
- * Uses the local proxy /netease-api to avoid CORS issues during the HEAD check.
- */
-const checkDirectUrl = async (id: string | number): Promise<boolean> => {
-  const proxyUrl = `/netease-api/song/media/outer/url?id=${id}.mp3`;
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
-
-    const response = await fetch(proxyUrl, { 
-        method: 'HEAD',
-        signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-
-    if (response.ok) {
-        const type = response.headers.get('content-type');
-        // Valid if content-type indicates audio or binary stream
-        if (type && (type.includes('audio') || type.includes('octet-stream') || type.includes('mpeg'))) {
-            // Also check content-length to avoid tiny error files if possible
-            const length = response.headers.get('content-length');
-            if (length && parseInt(length) < 5000) return false;
-            return true;
-        }
-    }
-    return false;
-  } catch (e) {
-    return false;
-  }
-};
-
-/**
- * Fetches data from TuneHub API with deduplication.
- */
-const getTuneHubData = (id: string | number, quality: string = '320k') => {
-  const key = `${id}-${quality}`;
-  
-  if (tuneHubCache.has(key)) {
-    return tuneHubCache.get(key)!;
-  }
-
-  const promise = fetch(TUNEHUB_API_URL, {
-      method: 'POST',
-      headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/plain, */*',
-          'X-API-Key': TUNEHUB_API_KEY,
-          'Referer': 'https://tunehub.sayqz.com/test'
-      },
-      body: JSON.stringify({
-          platform: 'netease', // Force netease as requested
-          ids: String(id),
-          quality: quality
-      })
-  })
-  .then(async (res) => {
-      if (!res.ok) throw new Error(`TuneHub error ${res.status}`);
-      return res.json();
-  })
-  .then(data => {
-      if (data.success && data.data && Array.isArray(data.data.data) && data.data.data.length > 0) {
-          const item = data.data.data[0];
-          if (item.success) {
-              return item;
-          }
+  for (const line of lines) {
+    const match = timeRegex.exec(line);
+    if (match) {
+      const min = parseInt(match[1], 10);
+      const sec = parseInt(match[2], 10);
+      const ms = parseInt(match[3], 10) * (match[3].length === 2 ? 10 : 1);
+      const time = min * 60 + sec + ms / 1000;
+      const text = line.replace(/\[.*?\]/g, '').trim();
+      if (text) {
+        result.push({ time, text });
       }
-      throw new Error('TuneHub returned no valid data');
-  })
-  .catch(err => {
-      console.warn("TuneHub fetch failed:", err);
-      tuneHubCache.delete(key); // Clear failed request from cache so it can be retried
-      return null;
-  });
-
-  tuneHubCache.set(key, promise);
-  
-  // Clear cache entry after 60 seconds to allow fresh retries later
-  setTimeout(() => tuneHubCache.delete(key), 60000);
-  
-  return promise;
+    }
+  }
+  return result;
 };
 
-// Static configuration for Top Lists (Fallback)
-const STATIC_TOPLISTS: Playlist[] = [
-  { 
-    id: 19723756, 
-    name: '飙升榜', 
-    coverImgUrl: 'https://p1.music.126.net/DrRIg6CrgDfVLEph9SNh7w==/18696095720518497.jpg', 
-    description: '云音乐中每天热度上升最快的歌曲', 
-    trackCount: 100, 
-    playCount: 1000000 
-  },
-  { 
-    id: 3779629, 
-    name: '新歌榜', 
-    coverImgUrl: 'https://p1.music.126.net/N2HO5xfYEqyQ8q6oxCw8IQ==/18713687906568048.jpg', 
-    description: '云音乐中每天收听量最高的新歌', 
-    trackCount: 100, 
-    playCount: 800000 
-  },
-  { 
-    id: 2884035, 
-    name: '原创榜', 
-    coverImgUrl: 'https://p1.music.126.net/sBzD11nforcuh1jdLSgX7g==/18740076185638788.jpg', 
-    description: '云音乐中每天收听量最高的原创歌曲', 
-    trackCount: 100, 
-    playCount: 500000 
-  },
-  { 
-    id: 3778678, 
-    name: '热歌榜', 
-    coverImgUrl: 'https://p1.music.126.net/GhhuF6Ep5Tq9IEvLsyCN7w==/18708190348493229.jpg', 
-    description: '云音乐中每天收听量最高的歌曲', 
-    trackCount: 100, 
-    playCount: 2000000 
-  }
-];
-
-// Helper to map API item to Song type
-const mapApiItemToSong = (item: any): Song => {
+// Helper to map standard Netease API item to internal Song type
+const mapNeteaseItemToSong = (item: any): Song => {
   const id = item.id || item.rid;
   const name = item.name || item.songName || 'Unknown Title';
   
@@ -170,91 +73,87 @@ const mapApiItemToSong = (item: any): Song => {
   };
 };
 
-const parseLrc = (lrcString: string): LyricLine[] => {
-  if (!lrcString) return [];
-  const lines = lrcString.split('\n');
-  const result: LyricLine[] = [];
-  const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+// --- Internal Services ---
 
-  for (const line of lines) {
-    const match = timeRegex.exec(line);
-    if (match) {
-      const min = parseInt(match[1], 10);
-      const sec = parseInt(match[2], 10);
-      const ms = parseInt(match[3], 10) * (match[3].length === 2 ? 10 : 1);
-      const time = min * 60 + sec + ms / 1000;
-      const text = line.replace(/\[.*?\]/g, '').trim();
-      if (text) {
-        result.push({ time, text });
-      }
+/**
+ * Checks if the direct Netease URL is valid via HEAD request.
+ */
+const checkDirectUrl = async (id: string | number): Promise<boolean> => {
+  // Use proxy to avoid CORS and Referer issues
+  const proxyUrl = `/netease-api/song/media/outer/url?id=${id}.mp3`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500); // Fast timeout
+
+    const response = await fetch(proxyUrl, { 
+        method: 'HEAD',
+        signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+        const type = response.headers.get('content-type');
+        const length = response.headers.get('content-length');
+        
+        // Check for audio content type
+        if (type && (type.includes('audio') || type.includes('octet-stream') || type.includes('mpeg'))) {
+            // Filter out small files which are usually error json/html responses served with 200 OK
+            if (length && parseInt(length) < 5000) return false;
+            return true;
+        }
     }
+    return false;
+  } catch (e) {
+    return false;
   }
-  return result;
 };
 
-// ==========================================
-// Multi-Platform Aggregator (Simplified for Netease Only)
-// ==========================================
+/**
+ * Fetches data from TuneHub API (Parse Interface).
+ * Strictly forces platform='netease'.
+ */
+const getTuneHubParseData = async (id: string | number, quality: string) => {
+  try {
+    const response = await fetch(TUNEHUB_API_URL, {
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/plain, */*',
+          'X-API-Key': TUNEHUB_API_KEY,
+          'Referer': 'https://tunehub.sayqz.com/test'
+      },
+      body: JSON.stringify({
+          platform: 'netease', // STRICTLY NETEASE
+          ids: String(id),
+          quality: quality
+      })
+    });
 
-interface SearchResult {
-  items: Song[];
-  total: number;
-}
-
-class MultiPlatformAggregator {
-  /**
-   * Search implementation using local Netease proxy
-   */
-  public async search(
-    keyword: string,
-    page: number = 0,
-    pageSize: number = 20
-  ): Promise<SearchResult> {
-    try {
-      const offset = page * pageSize;
-      const url = `/netease-api/api/search/get/web?s=${encodeURIComponent(keyword)}&type=1&offset=${offset}&limit=${pageSize}`;
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-            'Accept': 'application/json',
-            'Accept-Language': 'zh-CN,zh;q=0.9'
+    if (!response.ok) throw new Error(`TuneHub error ${response.status}`);
+    
+    const data = await response.json();
+    if (data.success && data.data && Array.isArray(data.data.data) && data.data.data.length > 0) {
+        const item = data.data.data[0];
+        if (item.success) {
+            return item;
         }
-      });
-
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-      const data = await response.json();
-      const songs = data.result?.songs || [];
-      
-      const items = songs.map(mapApiItemToSong);
-
-      return {
-          total: items.length,
-          items: items
-      };
-
-    } catch (error) {
-      console.error('Search failed:', error);
-      return { total: 0, items: [] };
     }
+    return null;
+  } catch (err) {
+    console.warn("TuneHub parse failed:", err);
+    return null;
   }
-}
+};
 
-const aggregator = new MultiPlatformAggregator();
-
-// --- Exported Service Methods ---
+// --- Exported API Methods ---
 
 export const fetchTopLists = async (): Promise<Playlist[]> => {
   try {
-    const url = '/netease-api/api/toplist';
-    
-    const response = await fetch(url, {
+    const response = await fetch('/netease-api/api/toplist', {
         method: 'GET',
-        headers: {
-            'Accept': 'application/json',
-            'Accept-Language': 'zh-CN,zh;q=0.9'
-        }
+        headers: { 'Accept': 'application/json' }
     });
 
     if (!response.ok) throw new Error(`Toplist fetch failed: ${response.status}`);
@@ -272,23 +171,18 @@ export const fetchTopLists = async (): Promise<Playlist[]> => {
             playCount: item.playCount || 0
         }));
     }
-    return STATIC_TOPLISTS;
+    return [];
   } catch (e) {
-    console.warn("Fetch toplists failed, using static fallback", e);
-    return STATIC_TOPLISTS;
+    console.warn("Fetch toplists failed", e);
+    return [];
   }
 };
 
 export const fetchPlaylistDetails = async (id: number | string): Promise<Song[]> => {
   try {
-    const url = `/netease-api/api/playlist/detail?id=${id}&n=100000&s=8`;
-    
-    const response = await fetch(url, {
+    const response = await fetch(`/netease-api/api/playlist/detail?id=${id}&n=100000&s=8`, {
         method: 'GET',
-        headers: {
-            'Accept': 'application/json',
-            'Accept-Language': 'zh-CN,zh;q=0.9'
-        }
+        headers: { 'Accept': 'application/json' }
     });
 
     if (!response.ok) throw new Error(`Playlist detail fetch failed: ${response.status}`);
@@ -303,7 +197,7 @@ export const fetchPlaylistDetails = async (id: number | string): Promise<Song[]>
     }
     
     if (songs.length > 0) {
-        return songs.map(mapApiItemToSong);
+        return songs.map(mapNeteaseItemToSong);
     }
     return [];
   } catch (error) {
@@ -314,27 +208,16 @@ export const fetchPlaylistDetails = async (id: number | string): Promise<Song[]>
 
 export const fetchSongDetail = async (id: number | string): Promise<Song | null> => {
   try {
-    const url = `/netease-api/api/song/detail?ids=[${id}]`;
-    
-    const response = await fetch(url, {
+    const response = await fetch(`/netease-api/api/song/detail?ids=[${id}]`, {
         method: 'GET',
-        headers: {
-            'Accept': 'application/json',
-            'Accept-Language': 'zh-CN,zh;q=0.9'
-        }
+        headers: { 'Accept': 'application/json' }
     });
 
     if (!response.ok) throw new Error(`Song detail fetch failed: ${response.status}`);
 
     const data = await response.json();
-    
-    let songItem = null;
     if (data && data.songs && data.songs.length > 0) {
-        songItem = data.songs[0];
-    }
-    
-    if (songItem) {
-        return mapApiItemToSong(songItem);
+        return mapNeteaseItemToSong(data.songs[0]);
     }
     return null;
   } catch (error) {
@@ -344,69 +227,98 @@ export const fetchSongDetail = async (id: number | string): Promise<Song | null>
 };
 
 /**
- * Main URL Fetching Logic:
- * 1. Check if Direct Netease URL is valid (via HEAD request).
- * 2. If valid, return it immediately.
- * 3. If invalid (VIP/No Copyright), call TuneHub API (Parse) forcing 'netease'.
+ * Main URL Fetching Logic with Deduplication
  */
-export const fetchSongUrl = async (id: number | string, source: string = 'netease', br: string = '320k'): Promise<string | null> => {
-  const directUrl = `https://music.163.com/song/media/outer/url?id=${id}.mp3`;
-
-  // 1. Try Direct URL first
-  const isDirectValid = await checkDirectUrl(id);
-  if (isDirectValid) {
-      return directUrl;
+export const fetchSongUrl = (id: number | string, source: string = 'netease', br: string = '320k'): Promise<string | null> => {
+  const cacheKey = `${id}-${br}`;
+  
+  // Return existing in-flight or cached promise
+  if (urlPromiseCache.has(cacheKey)) {
+    return urlPromiseCache.get(cacheKey)!;
   }
 
-  // 2. Fallback to TuneHub API (Parse)
-  try {
-      // Force platform to 'netease' regardless of what 'source' arg says, as per requirement
-      const data = await getTuneHubData(id, br);
-      if (data && data.url) {
-          return toHttps(data.url);
-      }
-  } catch(e) {
-      console.warn("TuneHub fallback failed", e);
-  }
+  const fetchTask = async (): Promise<string | null> => {
+    const directUrl = `https://music.163.com/song/media/outer/url?id=${id}.mp3`;
 
-  // If both fail, return directUrl anyway as a last resort
-  return directUrl;
+    // 1. Try Direct URL
+    const isDirectValid = await checkDirectUrl(id);
+    if (isDirectValid) {
+        return directUrl;
+    }
+
+    // 2. Fallback to TuneHub Parse (Strictly Netease)
+    const tuneData = await getTuneHubParseData(id, br);
+    if (tuneData && tuneData.url) {
+        return toHttps(tuneData.url);
+    }
+
+    // 3. Fallback to Direct URL anyway (Browser might be able to handle it even if HEAD failed)
+    return directUrl;
+  };
+
+  const promise = fetchTask();
+  urlPromiseCache.set(cacheKey, promise);
+
+  // Clear cache after 5 minutes to allow link refreshing (links expire)
+  promise.finally(() => {
+      setTimeout(() => {
+          urlPromiseCache.delete(cacheKey);
+      }, 5 * 60 * 1000); 
+  });
+
+  return promise;
 };
 
 export const fetchLyrics = async (id: number | string, source: string = 'netease'): Promise<LyricLine[]> => {
+  const cacheKey = String(id);
+  if (lyricCache.has(cacheKey)) {
+      return lyricCache.get(cacheKey)!;
+  }
+
   try {
-    // 1. Try Official API via proxy first (usually correct and fast)
-    const officialUrl = `/netease-api/api/song/lyric?id=${id}&lv=-1&kv=-1&tv=-1`;
-    const response = await fetch(officialUrl);
+    // 1. Try Official API via proxy
+    const response = await fetch(`/netease-api/api/song/lyric?id=${id}&lv=-1&kv=-1&tv=-1`);
     if (response.ok) {
         const data = await response.json();
         if (data.lrc && data.lrc.lyric) {
-            return parseLrc(data.lrc.lyric);
+            const parsed = parseLrc(data.lrc.lyric);
+            lyricCache.set(cacheKey, parsed);
+            return parsed;
         }
     }
   } catch (e) {
-    // console.warn("Official lyric fetch failed", e);
+    // ignore
   }
 
-  // 2. Fallback to TuneHub
-  try {
-    // Use the same quality/key logic if possible to potentially hit cache, 
-    // although lyrics usually don't depend on quality.
-    const data = await getTuneHubData(id); 
-    if (data && data.lyrics) {
-        return parseLrc(data.lyrics);
-    }
-  } catch (error) {
-    console.error(`Failed to fetch lyrics for ${id}:`, error);
+  // 2. Fallback to TuneHub if official fails
+  const tuneData = await getTuneHubParseData(id, '128k'); // Quality irrelevant for lyrics
+  if (tuneData && tuneData.lyrics) {
+      const parsed = parseLrc(tuneData.lyrics);
+      lyricCache.set(cacheKey, parsed);
+      return parsed;
   }
 
   return [];
 };
 
 export const searchSongs = async (keywords: string, page: number = 1, limit: number = 10): Promise<Song[]> => {
-  const pageIndex = page > 0 ? page - 1 : 0;
-  const result = await aggregator.search(keywords, pageIndex, limit);
-  return result.items;
+  try {
+    const offset = (page > 0 ? page - 1 : 0) * limit;
+    const response = await fetch(
+        `/netease-api/api/search/get/web?s=${encodeURIComponent(keywords)}&type=1&offset=${offset}&limit=${limit}`, 
+        { headers: { 'Accept': 'application/json' } }
+    );
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const data = await response.json();
+    const songs = data.result?.songs || [];
+    
+    return songs.map(mapNeteaseItemToSong);
+  } catch (error) {
+    console.error("Search failed:", error);
+    return [];
+  }
 };
 
 // ... Rest of the file (Supabase favorites/history) remains unchanged ...
@@ -425,7 +337,7 @@ export const fetchLikedSongs = async (userId: string): Promise<Song[]> => {
   return data.map(item => ({
     id: item.song_id,
     name: item.name,
-    source: item.source,
+    source: 'netease', // Enforce netease
     ar: [{ id: 0, name: item.artist || 'Unknown' }],
     al: { id: 0, name: item.album || '', picUrl: toHttps(item.cover_url || '') }, 
     dt: (item.duration || 0) * 1000,
@@ -439,7 +351,7 @@ export const likeSong = async (userId: string, song: Song) => {
     .insert({
       user_id: userId,
       song_id: String(song.id),
-      source: song.source || 'netease',
+      source: 'netease', // Enforce netease
       name: song.name,
       artist: song.ar.map(a => a.name).join(', '),
       album: song.al.name,
@@ -476,7 +388,7 @@ export const fetchMusicHistory = async (userId: string): Promise<Song[]> => {
   return data.map(item => ({
     id: item.song_id,
     name: item.name,
-    source: item.source,
+    source: 'netease', // Enforce netease
     ar: [{ id: 0, name: item.artist || 'Unknown' }],
     al: { id: 0, name: item.album || '', picUrl: toHttps(item.cover_url || '') }, 
     dt: (item.duration || 0) * 1000,
@@ -490,7 +402,7 @@ export const addToHistory = async (userId: string, song: Song) => {
     .upsert({
       user_id: userId,
       song_id: String(song.id),
-      source: song.source || 'netease',
+      source: 'netease', // Enforce netease
       name: song.name,
       artist: song.ar.map(a => a.name).join(', '),
       album: song.al.name,
