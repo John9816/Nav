@@ -44,7 +44,7 @@ const parseLrc = (lrcString: string): LyricLine[] => {
 };
 
 // Helper to map standard Netease API item to internal Song type
-const mapNeteaseItemToSong = (item: any): Song => {
+const mapApiItemToSong = (item: any): Song => {
   const id = item.id || item.rid;
   const name = item.name || item.songName || 'Unknown Title';
   
@@ -76,15 +76,15 @@ const mapNeteaseItemToSong = (item: any): Song => {
 // --- Internal Services ---
 
 /**
- * Checks if the direct Netease URL is valid via HEAD request.
+ * Checks if the direct Netease URL is available and valid via HEAD request.
+ * Uses local proxy to avoid CORS.
  */
 const checkDirectUrl = async (id: string | number): Promise<boolean> => {
-  // Use proxy to avoid CORS and Referer issues
   const proxyUrl = `/netease-api/song/media/outer/url?id=${id}.mp3`;
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500); // Fast timeout
+    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
 
     const response = await fetch(proxyUrl, { 
         method: 'HEAD',
@@ -151,6 +151,7 @@ const getTuneHubParseData = async (id: string | number, quality: string) => {
 
 export const fetchTopLists = async (): Promise<Playlist[]> => {
   try {
+    // Use local proxy path for official Netease API
     const response = await fetch('/netease-api/api/toplist', {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
@@ -180,6 +181,7 @@ export const fetchTopLists = async (): Promise<Playlist[]> => {
 
 export const fetchPlaylistDetails = async (id: number | string): Promise<Song[]> => {
   try {
+    // Use local proxy path for official Netease API playlist detail
     const response = await fetch(`/netease-api/api/playlist/detail?id=${id}&n=100000&s=8`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
@@ -197,7 +199,7 @@ export const fetchPlaylistDetails = async (id: number | string): Promise<Song[]>
     }
     
     if (songs.length > 0) {
-        return songs.map(mapNeteaseItemToSong);
+        return songs.map(mapApiItemToSong);
     }
     return [];
   } catch (error) {
@@ -208,6 +210,7 @@ export const fetchPlaylistDetails = async (id: number | string): Promise<Song[]>
 
 export const fetchSongDetail = async (id: number | string): Promise<Song | null> => {
   try {
+    // Use local proxy path for official Netease API song detail
     const response = await fetch(`/netease-api/api/song/detail?ids=[${id}]`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
@@ -216,8 +219,14 @@ export const fetchSongDetail = async (id: number | string): Promise<Song | null>
     if (!response.ok) throw new Error(`Song detail fetch failed: ${response.status}`);
 
     const data = await response.json();
+    
+    let songItem = null;
     if (data && data.songs && data.songs.length > 0) {
-        return mapNeteaseItemToSong(data.songs[0]);
+        songItem = data.songs[0];
+    }
+    
+    if (songItem) {
+        return mapApiItemToSong(songItem);
     }
     return null;
   } catch (error) {
@@ -228,6 +237,9 @@ export const fetchSongDetail = async (id: number | string): Promise<Song | null>
 
 /**
  * Main URL Fetching Logic with Deduplication
+ * 1. Check Direct Netease URL (via HEAD).
+ * 2. If valid, return it.
+ * 3. If invalid, call TuneHub Parse (Strictly Netease).
  */
 export const fetchSongUrl = (id: number | string, source: string = 'netease', br: string = '320k'): Promise<string | null> => {
   const cacheKey = `${id}-${br}`;
@@ -276,7 +288,7 @@ export const fetchLyrics = async (id: number | string, source: string = 'netease
   }
 
   try {
-    // 1. Try Official API via proxy
+    // 1. Try Official API via proxy (usually correct and fast)
     const response = await fetch(`/netease-api/api/song/lyric?id=${id}&lv=-1&kv=-1&tv=-1`);
     if (response.ok) {
         const data = await response.json();
@@ -304,6 +316,7 @@ export const fetchLyrics = async (id: number | string, source: string = 'netease
 export const searchSongs = async (keywords: string, page: number = 1, limit: number = 10): Promise<Song[]> => {
   try {
     const offset = (page > 0 ? page - 1 : 0) * limit;
+    // Use local proxy path instead of direct URL
     const response = await fetch(
         `/netease-api/api/search/get/web?s=${encodeURIComponent(keywords)}&type=1&offset=${offset}&limit=${limit}`, 
         { headers: { 'Accept': 'application/json' } }
@@ -314,7 +327,7 @@ export const searchSongs = async (keywords: string, page: number = 1, limit: num
     const data = await response.json();
     const songs = data.result?.songs || [];
     
-    return songs.map(mapNeteaseItemToSong);
+    return songs.map(mapApiItemToSong);
   } catch (error) {
     console.error("Search failed:", error);
     return [];
