@@ -815,10 +815,21 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange,
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
-                                  {song.name}
-                                  {song.al.picUrl && (
-                                    <img src={song.al.picUrl} className="w-8 h-8 rounded ml-3 inline-block sm:hidden object-cover" alt="" />
-                                  )}
+                                  <div className="flex items-center gap-3">
+                                      {song.al.picUrl ? (
+                                        <img 
+                                            src={song.al.picUrl} 
+                                            className="w-9 h-9 rounded-md object-cover shadow-sm shrink-0 bg-slate-200 dark:bg-slate-700" 
+                                            alt={song.name}
+                                            loading="lazy"
+                                        />
+                                      ) : (
+                                        <div className="w-9 h-9 rounded-md bg-slate-200 dark:bg-slate-700 shrink-0 flex items-center justify-center text-slate-400">
+                                           <Music size={16} />
+                                        </div>
+                                      )}
+                                      <span className="truncate">{song.name}</span>
+                                  </div>
                                 </td>
                                 <td className="px-4 py-3 text-slate-500 dark:text-slate-400 hidden sm:table-cell">{song.ar.map(a => a.name).join(', ')}</td>
                                 <td className="px-4 py-3 text-slate-500 dark:text-slate-400 hidden md:table-cell truncate max-w-[200px]">{song.al.name}</td>
@@ -1148,7 +1159,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange,
                       setProgress(val);
                       if (audioRef.current) audioRef.current.currentTime = val;
                     }}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    className="absolute inset-0 w-full opacity-0 cursor-pointer"
                   />
                 </div>
                 <span>{formatTime(duration)}</span>
