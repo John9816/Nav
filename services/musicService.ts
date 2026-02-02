@@ -14,6 +14,8 @@ const lyricCache = new Map<string, LyricLine[]>();
 const playlistCache = new Map<string, Song[]>();
 // Cache for the main Top List menu
 let topListCache: Playlist[] | null = null;
+// Cache for IP address (so we don't fetch it every time)
+let cachedIp: string | null = null;
 
 // --- Helpers ---
 
@@ -152,6 +154,59 @@ const getTuneHubParseData = async (id: string | number, quality: string) => {
 };
 
 // --- Exported API Methods ---
+
+export const checkGuestLimit = async (): Promise<{ allowed: boolean; count: number }> => {
+  try {
+    // 1. Get Client IP (with caching)
+    if (!cachedIp) {
+        const ipRes = await fetch('https://api.ipify.org?format=json');
+        if (ipRes.ok) {
+            const ipData = await ipRes.json();
+            cachedIp = ipData.ip;
+        } else {
+            // Fallback if IP service is down: fail open to avoid breaking functionality
+            return { allowed: true, count: 0 }; 
+        }
+    }
+
+    if (!cachedIp) return { allowed: true, count: 0 }; // Should not happen
+
+    // 2. Query Supabase for this IP
+    const { data: currentData, error: fetchError } = await supabase
+        .from('guest_limits')
+        .select('play_count')
+        .eq('ip_address', cachedIp)
+        .single();
+
+    // If row doesn't exist, count is 0
+    const currentCount = currentData?.play_count || 0;
+
+    // 3. Check Limit
+    if (currentCount >= 5) {
+        return { allowed: false, count: currentCount };
+    }
+
+    // 4. Increment Count (Upsert)
+    const nextCount = currentCount + 1;
+    const { error: upsertError } = await supabase
+        .from('guest_limits')
+        .upsert({ 
+            ip_address: cachedIp, 
+            play_count: nextCount,
+            updated_at: new Date().toISOString()
+        });
+
+    if (upsertError) {
+        console.error("Failed to update guest limit", upsertError);
+    }
+
+    return { allowed: true, count: nextCount };
+
+  } catch (error) {
+    console.error("Guest limit check failed:", error);
+    return { allowed: true, count: 0 }; // Fail open
+  }
+};
 
 export const fetchTopLists = async (): Promise<Playlist[]> => {
   // Return cached result if available

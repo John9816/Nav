@@ -4,13 +4,14 @@ import {
   Search, Disc, Clock, Music, Headphones, ListMusic, RefreshCw, 
   ChevronDown, X, Repeat, Repeat1, Shuffle, Trash2, Download,
   ArrowLeft, Maximize2, Minimize, Heart, HeartOff, ChevronLeft, ChevronRight,
-  History, Maximize, ImageOff
+  History, Maximize, ImageOff, Loader2
 } from 'lucide-react';
 import { Playlist, Song, LyricLine } from '../types';
 import { 
   fetchTopLists, fetchPlaylistDetails, fetchSongUrl, searchSongs, 
   fetchLyrics, fetchLikedSongs, likeSong, unlikeSong,
-  fetchMusicHistory, addToHistory, clearMusicHistory, fetchSongDetail
+  fetchMusicHistory, addToHistory, clearMusicHistory, fetchSongDetail,
+  checkGuestLimit
 } from '../services/musicService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -50,6 +51,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange,
   
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingLimit, setCheckingLimit] = useState(false);
 
   // Player State
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
@@ -341,21 +343,30 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange,
       return;
     }
 
-    // --- Guest Limit Check ---
+    // --- Guest Limit Check (Server Side) ---
     if (!user) {
-        const storedCount = localStorage.getItem('guest_play_count');
-        const currentCount = storedCount ? parseInt(storedCount, 10) : 0;
+        setCheckingLimit(true);
+        // Show immediate feedback via toast while checking
+        setToastMessage("正在验证试听权限...");
+        
+        try {
+            const { allowed, count } = await checkGuestLimit();
+            setCheckingLimit(false);
 
-        if (currentCount >= GUEST_PLAY_LIMIT) {
-           if (confirm(`试听次数已用完（${GUEST_PLAY_LIMIT}首）。\n\n登录账号即可解锁无限畅听、云端歌单同步等更多功能。\n\n是否立即登录？`)) {
-               if (onAuthRequest) onAuthRequest();
-           }
-           return;
+            if (!allowed) {
+               setToastMessage(null); // Clear loading toast
+               if (confirm(`试听次数已用完（${GUEST_PLAY_LIMIT}首）。\n\n您的 IP 访问已达今日上限。\n登录账号即可解锁无限畅听。\n\n是否立即登录？`)) {
+                   if (onAuthRequest) onAuthRequest();
+               }
+               return;
+            }
+
+            setToastMessage(`试听模式：${count} / ${GUEST_PLAY_LIMIT} 首`);
+        } catch (e) {
+            console.error("Guest check failed", e);
+            setCheckingLimit(false);
+            // Fallback: allow play if server check errors
         }
-
-        const nextCount = currentCount + 1;
-        localStorage.setItem('guest_play_count', String(nextCount));
-        setToastMessage(`试听模式：${nextCount} / ${GUEST_PLAY_LIMIT} 首`);
     }
 
     setIsPlaying(false); 
@@ -581,8 +592,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange,
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-black/80 text-white px-6 py-2.5 rounded-full text-sm font-medium backdrop-blur-md shadow-xl animate-in fade-in zoom-in-95 duration-200 border border-white/10 pointer-events-none">
-          {toastMessage}
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-black/80 text-white px-6 py-2.5 rounded-full text-sm font-medium backdrop-blur-md shadow-xl animate-in fade-in zoom-in-95 duration-200 border border-white/10 pointer-events-none flex items-center gap-2">
+          {checkingLimit && <Loader2 size={14} className="animate-spin" />}
+          <span>{toastMessage}</span>
         </div>
       )}
 
@@ -1189,7 +1201,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange,
                   ></div>
                   <input 
                     type="range" 
-                    min={0} 
+                    min="0" 
                     max={duration || 100} 
                     value={progress} 
                     onChange={(e) => {
