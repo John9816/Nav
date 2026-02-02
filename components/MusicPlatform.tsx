@@ -19,6 +19,7 @@ interface MusicPlatformProps {
   onViewChange: (view: 'dashboard' | 'studio' | 'music' | 'bookmarks') => void;
   requestedTab?: 'favorites' | 'history' | null;
   onTabChangeHandled?: () => void;
+  onAuthRequest?: () => void;
 }
 
 type PlayMode = 'loop' | 'single' | 'shuffle';
@@ -30,7 +31,9 @@ const QUALITY_OPTIONS = [
   { label: 'Hi-Res', value: 'flac24bit', desc: 'Hi-Res' },
 ];
 
-const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange, requestedTab, onTabChangeHandled }) => {
+const GUEST_PLAY_LIMIT = 5;
+
+const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange, requestedTab, onTabChangeHandled, onAuthRequest }) => {
   const { user } = useAuth();
   const isFullView = activeView === 'music';
 
@@ -75,6 +78,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange,
   const lyricScrollRef = useRef<HTMLDivElement>(null);
   const queueRef = useRef<HTMLDivElement>(null);
 
+  // Toast State
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   // Load Top Lists on Mount
   const loadTopLists = async () => {
     setLoading(true);
@@ -86,6 +92,14 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange,
   useEffect(() => {
     loadTopLists();
   }, []);
+
+  // Handle Toast Timeout
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   // Handle external tab requests (e.g. from User Menu)
   useEffect(() => {
@@ -327,6 +341,23 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange,
       return;
     }
 
+    // --- Guest Limit Check ---
+    if (!user) {
+        const storedCount = localStorage.getItem('guest_play_count');
+        const currentCount = storedCount ? parseInt(storedCount, 10) : 0;
+
+        if (currentCount >= GUEST_PLAY_LIMIT) {
+           if (confirm(`试听次数已用完（${GUEST_PLAY_LIMIT}首）。\n\n登录账号即可解锁无限畅听、云端歌单同步等更多功能。\n\n是否立即登录？`)) {
+               if (onAuthRequest) onAuthRequest();
+           }
+           return;
+        }
+
+        const nextCount = currentCount + 1;
+        localStorage.setItem('guest_play_count', String(nextCount));
+        setToastMessage(`试听模式：${nextCount} / ${GUEST_PLAY_LIMIT} 首`);
+    }
+
     setIsPlaying(false); 
     setErrorCount(0);
     setProgress(0);
@@ -547,6 +578,13 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange,
         onError={handleAudioError}
         onLoadedMetadata={handleLoadedMetadata}
       />
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-black/80 text-white px-6 py-2.5 rounded-full text-sm font-medium backdrop-blur-md shadow-xl animate-in fade-in zoom-in-95 duration-200 border border-white/10 pointer-events-none">
+          {toastMessage}
+        </div>
+      )}
 
       {/* Main Music View (Lists etc) - Top 16 constrained */}
       <div 

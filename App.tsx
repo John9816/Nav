@@ -623,6 +623,7 @@ function App() {
            onViewChange={(v) => setView(v)}
            requestedTab={musicTabRequest}
            onTabChangeHandled={handleMusicTabReset}
+           onAuthRequest={() => setIsAuthModalOpen(true)}
         />
 
       </div>
