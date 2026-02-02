@@ -10,6 +10,10 @@ const TUNEHUB_API_KEY = 'th_3063e4ad2ef8075774abd413a417ce31914b60d8776c5549';
 const urlPromiseCache = new Map<string, Promise<string | null>>();
 // Cache for lyrics
 const lyricCache = new Map<string, LyricLine[]>();
+// Cache for Playlist Details (The list of songs in a playlist)
+const playlistCache = new Map<string, Song[]>();
+// Cache for the main Top List menu
+let topListCache: Playlist[] | null = null;
 
 // --- Helpers ---
 
@@ -150,6 +154,11 @@ const getTuneHubParseData = async (id: string | number, quality: string) => {
 // --- Exported API Methods ---
 
 export const fetchTopLists = async (): Promise<Playlist[]> => {
+  // Return cached result if available
+  if (topListCache && topListCache.length > 0) {
+      return topListCache;
+  }
+
   try {
     // Use local proxy path for official Netease API
     const response = await fetch('/netease-api/api/toplist', {
@@ -163,7 +172,7 @@ export const fetchTopLists = async (): Promise<Playlist[]> => {
     const list = data.list || [];
     
     if (list.length > 0) {
-        return list.slice(0, 10).map((item: any) => ({
+        const mappedList = list.slice(0, 10).map((item: any) => ({
             id: item.id,
             name: item.name,
             coverImgUrl: toHttps(item.coverImgUrl || item.picUrl || item.cover || item.coverUrl),
@@ -171,6 +180,8 @@ export const fetchTopLists = async (): Promise<Playlist[]> => {
             trackCount: item.trackCount || 0,
             playCount: item.playCount || 0
         }));
+        topListCache = mappedList;
+        return mappedList;
     }
     return [];
   } catch (e) {
@@ -180,6 +191,13 @@ export const fetchTopLists = async (): Promise<Playlist[]> => {
 };
 
 export const fetchPlaylistDetails = async (id: number | string): Promise<Song[]> => {
+  const cacheKey = String(id);
+  
+  // 1. Check Cache
+  if (playlistCache.has(cacheKey)) {
+      return playlistCache.get(cacheKey)!;
+  }
+
   try {
     // Use local proxy path for official Netease API playlist detail
     const response = await fetch(`/netease-api/api/playlist/detail?id=${id}&n=100000&s=8`, {
@@ -199,7 +217,10 @@ export const fetchPlaylistDetails = async (id: number | string): Promise<Song[]>
     }
     
     if (songs.length > 0) {
-        return songs.map(mapApiItemToSong);
+        const mappedSongs = songs.map(mapApiItemToSong);
+        // 2. Set Cache
+        playlistCache.set(cacheKey, mappedSongs);
+        return mappedSongs;
     }
     return [];
   } catch (error) {
