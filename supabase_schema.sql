@@ -162,11 +162,12 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- 11. 游客 IP 限制表 (Guest Limits) - 新增
+-- 用于记录未登录用户的试听总数（基于IP）
 create table public.guest_limits (
   ip_address text primary key,
   play_count integer default 0,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 alter table public.guest_limits enable row level security;
--- 允许所有用户（包括未登录用户）读写此表，因为是用于限制未登录用户
+-- 允许所有用户（包括未登录用户/匿名用户）读写此表
 create policy "Enable all access for guest limits" on public.guest_limits for all using (true);

@@ -355,7 +355,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange,
 
             if (!allowed) {
                setToastMessage(null); // Clear loading toast
-               if (confirm(`试听次数已用完（${GUEST_PLAY_LIMIT}首）。\n\n您的 IP 访问已达今日上限。\n登录账号即可解锁无限畅听。\n\n是否立即登录？`)) {
+               if (confirm(`试听次数已用完（总共${GUEST_PLAY_LIMIT}首）。\n\n您的 IP 试听额度已达上限。\n登录账号即可解锁无限畅听。\n\n是否立即登录？`)) {
                    if (onAuthRequest) onAuthRequest();
                }
                return;

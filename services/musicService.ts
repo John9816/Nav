@@ -159,17 +159,19 @@ export const checkGuestLimit = async (): Promise<{ allowed: boolean; count: numb
   try {
     // 1. Get Client IP (with caching)
     if (!cachedIp) {
-        const ipRes = await fetch('https://api.ipify.org?format=json');
-        if (ipRes.ok) {
-            const ipData = await ipRes.json();
-            cachedIp = ipData.ip;
-        } else {
-            // Fallback if IP service is down: fail open to avoid breaking functionality
+        try {
+            const ipRes = await fetch('https://api.ipify.org?format=json');
+            if (ipRes.ok) {
+                const ipData = await ipRes.json();
+                cachedIp = ipData.ip;
+            }
+        } catch (e) {
+            // Fallback if IP service is down: fail open to avoid breaking functionality for legitimate users
             return { allowed: true, count: 0 }; 
         }
     }
 
-    if (!cachedIp) return { allowed: true, count: 0 }; // Should not happen
+    if (!cachedIp) return { allowed: true, count: 0 }; // Should not happen ideally
 
     // 2. Query Supabase for this IP
     const { data: currentData, error: fetchError } = await supabase
