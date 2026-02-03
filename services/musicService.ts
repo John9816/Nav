@@ -133,7 +133,7 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
         });
 
         // Filter valid ones and limit
-        return lists.filter(l => l.id).slice(0, 15);
+        return lists.filter(l => l.id).slice(0, 20);
     } catch (e) {
         console.warn("Fetch QQ toplists failed", e);
         return [];
@@ -396,7 +396,7 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
                         method: "GetDetail",
                         param: {
                             topid: Number(id),
-                            num: 100,
+                            num: 300,
                             period: ""
                         }
                     }

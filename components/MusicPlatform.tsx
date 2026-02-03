@@ -322,6 +322,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     setLoading(false);
   };
 
+  const neteasePlaylists = playlists.filter(p => p.source === 'netease' || !p.source);
+  const qqPlaylists = playlists.filter(p => p.source === 'qq');
+
   return (
     <div className={`fixed inset-0 z-40 bg-white dark:bg-slate-900 flex flex-col transition-transform duration-300 ${activeView === 'music' ? 'translate-y-0' : 'translate-y-[100%]'}`}>
        {/* Background */}
@@ -382,21 +385,66 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                    </button>
                </div>
                
-               <div className="mt-4 px-4 text-xs font-bold text-slate-400 uppercase">官方榜单</div>
-               <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
-                   {playlists.length > 0 ? playlists.map(pl => (
-                       <button 
-                         key={pl.id}
-                         onClick={() => openPlaylist(pl)}
-                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left truncate group ${selectedPlaylist?.id === pl.id && view === 'playlist' ? 'text-red-500' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                       >
-                           <div className="w-8 h-8 rounded overflow-hidden shrink-0 bg-slate-200">
-                              <img src={pl.coverImgUrl} className="w-full h-full object-cover" loading="lazy" />
+               <div className="mt-2 px-4 text-xs font-bold text-slate-400 uppercase">官方榜单</div>
+               <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+                   {/* QQ Music */}
+                   {qqPlaylists.length > 0 && (
+                       <div className="mb-6">
+                           <div className="px-2 mb-2 text-xs font-bold text-slate-400 uppercase flex items-center gap-2">
+                               <span className="w-1 h-3 bg-green-500 rounded-full"></span>
+                               QQ音乐榜单
                            </div>
-                           <span className="truncate flex-1">{pl.name}</span>
-                       </button>
-                   )) : (
-                       <div className="text-center py-4 text-xs text-slate-400">加载榜单中...</div>
+                           <div className="space-y-0.5">
+                               {qqPlaylists.map(pl => (
+                                  <button 
+                                    key={pl.id}
+                                    onClick={() => openPlaylist(pl)}
+                                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left truncate group transition-all
+                                       ${selectedPlaylist?.id === pl.id && view === 'playlist' 
+                                           ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400 font-medium' 
+                                           : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                       }`}
+                                  >
+                                      <div className="w-8 h-8 rounded overflow-hidden shrink-0 bg-slate-200">
+                                         <img src={pl.coverImgUrl} className="w-full h-full object-cover" loading="lazy" />
+                                      </div>
+                                      <span className="truncate flex-1">{pl.name}</span>
+                                  </button>
+                               ))}
+                           </div>
+                       </div>
+                   )}
+
+                   {/* Netease Music */}
+                   {neteasePlaylists.length > 0 && (
+                       <div className="mb-6">
+                           <div className="px-2 mb-2 text-xs font-bold text-slate-400 uppercase flex items-center gap-2">
+                               <span className="w-1 h-3 bg-red-500 rounded-full"></span>
+                               网易云音乐榜单
+                           </div>
+                           <div className="space-y-0.5">
+                               {neteasePlaylists.map(pl => (
+                                  <button 
+                                    key={pl.id}
+                                    onClick={() => openPlaylist(pl)}
+                                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left truncate group transition-all
+                                       ${selectedPlaylist?.id === pl.id && view === 'playlist' 
+                                           ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 font-medium' 
+                                           : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                       }`}
+                                  >
+                                      <div className="w-8 h-8 rounded overflow-hidden shrink-0 bg-slate-200">
+                                         <img src={pl.coverImgUrl} className="w-full h-full object-cover" loading="lazy" />
+                                      </div>
+                                      <span className="truncate flex-1">{pl.name}</span>
+                                  </button>
+                               ))}
+                           </div>
+                       </div>
+                   )}
+                   
+                   {playlists.length === 0 && (
+                        <div className="text-center py-4 text-xs text-slate-400">加载榜单中...</div>
                    )}
                </div>
            </div>
@@ -463,6 +511,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                   <List className="text-red-500" size={20} /> 热门榜单
                                </h2>
                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                  {/* Render all playlists in grid regardless of source */}
                                   {playlists.map(list => (
                                       <div 
                                         key={list.id} 
