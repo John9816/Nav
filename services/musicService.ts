@@ -48,7 +48,7 @@ const mapApiItemToSong = (item: any): Song => {
 };
 
 /**
- * Fetch Top Lists (Charts)
+ * Fetch Top Lists (Charts) from Proxy
  */
 export const fetchTopLists = async (): Promise<Playlist[]> => {
   if (topListCache && topListCache.length > 0) return topListCache;
@@ -78,7 +78,7 @@ export const fetchTopLists = async (): Promise<Playlist[]> => {
 };
 
 /**
- * Search Songs
+ * Search Songs via Proxy
  */
 export const searchSongs = async (keywords: string, page: number = 1, limit: number = 20): Promise<Song[]> => {
   try {
@@ -98,7 +98,7 @@ export const searchSongs = async (keywords: string, page: number = 1, limit: num
 };
 
 /**
- * Batch resolve URLs for a list of songs with Quality Fallback.
+ * Batch resolve URLs with Quality Fallback.
  */
 export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'): Promise<Song[]> => {
   if (songs.length === 0) return [];
@@ -270,7 +270,12 @@ const parseLyrics = (lrc: string): LyricLine[] => {
     return result;
 };
 
+/**
+ * Fetch Playlist Details with Fallback
+ * Tries Meting first, then Netease Proxy if source is netease
+ */
 export const fetchPlaylistDetails = async (id: string | number, source: string = 'netease'): Promise<Song[]> => {
+    // 1. Try Meting API
     try {
         const response = await fetch(TUNEHUB_API_URL, {
             method: 'POST',
@@ -280,18 +285,44 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
         const data = await response.json();
         const list = Array.isArray(data) ? data : (data.data || []);
         
-        return list.map((item: any) => ({
-             id: item.id,
-             name: item.name,
-             ar: item.artist ? item.artist.map((a: string) => ({ id: 0, name: a })) : [],
-             al: { id: 0, name: item.album || '', picUrl: toHttps(item.pic) },
-             dt: 0,
-             source: item.source || source,
-             url: toHttps(item.url)
-        }));
+        if (list.length > 0) {
+            return list.map((item: any) => ({
+                 id: item.id,
+                 name: item.name,
+                 ar: item.artist ? item.artist.map((a: string) => ({ id: 0, name: a })) : [],
+                 al: { id: 0, name: item.album || '', picUrl: toHttps(item.pic) },
+                 dt: 0,
+                 source: item.source || source,
+                 url: toHttps(item.url)
+            }));
+        }
     } catch (e) {
-        console.error("Fetch playlist failed", e);
+        console.warn("Meting playlist fetch failed, trying fallback...", e);
     }
+
+    // 2. Fallback to Netease Proxy (only for Netease)
+    if (source === 'netease') {
+        try {
+            // Fetch playlist detail which usually includes tracks for charts
+            const response = await fetch(`/netease-api/api/playlist/detail?id=${id}`);
+            const data = await response.json();
+            
+            if (data.code === 200 && data.result && data.result.tracks) {
+                return data.result.tracks.map((item: any) => ({
+                    id: item.id,
+                    name: item.name,
+                    ar: item.artists ? item.artists.map((a: any) => ({ id: a.id, name: a.name })) : [],
+                    al: { id: item.album?.id || 0, name: item.album?.name || '', picUrl: toHttps(item.album?.picUrl) },
+                    dt: item.duration,
+                    source: 'netease',
+                    url: undefined
+                }));
+            }
+        } catch (e) {
+            console.error("Proxy playlist fetch failed", e);
+        }
+    }
+    
     return [];
 };
 
