@@ -105,6 +105,7 @@ const fetchNeteaseTopLists = async (): Promise<Playlist[]> => {
  */
 const fetchQQTopLists = async (): Promise<Playlist[]> => {
     try {
+        console.log("Fetching QQ Top Lists via Proxy...");
         const response = await fetch('/qq-api/cgi-bin/musicu.fcg', {
             method: 'POST',
             headers: {
@@ -123,20 +124,24 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
             })
         });
         
-        if (!response.ok) throw new Error("QQ API Network Error");
+        if (!response.ok) throw new Error(`QQ API Network Error: ${response.status}`);
 
         const data = await response.json();
+        
+        // Debug Log
+        // console.log("QQ TopList Raw Data:", data);
+
         const groups = data.toplist?.data?.group || [];
         let lists: Playlist[] = [];
 
         groups.forEach((group: any) => {
-            // Updated parsing logic based on actual JSON: use 'toplist' instead of 'list'
+            // According to provided JSON, the key is 'toplist', but we keep fallback to 'list' just in case
             const charts = group.toplist || group.list || [];
             if (Array.isArray(charts)) {
                 const mapped = charts.map((item: any) => ({
                     id: item.topId, 
                     name: item.title || item.label || item.groupName,
-                    // Use headPicUrl as primary, fallback to frontPicUrl
+                    // Prioritize headPicUrl as seen in JSON
                     coverImgUrl: toHttps(item.headPicUrl || item.frontPicUrl || item.pic),
                     description: item.intro || '',
                     trackCount: item.totalNum || 0, 
@@ -148,7 +153,9 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
         });
 
         // Filter valid ones and limit
-        return lists.filter(l => l.id).slice(0, 20);
+        const result = lists.filter(l => l.id).slice(0, 20);
+        console.log(`Parsed ${result.length} QQ charts.`);
+        return result;
     } catch (e) {
         console.warn("Fetch QQ toplists failed", e);
         return [];
@@ -413,6 +420,7 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
                 })
             });
             const data = await response.json();
+            // Typically songInfoList is at data.toplist.data.songInfoList
             const songList = data.toplist?.data?.songInfoList || [];
             console.log(`QQ Playlist fetched: ${songList.length} songs`);
             return songList.map(mapQQItemToSong);
@@ -462,7 +470,7 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
                     ar: item.artists ? item.artists.map((a: any) => ({ id: a.id, name: a.name })) : [],
                     al: { id: item.album?.id || 0, name: item.album?.name || '', picUrl: toHttps(item.album?.picUrl) },
                     dt: item.duration,
-                    source: 'netease',
+                    source: 'netease' as const,
                     url: undefined
                 }));
             }

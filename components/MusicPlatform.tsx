@@ -444,8 +444,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                    <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-8 gap-4">
                                         <div className="flex items-center gap-4">
                                             {view === 'playlist' && selectedPlaylist ? (
-                                                <div className="w-32 h-32 rounded-2xl shadow-lg overflow-hidden shrink-0">
-                                                    <img src={selectedPlaylist.coverImgUrl} className="w-full h-full object-cover" />
+                                                <div className="w-32 h-32 rounded-2xl shadow-lg overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-800">
+                                                    <img src={selectedPlaylist.coverImgUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                                 </div>
                                             ) : (
                                                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg shrink-0
@@ -557,7 +557,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                             className="group cursor-pointer flex flex-col gap-3"
                                           >
                                               <div className="aspect-square rounded-2xl overflow-hidden relative shadow-sm bg-slate-200 dark:bg-slate-800 group-hover:shadow-xl group-hover:shadow-red-500/10 transition-all duration-300">
-                                                  <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                                                  <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" referrerPolicy="no-referrer" />
                                                   
                                                   {/* Overlay Play Button */}
                                                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
@@ -628,7 +628,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                {currentSong ? (
                    <>
                        <div className={`relative w-14 h-14 rounded-lg shadow-md overflow-hidden shrink-0 ${isPlaying ? 'animate-spin-slow' : ''}`} style={{ animationDuration: '10s' }}>
-                           <img src={currentSong.al.picUrl} alt="Cover" className="w-full h-full object-cover" />
+                           <img src={currentSong.al.picUrl} alt="Cover" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                            <div className="absolute inset-0 bg-black/10 ring-1 ring-inset ring-white/10"></div>
                        </div>
                        <div className="min-w-0 flex flex-col justify-center">
@@ -662,7 +662,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                    
                    <button 
                      onClick={() => isPlaying ? audioRef.current?.pause() : audioRef.current?.play()} 
-                     className="w-12 h-12 flex items-center justify-center bg-red-600 text-white rounded-full hover:bg-red-500 shadow-lg shadow-red-500/40 transition-all hover:scale-105 active:scale-95"
+                     className="w-12 h-12 flex items-center justify-center bg-red-600 text-white rounded-full hover:bg-red-50 shadow-lg shadow-red-500/40 transition-all hover:scale-105 active:scale-95"
                    >
                        {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
                    </button>
