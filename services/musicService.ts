@@ -90,7 +90,7 @@ const fetchNeteaseTopLists = async (): Promise<Playlist[]> => {
             description: item.description || '',
             trackCount: item.trackCount || 0,
             playCount: item.playCount || 0,
-            source: 'netease'
+            source: 'netease' as const
         }));
     }
     return [];
@@ -130,20 +130,24 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
         let lists: Playlist[] = [];
 
         groups.forEach((group: any) => {
-            if (group.list && Array.isArray(group.list)) {
-                const mapped = group.list.map((item: any) => ({
-                    id: item.topId, // Use topId for details fetching
-                    name: item.label || item.title || item.groupName,
-                    coverImgUrl: toHttps(item.pic || item.frontPicUrl || item.headPicUrl),
+            // Updated parsing logic based on actual JSON: use 'toplist' instead of 'list'
+            const charts = group.toplist || group.list || [];
+            if (Array.isArray(charts)) {
+                const mapped = charts.map((item: any) => ({
+                    id: item.topId, 
+                    name: item.title || item.label || item.groupName,
+                    // Use headPicUrl as primary, fallback to frontPicUrl
+                    coverImgUrl: toHttps(item.headPicUrl || item.frontPicUrl || item.pic),
                     description: item.intro || '',
-                    trackCount: 0, 
-                    playCount: item.listenNum || item.listennum || 0,
-                    source: 'qq'
+                    trackCount: item.totalNum || 0, 
+                    playCount: item.listenNum || 0,
+                    source: 'qq' as const
                 }));
                 lists = lists.concat(mapped);
             }
         });
 
+        // Filter valid ones and limit
         return lists.filter(l => l.id).slice(0, 20);
     } catch (e) {
         console.warn("Fetch QQ toplists failed", e);
@@ -155,7 +159,6 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
  * Fetch Combined Top Lists
  */
 export const fetchTopLists = async (): Promise<Playlist[]> => {
-  // Removed cache to ensure source property is always populated correctly
   console.log("Fetching Top Lists...");
   const [neteaseLists, qqLists] = await Promise.all([
       fetchNeteaseTopLists(),
