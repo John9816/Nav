@@ -8,7 +8,7 @@ import {
 } from '../services/musicService';
 import { 
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
-  List, Maximize2, Minimize2, Download, Search, Loader2,
+  List, Download, Search, Loader2,
   Music, Disc, Radio, ArrowLeft, Clock, Mic2, LayoutGrid, Heart
 } from 'lucide-react';
 
@@ -324,45 +324,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const qqPlaylists = playlists.filter(p => p.source === 'qq');
 
   return (
-    <div className={`fixed inset-0 z-40 bg-slate-50 dark:bg-slate-900 flex flex-col transition-transform duration-300 ${activeView === 'music' ? 'translate-y-0' : 'translate-y-[100%]'}`}>
+    <div className={`fixed inset-0 z-40 bg-slate-50 dark:bg-slate-900 flex flex-col transition-transform duration-300 pt-16 ${activeView === 'music' ? 'translate-y-0' : 'translate-y-[100%]'}`}>
        
-       {/* Top Navigation Bar */}
-       <div className="shrink-0 h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-6 z-20">
-           <div className="flex items-center gap-4 shrink-0">
-               {view !== 'home' && (
-                 <button onClick={() => setView('home')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors">
-                    <ArrowLeft size={20} className="text-slate-600 dark:text-slate-300" />
-                 </button>
-               )}
-               <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-br from-red-500 to-pink-500 text-white rounded-xl shadow-md shadow-red-500/20">
-                      <Music size={20} fill="currentColor" />
-                  </div>
-                  <div>
-                    <h1 className="font-bold text-lg text-slate-800 dark:text-slate-100 leading-tight">音乐中心</h1>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">MUSIC STATION</p>
-                  </div>
-               </div>
-           </div>
-
-           <form onSubmit={handleSearch} className="flex-1 max-w-lg mx-4 relative group">
-               <input 
-                 type="text" 
-                 value={searchQuery}
-                 onChange={(e) => setSearchQuery(e.target.value)}
-                 placeholder="搜索歌曲、歌手、专辑..."
-                 className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border-none text-sm focus:ring-2 focus:ring-red-500/30 transition-all text-slate-800 dark:text-slate-100 placeholder-slate-400"
-               />
-               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-500 transition-colors" />
-           </form>
-
-           <div className="flex items-center gap-2">
-               <button onClick={() => onViewChange('dashboard')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400 transition-colors" title="最小化">
-                   <Minimize2 size={20} />
-               </button>
-           </div>
-       </div>
-
        {/* Main Content Area */}
        <div className="flex-1 flex overflow-hidden">
            
@@ -457,6 +420,27 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
            {/* Content View */}
            <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 relative">
                
+               {/* NEW: Internal Toolbar for Search and Navigation */}
+               <div className="sticky top-0 z-20 px-6 py-4 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-slate-100 dark:border-slate-800/50 flex items-center gap-4">
+                    {view !== 'home' && (
+                        <button onClick={() => setView('home')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
+                           <ArrowLeft size={20} className="text-slate-600 dark:text-slate-300" />
+                        </button>
+                    )}
+                    
+                    {/* Search Input */}
+                    <form onSubmit={handleSearch} className="flex-1 relative group max-w-xl">
+                      <input 
+                        type="text" 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="搜索歌曲、歌手、专辑..."
+                        className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-red-500/30 transition-all text-slate-800 dark:text-slate-100 placeholder-slate-400 shadow-sm"
+                      />
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-500 transition-colors" />
+                    </form>
+               </div>
+
                {/* Ambient Background Blur */}
                {currentSong && (
                    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
