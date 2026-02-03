@@ -48,19 +48,34 @@ const mapApiItemToSong = (item: any): Song => {
 const mapQQItemToSong = (item: any): Song => {
     // QQ often uses 'mid' (media id) for playback and 'id' for metadata. 
     // TuneHub generally prefers 'mid' for QQ if available.
-    const id = item.mid || item.file?.media_mid || item.id; 
+    const id = item.mid || item.file?.media_mid || item.id || item.songId; 
     const name = item.name || item.title || item.songname || 'Unknown Title';
     
     // Artist
-    const singers = item.singer || item.singers || [];
-    const artists = Array.isArray(singers)
-        ? singers.map((s: any) => ({ id: s.mid || 0, name: s.name || 'Unknown' }))
-        : [{ id: 0, name: 'Unknown Artist' }];
+    let artists = [{ id: 0, name: 'Unknown Artist' }];
+    if (Array.isArray(item.singer)) {
+        artists = item.singer.map((s: any) => ({ id: s.mid || 0, name: s.name || 'Unknown' }));
+    } else if (Array.isArray(item.singers)) {
+        artists = item.singers.map((s: any) => ({ id: s.mid || 0, name: s.name || 'Unknown' }));
+    } else if (typeof item.singerName === 'string') {
+        artists = item.singerName.split('/').map((n: string) => ({ id: 0, name: n.trim() }));
+    } else if (typeof item.singer === 'string') {
+        artists = [{ id: 0, name: item.singer }];
+    }
 
     // Album
-    const albumMid = item.album?.mid || item.albummid;
-    const albumName = item.album?.name || item.albumname || 'Unknown Album';
-    const picUrl = albumMid ? `https://y.gtimg.cn/music/photo_new/T002R300x300M000${albumMid}.jpg` : '';
+    // Handle various casing and nesting for album MID found in different QQ APIs
+    const albumMid = item.album?.mid || item.albummid || item.albumMid;
+    const albumName = item.album?.name || item.albumname || item.albumName || 'Unknown Album';
+    
+    // Cover
+    // 1. Try direct cover property (common in some endpoints)
+    // 2. Try constructing from album mid
+    let picUrl = item.cover || item.albumpic || item.album?.cover || item.album?.pic;
+    
+    if (!picUrl && albumMid) {
+        picUrl = `https://y.gtimg.cn/music/photo_new/T002R300x300M000${albumMid}.jpg`;
+    }
 
     return {
         id: id,
@@ -128,20 +143,15 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
 
         const data = await response.json();
         
-        // Debug Log
-        // console.log("QQ TopList Raw Data:", data);
-
         const groups = data.toplist?.data?.group || [];
         let lists: Playlist[] = [];
 
         groups.forEach((group: any) => {
-            // According to provided JSON, the key is 'toplist', but we keep fallback to 'list' just in case
             const charts = group.toplist || group.list || [];
             if (Array.isArray(charts)) {
                 const mapped = charts.map((item: any) => ({
                     id: item.topId, 
                     name: item.title || item.label || item.groupName,
-                    // Prioritize headPicUrl as seen in JSON
                     coverImgUrl: toHttps(item.headPicUrl || item.frontPicUrl || item.pic),
                     description: item.intro || '',
                     trackCount: item.totalNum || 0, 
