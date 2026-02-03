@@ -8,8 +8,6 @@ const TUNEHUB_API_KEY = 'sayqz-tunehub-public';
 // Quality Priority Chain
 const QUALITY_LEVELS = ['flac24bit', 'flac', '320k', '128k'];
 
-// Cache
-let topListCache: Playlist[] | null = null;
 export const urlPromiseCache = new Map<string, Promise<string>>();
 
 // Helper to enforce HTTPS
@@ -48,8 +46,10 @@ const mapApiItemToSong = (item: any): Song => {
 };
 
 const mapQQItemToSong = (item: any): Song => {
-    const id = item.mid || item.songmid; // Use MID for QQ as it's more stable for API calls
-    const name = item.name || item.songname || 'Unknown Title';
+    // QQ often uses 'mid' (media id) for playback and 'id' for metadata. 
+    // TuneHub generally prefers 'mid' for QQ if available.
+    const id = item.mid || item.file?.media_mid || item.id; 
+    const name = item.name || item.title || item.songname || 'Unknown Title';
     
     // Artist
     const singers = item.singer || item.singers || [];
@@ -58,7 +58,6 @@ const mapQQItemToSong = (item: any): Song => {
         : [{ id: 0, name: 'Unknown Artist' }];
 
     // Album
-    // QQ Album art construction
     const albumMid = item.album?.mid || item.albummid;
     const albumName = item.album?.name || item.albumname || 'Unknown Album';
     const picUrl = albumMid ? `https://y.gtimg.cn/music/photo_new/T002R300x300M000${albumMid}.jpg` : '';
@@ -123,6 +122,9 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
                 toplist: { module: "musicToplist.ToplistInfoServer", method: "GetAll", param: {} }
             })
         });
+        
+        if (!response.ok) throw new Error("QQ API Network Error");
+
         const data = await response.json();
         const groups = data.toplist?.data?.group || [];
         let lists: Playlist[] = [];
@@ -131,18 +133,17 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
             if (group.list && Array.isArray(group.list)) {
                 const mapped = group.list.map((item: any) => ({
                     id: item.topId, // Use topId for details fetching
-                    name: item.label || item.title,
-                    coverImgUrl: toHttps(item.pic || item.frontPicUrl),
+                    name: item.label || item.title || item.groupName,
+                    coverImgUrl: toHttps(item.pic || item.frontPicUrl || item.headPicUrl),
                     description: item.intro || '',
-                    trackCount: 0, // QQ list doesn't return track count here easily
-                    playCount: item.listenNum || 0,
+                    trackCount: 0, 
+                    playCount: item.listenNum || item.listennum || 0,
                     source: 'qq'
                 }));
                 lists = lists.concat(mapped);
             }
         });
 
-        // Filter valid ones and limit
         return lists.filter(l => l.id).slice(0, 20);
     } catch (e) {
         console.warn("Fetch QQ toplists failed", e);
@@ -154,18 +155,15 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
  * Fetch Combined Top Lists
  */
 export const fetchTopLists = async (): Promise<Playlist[]> => {
-  // Always fetch fresh or handle cache invalidation logic if needed. 
-  // For now simple in-memory check, but if we want to ensure retry on fail, we might relax this.
-  if (topListCache && topListCache.length > 0) return topListCache;
-
+  // Removed cache to ensure source property is always populated correctly
+  console.log("Fetching Top Lists...");
   const [neteaseLists, qqLists] = await Promise.all([
       fetchNeteaseTopLists(),
       fetchQQTopLists()
   ]);
+  console.log(`Fetched: Netease(${neteaseLists.length}), QQ(${qqLists.length})`);
 
-  const combined = [...neteaseLists, ...qqLists];
-  topListCache = combined;
-  return combined;
+  return [...neteaseLists, ...qqLists];
 };
 
 /**
@@ -193,14 +191,7 @@ export const searchSongs = async (keywords: string, page: number = 1, limit: num
  */
 export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'): Promise<Song[]> => {
   if (songs.length === 0) return [];
-
-  // Group by source to batch resolve correctly if needed (currently handling all via TuneHub which expects mixed is okay if requests separated, but function takes list)
-  // Current implementation assumes all songs in a batch are from the same source roughly, or mixed. 
-  // TuneHub batch API supports 'id' as comma separated. If platforms differ, we should ideally split.
-  // However, `fetchPlaylistDetails` returns songs from ONE source. 
-  // `queue` might have mixed sources.
   
-  // Simple strategy: Split by source
   const neteaseSongs = songs.filter(s => !s.source || s.source === 'netease');
   const qqSongs = songs.filter(s => s.source === 'qq');
   
@@ -213,12 +204,11 @@ export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'):
       resolved = resolved.concat(await resolveBatchForSource(qqSongs, 'qq', quality));
   }
 
-  // Restore order
   return songs.map(s => resolved.find(r => String(r.id) === String(s.id)) || s);
 };
 
 const resolveBatchForSource = async (songs: Song[], source: string, quality: string) => {
-    const batch = songs.slice(0, 20); // Limit batch size
+    const batch = songs.slice(0, 20); 
     const startIdx = QUALITY_LEVELS.indexOf(quality);
     const qualitiesToTry = startIdx === -1 ? ['320k', '128k'] : QUALITY_LEVELS.slice(startIdx);
 
@@ -388,6 +378,7 @@ const parseLyrics = (lrc: string): LyricLine[] => {
  * Tries Meting first, then Netease Proxy if source is netease, then QQ Proxy if source is qq
  */
 export const fetchPlaylistDetails = async (id: string | number, source: string = 'netease'): Promise<Song[]> => {
+    console.log(`fetchPlaylistDetails: id=${id}, source=${source}`);
     
     // QQ Music Handling
     if (source === 'qq') {
@@ -410,8 +401,9 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
                         module: "musicToplist.ToplistInfoServer",
                         method: "GetDetail",
                         param: {
-                            topid: Number(id),
-                            num: 300,
+                            topId: Number(id),
+                            offset: 0,
+                            num: 100,
                             period: ""
                         }
                     }
@@ -419,6 +411,7 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
             });
             const data = await response.json();
             const songList = data.toplist?.data?.songInfoList || [];
+            console.log(`QQ Playlist fetched: ${songList.length} songs`);
             return songList.map(mapQQItemToSong);
         } catch (e) {
             console.error("QQ Playlist detail fetch failed", e);
