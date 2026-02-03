@@ -108,8 +108,18 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
     try {
         const response = await fetch('/qq-api/cgi-bin/musicu.fcg', {
             method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({
-                comm: { ct: 24, cv: 0 },
+                comm: {
+                    cv: 4747474,
+                    ct: 24,
+                    format: "json",
+                    inCharset: "utf-8",
+                    outCharset: "utf-8",
+                    uin: 0
+                },
                 toplist: { module: "musicToplist.ToplistInfoServer", method: "GetAll", param: {} }
             })
         });
@@ -144,6 +154,8 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
  * Fetch Combined Top Lists
  */
 export const fetchTopLists = async (): Promise<Playlist[]> => {
+  // Always fetch fresh or handle cache invalidation logic if needed. 
+  // For now simple in-memory check, but if we want to ensure retry on fail, we might relax this.
   if (topListCache && topListCache.length > 0) return topListCache;
 
   const [neteaseLists, qqLists] = await Promise.all([
@@ -382,6 +394,9 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
         try {
             const response = await fetch('/qq-api/cgi-bin/musicu.fcg', {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({
                     comm: {
                         cv: 4747474,
