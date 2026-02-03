@@ -31,7 +31,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playMode, setPlayMode] = useState<'loop' | 'single' | 'shuffle'>('loop');
-  const [quality, setQuality] = useState('320k');
+  const [quality, setQuality] = useState('flac'); // Default to FLAC (Lossless) for high quality priority
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [errorCount, setErrorCount] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -444,10 +444,10 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                    </button>
                    <button onClick={playNext} className="p-2 text-slate-600 dark:text-slate-300 hover:text-red-500"><SkipForward size={24} fill="currentColor" /></button>
                    <div className="relative">
-                       <button onClick={() => setShowQualityMenu(!showQualityMenu)} className="p-2 text-xs font-bold text-red-500 border border-red-200 rounded-md uppercase w-10">{quality === '320k' ? 'HQ' : 'SQ'}</button>
+                       <button onClick={() => setShowQualityMenu(!showQualityMenu)} className="p-2 text-xs font-bold text-red-500 border border-red-200 rounded-md uppercase w-10">{quality === '320k' ? 'HQ' : (quality === '128k' ? 'SD' : 'SQ')}</button>
                        {showQualityMenu && (
                            <div className="absolute bottom-full mb-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl overflow-hidden">
-                               {['128k', '320k', 'flac'].map(q => (
+                               {['128k', '320k', 'flac', 'flac24bit'].map(q => (
                                    <button key={q} onClick={() => changeQuality(q)} className={`block w-full px-4 py-2 text-xs text-left hover:bg-slate-100 dark:hover:bg-slate-700 ${quality === q ? 'text-red-500' : 'text-slate-600'}`}>
                                        {q.toUpperCase()}
                                    </button>

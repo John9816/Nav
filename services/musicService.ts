@@ -5,6 +5,9 @@ import { supabase } from './supabaseClient';
 const TUNEHUB_API_URL = 'https://tunehub.sayqz.com/api/v1/meting';
 const TUNEHUB_API_KEY = 'sayqz-tunehub-public'; 
 
+// Quality Priority Chain
+const QUALITY_LEVELS = ['flac24bit', 'flac', '320k', '128k'];
+
 // Cache for resolved URLs to avoid re-fetching
 export const urlPromiseCache = new Map<string, Promise<string>>();
 
@@ -15,91 +18,134 @@ const toHttps = (url: string) => {
 };
 
 /**
- * Batch resolve URLs for a list of songs.
+ * Batch resolve URLs for a list of songs with Quality Fallback.
+ * Tries the requested quality first, then falls back to lower qualities if URL is missing.
  */
 export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'): Promise<Song[]> => {
   if (songs.length === 0) return [];
 
   // API Limitation: Max 20 IDs per request. 
   const batch = songs.slice(0, 20);
-  const ids = batch.map(s => s.id).join(',');
   const source = batch[0].source || 'netease';
+  
+  // Determine the list of qualities to try, starting from the requested one down to lowest
+  const startIdx = QUALITY_LEVELS.indexOf(quality);
+  const qualitiesToTry = startIdx === -1 ? ['320k', '128k'] : QUALITY_LEVELS.slice(startIdx);
 
-  try {
-    const response = await fetch(TUNEHUB_API_URL, {
-      method: 'POST',
-      headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json, text/plain, */*',
-          'X-API-Key': TUNEHUB_API_KEY
-      },
-      body: JSON.stringify({
-          platform: source, 
-          type: 'url',
-          id: ids,
-          quality: quality
-      })
-    });
+  // Map to store resolved URLs: ID -> URL
+  const resolvedMap = new Map<string, string>();
+  
+  // List of IDs that still need a URL
+  let idsToFetch = batch.map(s => String(s.id));
 
-    if (!response.ok) throw new Error(`Batch error ${response.status}`);
-    
-    const result = await response.json();
-    
-    // Check format (array or object with data property)
-    // Adjust based on actual API response structure. 
-    // Assuming standard Meting format: array of objects { id, url, ... }
-    const list = Array.isArray(result) ? result : (result.data || []);
-    
-    if (list.length > 0) {
-        const urlMap = new Map<string, string>();
-        
-        list.forEach((item: any) => {
-            if (item.url) {
-                const secureUrl = toHttps(item.url);
-                urlMap.set(String(item.id), secureUrl);
-                
-                // Pre-populate the cache
-                const cacheKey = `${item.id}-${quality}`;
-                urlPromiseCache.set(cacheKey, Promise.resolve(secureUrl));
-            }
+  for (const q of qualitiesToTry) {
+      if (idsToFetch.length === 0) break; // All resolved
+
+      try {
+        const idsStr = idsToFetch.join(',');
+        const response = await fetch(TUNEHUB_API_URL, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json, text/plain, */*',
+              'X-API-Key': TUNEHUB_API_KEY
+          },
+          body: JSON.stringify({
+              platform: source, 
+              type: 'url',
+              id: idsStr,
+              quality: q
+          })
         });
 
-        return songs.map(song => ({
-            ...song,
-            url: urlMap.get(String(song.id)) || song.url
-        }));
-    }
-    
-    return songs;
-  } catch (err) {
-    console.warn("Batch resolve failed:", err);
-    return songs; 
+        if (!response.ok) {
+            console.warn(`Batch error for quality ${q}: ${response.status}`);
+            continue; // Try next quality
+        }
+        
+        const result = await response.json();
+        const list = Array.isArray(result) ? result : (result.data || []);
+        
+        if (list.length > 0) {
+            list.forEach((item: any) => {
+                // Check if we got a valid URL
+                if (item.url) {
+                    const idStr = String(item.id);
+                    // Only update if we haven't found a URL for this ID yet (higher quality takes precedence loop order)
+                    if (!resolvedMap.has(idStr)) {
+                        const secureUrl = toHttps(item.url);
+                        resolvedMap.set(idStr, secureUrl);
+                        
+                        // Cache the result. 
+                        // IMPORTANT: We cache it under the *originally requested* quality key as well 
+                        // so that immediate subsequent requests for the high quality return this fallback result 
+                        // instead of failing again.
+                        const cacheKey = `${idStr}-${quality}`;
+                        urlPromiseCache.set(cacheKey, Promise.resolve(secureUrl));
+                    }
+                }
+            });
+        }
+        
+        // Update list of IDs that still need fetching
+        idsToFetch = idsToFetch.filter(id => !resolvedMap.has(id));
+
+      } catch (err) {
+        console.warn(`Batch resolve failed for ${q}:`, err);
+      }
   }
+
+  // Map results back to song objects
+  return songs.map(song => ({
+      ...song,
+      url: resolvedMap.get(String(song.id)) || song.url
+  }));
 };
 
+/**
+ * Fetch a single song URL with fallback logic.
+ */
 export const fetchSongUrl = async (id: string | number, source: string = 'netease', quality: string = '320k'): Promise<string | null> => {
     const cacheKey = `${id}-${quality}`;
     if (urlPromiseCache.has(cacheKey)) {
         return urlPromiseCache.get(cacheKey)!;
     }
 
-    try {
-        const response = await fetch(TUNEHUB_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },
-            body: JSON.stringify({ platform: source, type: 'url', id, quality })
-        });
-        const data = await response.json();
-        const list = Array.isArray(data) ? data : (data.data || []);
-        if (list.length > 0 && list[0].url) {
-            const url = toHttps(list[0].url);
-            urlPromiseCache.set(cacheKey, Promise.resolve(url));
-            return url;
+    // Determine priority chain
+    const startIdx = QUALITY_LEVELS.indexOf(quality);
+    const qualitiesToTry = startIdx === -1 ? ['320k', '128k'] : QUALITY_LEVELS.slice(startIdx);
+
+    const fetchTask = async (): Promise<string | null> => {
+        for (const q of qualitiesToTry) {
+            try {
+                const response = await fetch(TUNEHUB_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },
+                    body: JSON.stringify({ platform: source, type: 'url', id, quality: q })
+                });
+                const data = await response.json();
+                const list = Array.isArray(data) ? data : (data.data || []);
+                
+                if (list.length > 0 && list[0].url) {
+                    return toHttps(list[0].url);
+                }
+            } catch (e) {
+                console.error(`Fetch URL failed for ${q}`, e);
+            }
         }
-    } catch (e) {
-        console.error("Fetch URL failed", e);
-    }
-    return null;
+        return null;
+    };
+
+    const promise = fetchTask();
+    urlPromiseCache.set(cacheKey, promise);
+    
+    // Fallback: If promise resolves to null, maybe we shouldn't cache it forever? 
+    // For now, let's allow re-trying later if it fails completely.
+    promise.then(url => {
+        if (!url) urlPromiseCache.delete(cacheKey);
+    });
+
+    return promise;
 };
 
 export const fetchSongDetail = async (id: string | number, source: string = 'netease'): Promise<Song | null> => {
