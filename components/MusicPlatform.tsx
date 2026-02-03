@@ -9,7 +9,7 @@ import {
 import { 
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
   List, Download, Search, Loader2,
-  Music, Disc, Radio, ArrowLeft, Clock, Mic2, LayoutGrid, Heart
+  Music, Disc, Radio, ArrowLeft, Clock, Mic2, LayoutGrid, Heart, Cloud
 } from 'lucide-react';
 
 interface MusicPlatformProps {
@@ -44,6 +44,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   
   // UI State
   const [view, setView] = useState<'home' | 'playlist' | 'history' | 'search'>('home');
+  const [chartFilter, setChartFilter] = useState<'all' | 'netease' | 'qq'>('all');
   const [playlistSongs, setPlaylistSongs] = useState<Song[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,6 +77,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
           onTabChangeHandled();
       } else if (requestedTab === 'favorites') {
           setView('home'); 
+          setChartFilter('all');
           onTabChangeHandled();
       }
   }, [requestedTab, onTabChangeHandled]);
@@ -320,8 +322,11 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     setLoading(false);
   };
 
-  const neteasePlaylists = playlists.filter(p => p.source === 'netease' || !p.source);
-  const qqPlaylists = playlists.filter(p => p.source === 'qq');
+  // Filter playlists based on selected chart filter
+  const displayedPlaylists = playlists.filter(p => {
+    if (chartFilter === 'all') return true;
+    return p.source === chartFilter;
+  });
 
   return (
     <div className={`fixed inset-0 z-40 bg-slate-50 dark:bg-slate-900 flex flex-col transition-transform duration-300 pt-16 ${activeView === 'music' ? 'translate-y-0' : 'translate-y-[100%]'}`}>
@@ -338,8 +343,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        <div className="px-3 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">我的音乐</div>
                        <div className="space-y-1">
                            <button 
-                             onClick={() => setView('home')} 
-                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === 'home' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                             onClick={() => { setView('home'); setChartFilter('all'); }} 
+                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === 'home' && chartFilter === 'all' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
                            >
                                <LayoutGrid size={18} /> 发现音乐
                            </button>
@@ -355,64 +360,35 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                    {/* Charts Section */}
                    <div>
                        <div className="px-3 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">精选榜单</div>
-                       
-                       {/* QQ Music */}
-                       {qqPlaylists.length > 0 && (
-                           <div className="mb-4">
-                               <div className="px-3 mb-2 flex items-center gap-2">
-                                   <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                                   <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">QQ 音乐</span>
+                       <div className="space-y-1">
+                           {/* Netease Button */}
+                           <button 
+                             onClick={() => { setView('home'); setChartFilter('netease'); }}
+                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors 
+                               ${view === 'home' && chartFilter === 'netease' 
+                                 ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' 
+                                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                           >
+                               <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors border border-current opacity-80 ${view === 'home' && chartFilter === 'netease' ? 'text-red-600' : 'text-slate-400 border-slate-300'}`}>
+                                  <Cloud size={14} fill="currentColor" />
                                </div>
-                               <div className="space-y-1">
-                                   {qqPlaylists.map(pl => (
-                                      <button 
-                                        key={pl.id}
-                                        onClick={() => openPlaylist(pl)}
-                                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-left truncate group transition-all
-                                           ${selectedPlaylist?.id === pl.id && view === 'playlist' 
-                                               ? 'bg-slate-100 dark:bg-slate-700/50 text-slate-900 dark:text-white font-medium' 
-                                               : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                                           }`}
-                                      >
-                                          <img src={pl.coverImgUrl} className="w-6 h-6 rounded object-cover shadow-sm bg-slate-200" loading="lazy" />
-                                          <span className="truncate flex-1">{pl.name}</span>
-                                      </button>
-                                   ))}
-                               </div>
-                           </div>
-                       )}
+                               <span>网易云音乐</span>
+                           </button>
 
-                       {/* Netease Music */}
-                       {neteasePlaylists.length > 0 && (
-                           <div>
-                               <div className="px-3 mb-2 flex items-center gap-2">
-                                   <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
-                                   <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">网易云音乐</span>
+                           {/* QQ Music Button */}
+                           <button 
+                             onClick={() => { setView('home'); setChartFilter('qq'); }}
+                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors 
+                               ${view === 'home' && chartFilter === 'qq' 
+                                 ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' 
+                                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                           >
+                               <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors border border-current opacity-80 ${view === 'home' && chartFilter === 'qq' ? 'text-green-600' : 'text-slate-400 border-slate-300'}`}>
+                                  <Music size={14} fill="currentColor" />
                                </div>
-                               <div className="space-y-1">
-                                   {neteasePlaylists.map(pl => (
-                                      <button 
-                                        key={pl.id}
-                                        onClick={() => openPlaylist(pl)}
-                                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-left truncate group transition-all
-                                           ${selectedPlaylist?.id === pl.id && view === 'playlist' 
-                                               ? 'bg-slate-100 dark:bg-slate-700/50 text-slate-900 dark:text-white font-medium' 
-                                               : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                                           }`}
-                                      >
-                                          <img src={pl.coverImgUrl} className="w-6 h-6 rounded object-cover shadow-sm bg-slate-200" loading="lazy" />
-                                          <span className="truncate flex-1">{pl.name}</span>
-                                      </button>
-                                   ))}
-                               </div>
-                           </div>
-                       )}
-                       
-                       {playlists.length === 0 && (
-                            <div className="px-3 py-4 text-xs text-slate-400 flex items-center gap-2">
-                                <Loader2 size={12} className="animate-spin" /> 加载中...
-                            </div>
-                       )}
+                               <span>QQ 音乐</span>
+                           </button>
+                       </div>
                    </div>
                </div>
            </div>
@@ -561,11 +537,13 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                        <div className="p-2 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
                                            <Radio size={20} />
                                        </div>
-                                       <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">热门推荐</h2>
+                                       <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                                          {chartFilter === 'all' ? '热门推荐' : (chartFilter === 'netease' ? '网易云榜单' : 'QQ音乐榜单')}
+                                       </h2>
                                    </div>
                                    
                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                                      {playlists.map(list => (
+                                      {displayedPlaylists.map(list => (
                                           <div 
                                             key={list.id} 
                                             onClick={() => openPlaylist(list)}
