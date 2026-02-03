@@ -329,7 +329,14 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   });
 
   return (
-    <div className={`fixed inset-0 z-40 bg-slate-50 dark:bg-slate-900 flex flex-col transition-transform duration-300 pt-16 ${activeView === 'music' ? 'translate-y-0' : 'translate-y-[100%]'}`}>
+    <div 
+      className={`fixed inset-0 z-40 bg-slate-50 dark:bg-slate-900 flex flex-col pt-16 transition-all duration-300 ease-in-out
+        ${activeView === 'music' 
+           ? 'opacity-100 translate-y-0 visible pointer-events-auto' 
+           : 'opacity-0 translate-y-4 invisible pointer-events-none'
+        }
+      `}
+    >
        
        {/* Main Content Area */}
        <div className="flex-1 flex overflow-hidden">
