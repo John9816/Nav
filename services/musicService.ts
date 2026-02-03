@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 
 // Public Netease Cloud Music API instance (TuneHub)
 const TUNEHUB_API_URL = 'https://tunehub.sayqz.com/api/v1/parse';
-const TUNEHUB_API_KEY = 'th_3063e4ad2ef8075774abd413a417ce31914b60d8776c5549';
+const TUNEHUB_API_KEY = 'th_833dbc8b22e71cc3e7aaae58f0f98731738fb49234d445f1';
 
 // --- Caches ---
 // Prevents duplicate URL fetching for the same song/quality
