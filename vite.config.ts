@@ -22,6 +22,15 @@ export default defineConfig(({ mode }) => {
               'Referer': 'https://music.163.com/',
               'Origin': 'https://music.163.com/'
             }
+          },
+          '/qq-api': {
+            target: 'https://u.y.qq.com',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/qq-api/, ''),
+            headers: {
+              'Referer': 'https://y.qq.com/',
+              'Origin': 'https://y.qq.com/'
+            }
           }
         }
       },

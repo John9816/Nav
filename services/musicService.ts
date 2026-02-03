@@ -47,34 +47,113 @@ const mapApiItemToSong = (item: any): Song => {
   };
 };
 
-/**
- * Fetch Top Lists (Charts) from Proxy
- */
-export const fetchTopLists = async (): Promise<Playlist[]> => {
-  if (topListCache && topListCache.length > 0) return topListCache;
+const mapQQItemToSong = (item: any): Song => {
+    const id = item.mid || item.songmid; // Use MID for QQ as it's more stable for API calls
+    const name = item.name || item.songname || 'Unknown Title';
+    
+    // Artist
+    const singers = item.singer || item.singers || [];
+    const artists = Array.isArray(singers)
+        ? singers.map((s: any) => ({ id: s.mid || 0, name: s.name || 'Unknown' }))
+        : [{ id: 0, name: 'Unknown Artist' }];
 
+    // Album
+    // QQ Album art construction
+    const albumMid = item.album?.mid || item.albummid;
+    const albumName = item.album?.name || item.albumname || 'Unknown Album';
+    const picUrl = albumMid ? `https://y.gtimg.cn/music/photo_new/T002R300x300M000${albumMid}.jpg` : '';
+
+    return {
+        id: id,
+        name: name,
+        ar: artists,
+        al: { id: 0, name: albumName, picUrl: toHttps(picUrl) },
+        dt: item.interval ? item.interval * 1000 : 0,
+        source: 'qq',
+        url: undefined
+    };
+};
+
+/**
+ * Fetch Netease Top Lists
+ */
+const fetchNeteaseTopLists = async (): Promise<Playlist[]> => {
   try {
     const response = await fetch('/netease-api/api/toplist');
     const data = await response.json();
     const list = data.list || [];
     
     if (list.length > 0) {
-        const mappedList = list.slice(0, 20).map((item: any) => ({
+        return list.slice(0, 15).map((item: any) => ({
             id: item.id,
             name: item.name,
             coverImgUrl: toHttps(item.coverImgUrl || item.picUrl),
             description: item.description || '',
             trackCount: item.trackCount || 0,
-            playCount: item.playCount || 0
+            playCount: item.playCount || 0,
+            source: 'netease'
         }));
-        topListCache = mappedList;
-        return mappedList;
     }
     return [];
   } catch (e) {
-    console.warn("Fetch toplists failed", e);
+    console.warn("Fetch Netease toplists failed", e);
     return [];
   }
+};
+
+/**
+ * Fetch QQ Top Lists
+ */
+const fetchQQTopLists = async (): Promise<Playlist[]> => {
+    try {
+        const response = await fetch('/qq-api/cgi-bin/musicu.fcg', {
+            method: 'POST',
+            body: JSON.stringify({
+                comm: { ct: 24, cv: 0 },
+                toplist: { module: "musicToplist.ToplistInfoServer", method: "GetAll", param: {} }
+            })
+        });
+        const data = await response.json();
+        const groups = data.toplist?.data?.group || [];
+        let lists: Playlist[] = [];
+
+        groups.forEach((group: any) => {
+            if (group.list && Array.isArray(group.list)) {
+                const mapped = group.list.map((item: any) => ({
+                    id: item.topId, // Use topId for details fetching
+                    name: item.label || item.title,
+                    coverImgUrl: toHttps(item.pic || item.frontPicUrl),
+                    description: item.intro || '',
+                    trackCount: 0, // QQ list doesn't return track count here easily
+                    playCount: item.listenNum || 0,
+                    source: 'qq'
+                }));
+                lists = lists.concat(mapped);
+            }
+        });
+
+        // Filter valid ones and limit
+        return lists.filter(l => l.id).slice(0, 15);
+    } catch (e) {
+        console.warn("Fetch QQ toplists failed", e);
+        return [];
+    }
+};
+
+/**
+ * Fetch Combined Top Lists
+ */
+export const fetchTopLists = async (): Promise<Playlist[]> => {
+  if (topListCache && topListCache.length > 0) return topListCache;
+
+  const [neteaseLists, qqLists] = await Promise.all([
+      fetchNeteaseTopLists(),
+      fetchQQTopLists()
+  ]);
+
+  const combined = [...neteaseLists, ...qqLists];
+  topListCache = combined;
+  return combined;
 };
 
 /**
@@ -103,65 +182,87 @@ export const searchSongs = async (keywords: string, page: number = 1, limit: num
 export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'): Promise<Song[]> => {
   if (songs.length === 0) return [];
 
-  const batch = songs.slice(0, 20);
-  const source = batch[0].source || 'netease';
+  // Group by source to batch resolve correctly if needed (currently handling all via TuneHub which expects mixed is okay if requests separated, but function takes list)
+  // Current implementation assumes all songs in a batch are from the same source roughly, or mixed. 
+  // TuneHub batch API supports 'id' as comma separated. If platforms differ, we should ideally split.
+  // However, `fetchPlaylistDetails` returns songs from ONE source. 
+  // `queue` might have mixed sources.
   
-  const startIdx = QUALITY_LEVELS.indexOf(quality);
-  const qualitiesToTry = startIdx === -1 ? ['320k', '128k'] : QUALITY_LEVELS.slice(startIdx);
+  // Simple strategy: Split by source
+  const neteaseSongs = songs.filter(s => !s.source || s.source === 'netease');
+  const qqSongs = songs.filter(s => s.source === 'qq');
+  
+  let resolved: Song[] = [];
 
-  const resolvedMap = new Map<string, string>();
-  let idsToFetch = batch.map(s => String(s.id));
-
-  for (const q of qualitiesToTry) {
-      if (idsToFetch.length === 0) break; 
-
-      try {
-        const idsStr = idsToFetch.join(',');
-        const response = await fetch(TUNEHUB_API_URL, {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json, text/plain, */*',
-              'X-API-Key': TUNEHUB_API_KEY
-          },
-          body: JSON.stringify({
-              platform: source, 
-              type: 'url',
-              id: idsStr,
-              quality: q
-          })
-        });
-
-        if (!response.ok) continue;
-        
-        const result = await response.json();
-        const list = Array.isArray(result) ? result : (result.data || []);
-        
-        if (list.length > 0) {
-            list.forEach((item: any) => {
-                if (item.url) {
-                    const idStr = String(item.id);
-                    if (!resolvedMap.has(idStr)) {
-                        const secureUrl = toHttps(item.url);
-                        resolvedMap.set(idStr, secureUrl);
-                        const cacheKey = `${idStr}-${quality}`;
-                        urlPromiseCache.set(cacheKey, Promise.resolve(secureUrl));
-                    }
-                }
-            });
-        }
-        
-        idsToFetch = idsToFetch.filter(id => !resolvedMap.has(id));
-
-      } catch (err) {
-        console.warn(`Batch resolve failed for ${q}:`, err);
-      }
+  if (neteaseSongs.length > 0) {
+      resolved = resolved.concat(await resolveBatchForSource(neteaseSongs, 'netease', quality));
+  }
+  if (qqSongs.length > 0) {
+      resolved = resolved.concat(await resolveBatchForSource(qqSongs, 'qq', quality));
   }
 
-  return songs.map(song => ({
-      ...song,
-      url: resolvedMap.get(String(song.id)) || song.url
-  }));
+  // Restore order
+  return songs.map(s => resolved.find(r => String(r.id) === String(s.id)) || s);
+};
+
+const resolveBatchForSource = async (songs: Song[], source: string, quality: string) => {
+    const batch = songs.slice(0, 20); // Limit batch size
+    const startIdx = QUALITY_LEVELS.indexOf(quality);
+    const qualitiesToTry = startIdx === -1 ? ['320k', '128k'] : QUALITY_LEVELS.slice(startIdx);
+
+    const resolvedMap = new Map<string, string>();
+    let idsToFetch = batch.map(s => String(s.id));
+
+    for (const q of qualitiesToTry) {
+        if (idsToFetch.length === 0) break;
+
+        try {
+            const idsStr = idsToFetch.join(',');
+            const response = await fetch(TUNEHUB_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json, text/plain, */*',
+                    'X-API-Key': TUNEHUB_API_KEY
+                },
+                body: JSON.stringify({
+                    platform: source,
+                    type: 'url',
+                    id: idsStr,
+                    quality: q
+                })
+            });
+
+            if (!response.ok) continue;
+
+            const result = await response.json();
+            const list = Array.isArray(result) ? result : (result.data || []);
+
+            if (list.length > 0) {
+                list.forEach((item: any) => {
+                    if (item.url) {
+                        const idStr = String(item.id);
+                        if (!resolvedMap.has(idStr)) {
+                            const secureUrl = toHttps(item.url);
+                            resolvedMap.set(idStr, secureUrl);
+                            const cacheKey = `${idStr}-${quality}`;
+                            urlPromiseCache.set(cacheKey, Promise.resolve(secureUrl));
+                        }
+                    }
+                });
+            }
+
+            idsToFetch = idsToFetch.filter(id => !resolvedMap.has(id));
+
+        } catch (err) {
+            console.warn(`Batch resolve failed for ${q} (${source}):`, err);
+        }
+    }
+
+    return songs.map(song => ({
+        ...song,
+        url: resolvedMap.get(String(song.id)) || song.url
+    }));
 };
 
 /**
@@ -272,9 +373,45 @@ const parseLyrics = (lrc: string): LyricLine[] => {
 
 /**
  * Fetch Playlist Details with Fallback
- * Tries Meting first, then Netease Proxy if source is netease
+ * Tries Meting first, then Netease Proxy if source is netease, then QQ Proxy if source is qq
  */
 export const fetchPlaylistDetails = async (id: string | number, source: string = 'netease'): Promise<Song[]> => {
+    
+    // QQ Music Handling
+    if (source === 'qq') {
+        try {
+            const response = await fetch('/qq-api/cgi-bin/musicu.fcg', {
+                method: 'POST',
+                body: JSON.stringify({
+                    comm: {
+                        cv: 4747474,
+                        ct: 24,
+                        format: "json",
+                        inCharset: "utf-8",
+                        outCharset: "utf-8",
+                        uin: 0
+                    },
+                    toplist: {
+                        module: "musicToplist.ToplistInfoServer",
+                        method: "GetDetail",
+                        param: {
+                            topid: Number(id),
+                            num: 100,
+                            period: ""
+                        }
+                    }
+                })
+            });
+            const data = await response.json();
+            const songList = data.toplist?.data?.songInfoList || [];
+            return songList.map(mapQQItemToSong);
+        } catch (e) {
+            console.error("QQ Playlist detail fetch failed", e);
+            return [];
+        }
+    }
+
+    // Netease Handling (Existing)
     // 1. Try Meting API
     try {
         const response = await fetch(TUNEHUB_API_URL, {

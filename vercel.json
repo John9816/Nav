@@ -5,6 +5,10 @@
       "destination": "https://music.163.com/$1"
     },
     {
+      "source": "/qq-api/(.*)",
+      "destination": "https://u.y.qq.com/$1"
+    },
+    {
       "source": "/((?!assets/|.*\\..*).*)",
       "destination": "/index.html"
     }

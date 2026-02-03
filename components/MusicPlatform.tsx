@@ -187,7 +187,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     
     setCurrentSong(song);
 
-    fetchSongDetail(song.id).then(detail => {
+    fetchSongDetail(song.id, song.source).then(detail => {
         if (detail) {
             setCurrentSong(prev => {
                 if (!prev || String(prev.id) !== String(song.id)) return prev;
@@ -305,7 +305,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     setLoading(true);
     setPlaylistSongs([]);
     
-    let songs = await fetchPlaylistDetails(list.id);
+    // Pass source to fetchPlaylistDetails (netease or qq)
+    let songs = await fetchPlaylistDetails(list.id, list.source);
+    
     const initialBatch = songs.slice(0, 20);
     if (initialBatch.length > 0) {
         const resolvedBatch = await resolveBatchUrls(initialBatch, quality);
@@ -478,6 +480,16 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                   <Play size={8} fill="currentColor" />
                                                   {Math.floor(list.playCount / 10000)}万
                                               </div>
+                                              {list.source === 'qq' && (
+                                                <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-green-500/80 backdrop-blur rounded text-[10px] text-white font-bold uppercase">
+                                                    QQ
+                                                </div>
+                                              )}
+                                              {list.source === 'netease' && (
+                                                <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-red-500/80 backdrop-blur rounded text-[10px] text-white font-bold uppercase">
+                                                    WY
+                                                </div>
+                                              )}
                                           </div>
                                           <div className="font-medium text-sm text-slate-700 dark:text-slate-200 truncate group-hover:text-red-500 transition-colors">
                                               {list.name}
