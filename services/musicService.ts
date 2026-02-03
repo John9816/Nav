@@ -8,7 +8,8 @@ const TUNEHUB_API_KEY = 'sayqz-tunehub-public';
 // Quality Priority Chain
 const QUALITY_LEVELS = ['flac24bit', 'flac', '320k', '128k'];
 
-// Cache for resolved URLs to avoid re-fetching
+// Cache
+let topListCache: Playlist[] | null = null;
 export const urlPromiseCache = new Map<string, Promise<string>>();
 
 // Helper to enforce HTTPS
@@ -17,29 +18,102 @@ const toHttps = (url: string) => {
     return url.replace(/^http:\/\//i, 'https://');
 };
 
+const mapApiItemToSong = (item: any): Song => {
+  const id = item.id || item.rid;
+  const name = item.name || item.songName || 'Unknown Title';
+  
+  // Artist
+  const ar = item.ar || item.artists || (item.artist ? [{name: item.artist}] : []) || [];
+  const artists = Array.isArray(ar) 
+      ? ar.map((a: any) => ({ id: a.id || 0, name: a.name || 'Unknown' })) 
+      : [{ id: 0, name: String(ar) }];
+
+  // Album
+  const al = item.al || item.album || {};
+  const album = {
+      id: al.id || 0,
+      name: al.name || item.albumName || 'Unknown Album',
+      picUrl: toHttps(al.picUrl || item.picUrl || item.img120 || '')
+  };
+
+  return {
+    id: id,
+    name: name,
+    ar: artists.length > 0 ? artists : [{ id: 0, name: 'Unknown Artist' }],
+    al: album,
+    dt: item.dt || item.duration || (item.durationSec ? item.durationSec * 1000 : 0) || 0,
+    source: 'netease', 
+    url: undefined 
+  };
+};
+
+/**
+ * Fetch Top Lists (Charts)
+ */
+export const fetchTopLists = async (): Promise<Playlist[]> => {
+  if (topListCache && topListCache.length > 0) return topListCache;
+
+  try {
+    const response = await fetch('/netease-api/api/toplist');
+    const data = await response.json();
+    const list = data.list || [];
+    
+    if (list.length > 0) {
+        const mappedList = list.slice(0, 20).map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            coverImgUrl: toHttps(item.coverImgUrl || item.picUrl),
+            description: item.description || '',
+            trackCount: item.trackCount || 0,
+            playCount: item.playCount || 0
+        }));
+        topListCache = mappedList;
+        return mappedList;
+    }
+    return [];
+  } catch (e) {
+    console.warn("Fetch toplists failed", e);
+    return [];
+  }
+};
+
+/**
+ * Search Songs
+ */
+export const searchSongs = async (keywords: string, page: number = 1, limit: number = 20): Promise<Song[]> => {
+  try {
+    const offset = (page > 0 ? page - 1 : 0) * limit;
+    const response = await fetch(
+        `/netease-api/api/search/get/web?s=${encodeURIComponent(keywords)}&type=1&offset=${offset}&limit=${limit}`, 
+        { headers: { 'Accept': 'application/json' } }
+    );
+
+    const data = await response.json();
+    const songs = data.result?.songs || [];
+    return songs.map(mapApiItemToSong);
+  } catch (error) {
+    console.error("Search failed:", error);
+    return [];
+  }
+};
+
 /**
  * Batch resolve URLs for a list of songs with Quality Fallback.
- * Tries the requested quality first, then falls back to lower qualities if URL is missing.
  */
 export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'): Promise<Song[]> => {
   if (songs.length === 0) return [];
 
-  // API Limitation: Max 20 IDs per request. 
   const batch = songs.slice(0, 20);
   const source = batch[0].source || 'netease';
   
-  // Determine the list of qualities to try, starting from the requested one down to lowest
   const startIdx = QUALITY_LEVELS.indexOf(quality);
   const qualitiesToTry = startIdx === -1 ? ['320k', '128k'] : QUALITY_LEVELS.slice(startIdx);
 
-  // Map to store resolved URLs: ID -> URL
   const resolvedMap = new Map<string, string>();
-  
-  // List of IDs that still need a URL
   let idsToFetch = batch.map(s => String(s.id));
 
   for (const q of qualitiesToTry) {
-      if (idsToFetch.length === 0) break; // All resolved
+      if (idsToFetch.length === 0) break; 
 
       try {
         const idsStr = idsToFetch.join(',');
@@ -58,28 +132,18 @@ export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'):
           })
         });
 
-        if (!response.ok) {
-            console.warn(`Batch error for quality ${q}: ${response.status}`);
-            continue; // Try next quality
-        }
+        if (!response.ok) continue;
         
         const result = await response.json();
         const list = Array.isArray(result) ? result : (result.data || []);
         
         if (list.length > 0) {
             list.forEach((item: any) => {
-                // Check if we got a valid URL
                 if (item.url) {
                     const idStr = String(item.id);
-                    // Only update if we haven't found a URL for this ID yet (higher quality takes precedence loop order)
                     if (!resolvedMap.has(idStr)) {
                         const secureUrl = toHttps(item.url);
                         resolvedMap.set(idStr, secureUrl);
-                        
-                        // Cache the result. 
-                        // IMPORTANT: We cache it under the *originally requested* quality key as well 
-                        // so that immediate subsequent requests for the high quality return this fallback result 
-                        // instead of failing again.
                         const cacheKey = `${idStr}-${quality}`;
                         urlPromiseCache.set(cacheKey, Promise.resolve(secureUrl));
                     }
@@ -87,7 +151,6 @@ export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'):
             });
         }
         
-        // Update list of IDs that still need fetching
         idsToFetch = idsToFetch.filter(id => !resolvedMap.has(id));
 
       } catch (err) {
@@ -95,7 +158,6 @@ export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'):
       }
   }
 
-  // Map results back to song objects
   return songs.map(song => ({
       ...song,
       url: resolvedMap.get(String(song.id)) || song.url
@@ -111,7 +173,6 @@ export const fetchSongUrl = async (id: string | number, source: string = 'neteas
         return urlPromiseCache.get(cacheKey)!;
     }
 
-    // Determine priority chain
     const startIdx = QUALITY_LEVELS.indexOf(quality);
     const qualitiesToTry = startIdx === -1 ? ['320k', '128k'] : QUALITY_LEVELS.slice(startIdx);
 
@@ -139,8 +200,6 @@ export const fetchSongUrl = async (id: string | number, source: string = 'neteas
     const promise = fetchTask();
     urlPromiseCache.set(cacheKey, promise);
     
-    // Fallback: If promise resolves to null, maybe we shouldn't cache it forever? 
-    // For now, let's allow re-trying later if it fails completely.
     promise.then(url => {
         if (!url) urlPromiseCache.delete(cacheKey);
     });
@@ -237,12 +296,9 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
 };
 
 export const checkGuestLimit = async (): Promise<{ allowed: boolean, count: number }> => {
-    // Check local storage for basic rate limiting without auth
-    // In production, this should call a backend endpoint to prevent client-side manipulation
     const count = parseInt(localStorage.getItem('guest_play_count') || '0');
-    const allowed = count < 20; // GUEST_PLAY_LIMIT
+    const allowed = count < 20; 
     
-    // Only increment if allowed
     if (allowed) {
         localStorage.setItem('guest_play_count', (count + 1).toString());
     }
@@ -252,7 +308,6 @@ export const checkGuestLimit = async (): Promise<{ allowed: boolean, count: numb
 
 export const addToHistory = async (userId: string, song: Song) => {
     try {
-        // Check if exists first to avoid duplicates or update timestamp
         const { data: existing } = await supabase
             .from('play_history')
             .select('id')

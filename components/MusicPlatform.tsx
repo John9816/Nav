@@ -3,12 +3,13 @@ import { Song, Playlist, LyricLine } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   resolveBatchUrls, fetchSongUrl, fetchSongDetail, fetchLyrics, 
-  fetchPlaylistDetails, checkGuestLimit, addToHistory, getHistory 
+  fetchPlaylistDetails, checkGuestLimit, addToHistory, getHistory,
+  fetchTopLists, searchSongs
 } from '../services/musicService';
 import { 
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
   List, Maximize2, Minimize2, Download, Search, Loader2, Heart,
-  Music, Disc, X, Radio
+  Music, Disc, X, Radio, ArrowLeft
 } from 'lucide-react';
 
 interface MusicPlatformProps {
@@ -26,12 +27,15 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 }) => {
   const { user } = useAuth();
   
+  // Data State
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  
   // Player State
   const [queue, setQueue] = useState<Song[]>([]);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playMode, setPlayMode] = useState<'loop' | 'single' | 'shuffle'>('loop');
-  const [quality, setQuality] = useState('flac'); // Default to FLAC (Lossless) for high quality priority
+  const [quality, setQuality] = useState('flac');
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [errorCount, setErrorCount] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -43,6 +47,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [playlistSongs, setPlaylistSongs] = useState<Song[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Song[]>([]);
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [currentLyricIndex, setCurrentLyricIndex] = useState(-1);
   const [loading, setLoading] = useState(false);
@@ -51,6 +56,11 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const restoreTimeRef = useRef(0);
+
+  // Load Charts on Mount
+  useEffect(() => {
+    fetchTopLists().then(setPlaylists);
+  }, []);
 
   // Sync volume
   useEffect(() => {
@@ -66,7 +76,6 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
           setView('history');
           onTabChangeHandled();
       } else if (requestedTab === 'favorites') {
-          // Placeholder for favorites
           setView('home'); 
           onTabChangeHandled();
       }
@@ -77,6 +86,16 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       setLoading(true);
       const songs = await getHistory(user.id);
       setPlaylistSongs(songs);
+      setLoading(false);
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!searchQuery.trim()) return;
+      setView('search');
+      setLoading(true);
+      const songs = await searchSongs(searchQuery);
+      setSearchResults(songs);
       setLoading(false);
   };
 
@@ -114,6 +133,10 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
             setQueue(updatedQueue);
             currentQueue = updatedQueue;
             setPlaylistSongs(prev => updateList(prev));
+            // Also update search results if that's where we are
+            if (view === 'search') {
+                setSearchResults(prev => updateList(prev));
+            }
             const updatedSong = resolvedBatch.find(s => String(s.id) === String(song.id));
             if (updatedSong) {
                 song = updatedSong;
@@ -306,15 +329,34 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
          </div>
        )}
        
-       {/* Header */}
-       <div className="shrink-0 h-16 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between px-6 z-10 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
-           <div className="flex items-center gap-4">
-               <div className="p-2 bg-red-500 text-white rounded-lg">
-                   <Music size={20} />
+       {/* Header with Search */}
+       <div className="shrink-0 h-16 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 z-10 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md gap-4">
+           <div className="flex items-center gap-4 shrink-0">
+               {view !== 'home' && (
+                 <button onClick={() => setView('home')} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+                    <ArrowLeft size={20} />
+                 </button>
+               )}
+               <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-red-500 text-white rounded-lg">
+                      <Music size={18} />
+                  </div>
+                  <h1 className="font-bold text-lg text-slate-800 dark:text-slate-100 hidden sm:block">Music Center</h1>
                </div>
-               <h1 className="font-bold text-lg text-slate-800 dark:text-slate-100">Music Center</h1>
            </div>
-           <button onClick={() => onViewChange('dashboard')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+
+           <form onSubmit={handleSearch} className="flex-1 max-w-md relative group">
+               <input 
+                 type="text" 
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+                 placeholder="搜索歌曲、歌手..."
+                 className="w-full pl-9 pr-4 py-2 rounded-full bg-slate-100 dark:bg-slate-800 border-none text-sm focus:ring-2 focus:ring-red-500/50 transition-all shadow-sm group-hover:shadow-md"
+               />
+               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+           </form>
+
+           <button onClick={() => onViewChange('dashboard')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full shrink-0">
                <Minimize2 size={20} className="text-slate-500" />
            </button>
        </div>
@@ -322,7 +364,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
        {/* Main Content */}
        <div className="flex-1 flex overflow-hidden z-10 relative">
            {/* Sidebar */}
-           <div className="w-64 border-r border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col">
+           <div className="w-64 border-r border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col hidden md:flex">
                <div className="p-4 space-y-1">
                    <button 
                      onClick={() => setView('home')} 
@@ -338,71 +380,117 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                    </button>
                </div>
                
-               <div className="mt-4 px-4 text-xs font-bold text-slate-400 uppercase">我的歌单</div>
-               <div className="flex-1 overflow-y-auto p-2">
-                   {/* Mock Playlists */}
-                   {[{ id: '3778678', name: '热歌榜', coverImgUrl: '', description: '', trackCount: 0, playCount: 0 } as Playlist].map(pl => (
+               <div className="mt-4 px-4 text-xs font-bold text-slate-400 uppercase">官方榜单</div>
+               <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
+                   {playlists.length > 0 ? playlists.map(pl => (
                        <button 
                          key={pl.id}
                          onClick={() => openPlaylist(pl)}
-                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left truncate ${selectedPlaylist?.id === pl.id && view === 'playlist' ? 'text-red-500' : 'text-slate-600 dark:text-slate-400'}`}
+                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left truncate group ${selectedPlaylist?.id === pl.id && view === 'playlist' ? 'text-red-500' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
                        >
-                           <Disc size={14} /> {pl.name}
+                           <div className="w-8 h-8 rounded overflow-hidden shrink-0 bg-slate-200">
+                              <img src={pl.coverImgUrl} className="w-full h-full object-cover" loading="lazy" />
+                           </div>
+                           <span className="truncate flex-1">{pl.name}</span>
                        </button>
-                   ))}
+                   )) : (
+                       <div className="text-center py-4 text-xs text-slate-400">加载榜单中...</div>
+                   )}
                </div>
            </div>
 
            {/* List View */}
-           <div className="flex-1 overflow-y-auto p-6">
+           <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
                {loading && (
                    <div className="flex justify-center py-20"><Loader2 className="animate-spin text-red-500" /></div>
                )}
                
                {!loading && (
                    <>
-                       {(view === 'playlist' || view === 'history') && (
-                           <div className="space-y-4">
+                       {(view === 'playlist' || view === 'history' || view === 'search') && (
+                           <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                                <div className="flex items-center justify-between mb-4">
                                     <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                                        {view === 'history' ? '播放历史' : selectedPlaylist?.name}
+                                        {view === 'history' ? '播放历史' : view === 'search' ? `"${searchQuery}" 的搜索结果` : selectedPlaylist?.name}
                                     </h2>
                                     <button 
-                                      onClick={() => playAll(playlistSongs)}
+                                      onClick={() => playAll(view === 'search' ? searchResults : playlistSongs)}
                                       className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-full text-sm font-medium transition-colors"
                                     >
                                         <Play size={16} fill="currentColor" /> 播放全部
                                     </button>
                                </div>
                                <div className="space-y-1">
-                                   {playlistSongs.map((song, i) => (
+                                   {(view === 'search' ? searchResults : playlistSongs).map((song, i) => (
                                        <div 
-                                         key={i} 
-                                         onClick={() => playSong(song, playlistSongs)}
+                                         key={song.id} 
+                                         onClick={() => playSong(song, view === 'search' ? searchResults : playlistSongs)}
                                          className={`group flex items-center gap-4 p-3 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-colors cursor-pointer ${currentSong?.id === song.id ? 'bg-red-50 dark:bg-red-900/10' : ''}`}
                                        >
-                                           <div className="w-8 text-center text-sm text-slate-400">{i + 1}</div>
+                                           <div className="w-8 text-center text-sm text-slate-400">
+                                              {currentSong?.id === song.id && isPlaying ? (
+                                                  <div className="flex justify-center items-end gap-0.5 h-3">
+                                                      <div className="w-1 bg-red-500 animate-[bounce_1s_infinite] h-2"></div>
+                                                      <div className="w-1 bg-red-500 animate-[bounce_1.2s_infinite] h-3"></div>
+                                                      <div className="w-1 bg-red-500 animate-[bounce_0.8s_infinite] h-1.5"></div>
+                                                  </div>
+                                              ) : (
+                                                  i + 1
+                                              )}
+                                           </div>
                                            <div className="flex-1 min-w-0">
                                                <div className={`font-medium truncate ${currentSong?.id === song.id ? 'text-red-500' : 'text-slate-700 dark:text-slate-200'}`}>{song.name}</div>
                                                <div className="text-xs text-slate-400 truncate">{song.ar.map(a => a.name).join(', ')}</div>
                                            </div>
                                            <div className="text-xs text-slate-400 hidden sm:block w-32 truncate">{song.al.name}</div>
-                                           <button onClick={(e) => handleDownload(e, song)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                           <button onClick={(e) => handleDownload(e, song)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity">
                                                <Download size={16} />
                                            </button>
                                        </div>
                                    ))}
+                                   {(view === 'search' ? searchResults : playlistSongs).length === 0 && (
+                                       <div className="text-center py-10 text-slate-400">暂无内容</div>
+                                   )}
                                </div>
                            </div>
                        )}
 
                        {view === 'home' && (
-                           <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                               <Music size={48} className="mb-4 opacity-20" />
-                               <p>探索更多音乐...</p>
-                               <button onClick={() => openPlaylist({ id: '3778678', name: '热歌榜', coverImgUrl: '', description: '', trackCount: 0, playCount: 0 } as Playlist)} className="mt-4 text-red-500 hover:underline">
-                                   查看热歌榜
-                               </button>
+                           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                               <h2 className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                                  <List className="text-red-500" size={20} /> 热门榜单
+                               </h2>
+                               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                  {playlists.map(list => (
+                                      <div 
+                                        key={list.id} 
+                                        onClick={() => openPlaylist(list)}
+                                        className="group cursor-pointer space-y-2"
+                                      >
+                                          <div className="aspect-square rounded-xl overflow-hidden relative shadow-md bg-slate-200 dark:bg-slate-800">
+                                              <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                  <div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center text-red-500 shadow-xl scale-50 group-hover:scale-100 transition-transform">
+                                                      <Play fill="currentColor" size={16} className="ml-0.5" />
+                                                  </div>
+                                              </div>
+                                              <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/50 backdrop-blur rounded text-[10px] text-white font-medium flex items-center gap-1">
+                                                  <Play size={8} fill="currentColor" />
+                                                  {Math.floor(list.playCount / 10000)}万
+                                              </div>
+                                          </div>
+                                          <div className="font-medium text-sm text-slate-700 dark:text-slate-200 truncate group-hover:text-red-500 transition-colors">
+                                              {list.name}
+                                          </div>
+                                      </div>
+                                  ))}
+                                  {playlists.length === 0 && (
+                                      <div className="col-span-full py-20 text-center text-slate-400">
+                                          <Loader2 className="animate-spin inline-block mb-2" />
+                                          <p>正在获取榜单数据...</p>
+                                      </div>
+                                  )}
+                               </div>
                            </div>
                        )}
                    </>
