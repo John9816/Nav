@@ -11,7 +11,7 @@ import {
   fetchTopLists, fetchPlaylistDetails, fetchSongUrl, searchSongs, 
   fetchLyrics, fetchLikedSongs, likeSong, unlikeSong,
   fetchMusicHistory, addToHistory, clearMusicHistory, fetchSongDetail,
-  checkGuestLimit
+  checkGuestLimit, resolveBatchUrls
 } from '../services/musicService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -514,7 +514,11 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange,
     setPlaylistSongs([]); // Clear previous songs to avoid stale state flicker
     
     // Explicitly requesting without page parameters to load all
-    const songs = await fetchPlaylistDetails(list.id);
+    let songs = await fetchPlaylistDetails(list.id);
+    
+    // Batch resolve URLs for all songs in the playlist
+    songs = await resolveBatchUrls(songs, quality);
+    
     setPlaylistSongs(songs);
     setLoading(false);
   };
@@ -865,21 +869,10 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange,
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-200 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
-                                  <div className="flex items-center gap-3">
-                                      {song.al.picUrl ? (
-                                        <img 
-                                            src={song.al.picUrl} 
-                                            className="w-9 h-9 rounded-md object-cover shadow-sm shrink-0 bg-slate-200 dark:bg-slate-700" 
-                                            alt={song.name}
-                                            loading="lazy"
-                                        />
-                                      ) : (
-                                        <div className="w-9 h-9 rounded-md bg-slate-200 dark:bg-slate-700 shrink-0 flex items-center justify-center text-slate-400">
-                                           <Music size={16} />
-                                        </div>
-                                      )}
-                                      <span className="truncate">{song.name}</span>
-                                  </div>
+                                  {song.name}
+                                  {song.al.picUrl && (
+                                    <img src={song.al.picUrl} className="w-8 h-8 rounded ml-3 inline-block sm:hidden object-cover" alt="" />
+                                  )}
                                 </td>
                                 <td className="px-4 py-3 text-slate-500 dark:text-slate-400 hidden sm:table-cell">{song.ar.map(a => a.name).join(', ')}</td>
                                 <td className="px-4 py-3 text-slate-500 dark:text-slate-400 hidden md:table-cell truncate max-w-[200px]">{song.al.name}</td>
@@ -984,12 +977,13 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({ activeView, onViewChange,
                       <p className="text-sm text-white/60">{currentSong.ar.map(a => a.name).join(', ')}</p>
                     </div>
                     
-                    {/* Heart in Lyric View */}
+                    {/* Fullscreen Toggle in Lyric View */}
                     <button 
-                        onClick={(e) => toggleLike(e, currentSong)}
-                        className={`p-2 rounded-full transition-colors ${likedSongIds.has(String(currentSong.id)) ? 'text-red-500' : 'text-white/60 hover:text-white'}`}
+                        onClick={() => toggleFullscreen()}
+                        className="p-2 rounded-full text-white/60 hover:text-white transition-colors"
+                        title={isFullscreen ? "退出全屏" : "全屏模式"}
                     >
-                        <Heart size={24} fill={likedSongIds.has(String(currentSong.id)) ? "currentColor" : "none"} />
+                        {isFullscreen ? <Minimize size={24} /> : <Maximize size={24} />}
                     </button>
                 </div>
 

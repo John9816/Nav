@@ -286,6 +286,66 @@ export const fetchPlaylistDetails = async (id: number | string): Promise<Song[]>
   }
 };
 
+/**
+ * Batch resolve URLs for a list of songs using TuneHub API.
+ * This populates the urlPromiseCache so subsequent single-song fetches are instant.
+ */
+export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'): Promise<Song[]> => {
+  if (songs.length === 0) return [];
+
+  // Extract IDs
+  const ids = songs.map(s => s.id).join(',');
+
+  try {
+    const response = await fetch(TUNEHUB_API_URL, {
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/plain, */*',
+          'X-API-Key': TUNEHUB_API_KEY,
+          'Referer': 'https://tunehub.sayqz.com/test'
+      },
+      body: JSON.stringify({
+          platform: 'netease', 
+          ids: ids,
+          quality: quality
+      })
+    });
+
+    if (!response.ok) throw new Error(`TuneHub batch error ${response.status}`);
+    
+    const result = await response.json();
+    
+    // Parse response and map back to songs
+    if (result.success && result.data && Array.isArray(result.data.data)) {
+        const resolvedList = result.data.data;
+        const urlMap = new Map<string, string>();
+        
+        resolvedList.forEach((item: any) => {
+            if (item.url) {
+                // Ensure ID matches string/number loose equality
+                urlMap.set(String(item.id), toHttps(item.url));
+                
+                // Pre-populate the cache used by fetchSongUrl
+                const cacheKey = `${item.id}-${quality}`;
+                urlPromiseCache.set(cacheKey, Promise.resolve(toHttps(item.url)));
+            }
+        });
+
+        // Return updated song objects with URLs
+        return songs.map(song => ({
+            ...song,
+            url: urlMap.get(String(song.id)) || song.url
+        }));
+    }
+    
+    return songs;
+  } catch (err) {
+    console.warn("Batch resolve failed:", err);
+    return songs; // Return original songs if batch fails
+  }
+};
+
 export const fetchSongDetail = async (id: number | string): Promise<Song | null> => {
   try {
     // Use local proxy path for official Netease API song detail
@@ -328,21 +388,26 @@ export const fetchSongUrl = (id: number | string, source: string = 'netease', br
   }
 
   const fetchTask = async (): Promise<string | null> => {
+    // 1. Check if URL is already available in cache (implicitly handled above) or direct
+    // but since we are here, it means no cache. 
+    
+    // NOTE: If resolveBatchUrls was called, the cache entry would exist and be returned above.
+    
     const directUrl = `https://music.163.com/song/media/outer/url?id=${id}.mp3`;
 
-    // 1. Try Direct URL
+    // 2. Try Direct URL first (as fallback/optimization for single plays)
     const isDirectValid = await checkDirectUrl(id);
     if (isDirectValid) {
         return directUrl;
     }
 
-    // 2. Fallback to TuneHub Parse (Strictly Netease)
+    // 3. Fallback to TuneHub Parse (Strictly Netease)
     const tuneData = await getTuneHubParseData(id, br);
     if (tuneData && tuneData.url) {
         return toHttps(tuneData.url);
     }
 
-    // 3. Fallback to Direct URL anyway (Browser might be able to handle it even if HEAD failed)
+    // 4. Fallback to Direct URL anyway
     return directUrl;
   };
 
