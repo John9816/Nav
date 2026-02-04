@@ -431,7 +431,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                    </div>
                )}
 
-               <div className="p-6 md:p-10 relative z-10 min-h-full pb-32">
+               <div className="p-6 md:p-8 lg:p-10 relative z-10 min-h-full pb-32">
                    {loading ? (
                        <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
                            <Loader2 className="animate-spin text-red-500" size={32} />
@@ -539,7 +539,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                            )}
 
                            {view === 'home' && (
-                               <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                               <div className="max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
                                    <div className="flex items-center gap-2 mb-6">
                                        <div className="p-2 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
                                            <Radio size={20} />
@@ -549,44 +549,45 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                        </h2>
                                    </div>
                                    
-                                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                                   {/* Compact Layout Grid */}
+                                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
                                       {displayedPlaylists.map(list => (
                                           <div 
                                             key={list.id} 
                                             onClick={() => openPlaylist(list)}
-                                            className="group cursor-pointer flex flex-col gap-3"
+                                            className="group cursor-pointer flex flex-col gap-2"
                                           >
-                                              <div className="aspect-square rounded-2xl overflow-hidden relative shadow-sm bg-slate-200 dark:bg-slate-800 group-hover:shadow-xl group-hover:shadow-red-500/10 transition-all duration-300">
+                                              <div className="aspect-square rounded-xl overflow-hidden relative shadow-sm bg-slate-200 dark:bg-slate-800 group-hover:shadow-md group-hover:shadow-red-500/10 transition-all duration-300">
                                                   <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" referrerPolicy="no-referrer" />
                                                   
                                                   {/* Overlay Play Button */}
-                                                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                                                      <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center text-red-500 shadow-xl scale-75 group-hover:scale-100 transition-transform duration-300">
-                                                          <Play fill="currentColor" size={20} className="ml-1" />
+                                                  <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
+                                                      <div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center text-red-500 shadow-xl scale-75 group-hover:scale-100 transition-transform duration-300">
+                                                          <Play fill="currentColor" size={18} className="ml-0.5" />
                                                       </div>
                                                   </div>
                                                   
                                                   {/* Count Badge */}
-                                                  <div className="absolute top-2 right-2 px-2 py-1 bg-black/40 backdrop-blur-md rounded-lg text-[10px] text-white font-medium flex items-center gap-1">
+                                                  <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-black/40 backdrop-blur-md rounded-md text-[9px] text-white font-medium flex items-center gap-0.5">
                                                       <Play size={8} fill="currentColor" />
                                                       {Math.floor(list.playCount / 10000)}万
                                                   </div>
 
                                                   {/* Source Badge */}
                                                   {list.source === 'qq' && (
-                                                    <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-green-500/90 backdrop-blur-sm rounded text-[10px] text-white font-bold uppercase tracking-wider shadow-sm">
+                                                    <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-green-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm">
                                                         QQ
                                                     </div>
                                                   )}
                                                   {list.source === 'netease' && (
-                                                    <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-red-500/90 backdrop-blur-sm rounded text-[10px] text-white font-bold uppercase tracking-wider shadow-sm">
+                                                    <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-red-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm">
                                                         WY
                                                     </div>
                                                   )}
                                               </div>
                                               
                                               <div>
-                                                  <h3 className="font-bold text-sm text-slate-700 dark:text-slate-200 line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">
+                                                  <h3 className="font-bold text-xs text-slate-700 dark:text-slate-200 line-clamp-1 leading-tight group-hover:text-red-500 transition-colors" title={list.name}>
                                                       {list.name}
                                                   </h3>
                                               </div>
