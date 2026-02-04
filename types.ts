@@ -59,7 +59,7 @@ export interface GuestbookMessage {
   created_at: string;
 }
 
-// Spark (Inspiration)
+// Spark / Inspiration
 export interface Spark {
   id: string;
   user_id: string;

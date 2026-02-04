@@ -379,6 +379,7 @@ export const fetchLyrics = async (id: string | number, source: string = 'netease
 };
 
 export const parseLyrics = (lrc: string): LyricLine[] => {
+    if (!lrc) return [];
     const lines = lrc.split('\n');
     const result: LyricLine[] = [];
     const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
@@ -387,8 +388,10 @@ export const parseLyrics = (lrc: string): LyricLine[] => {
         if (match) {
             const min = parseInt(match[1]);
             const sec = parseInt(match[2]);
-            const ms = parseInt(match[3]);
-            const time = min * 60 + sec + ms / 1000;
+            const msStr = match[3];
+            const ms = parseInt(msStr);
+            const msInSeconds = msStr.length === 2 ? ms / 100 : ms / 1000;
+            const time = min * 60 + sec + msInSeconds;
             const text = line.replace(timeRegex, '').trim();
             if (text) result.push({ time, text });
         }

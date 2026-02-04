@@ -126,13 +126,6 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       }
   }, [activeLyricIndex, showLyrics]);
 
-  // Auto-hide lyrics if empty
-  useEffect(() => {
-      if (lyrics.length === 0 && showLyrics) {
-          setShowLyrics(false);
-      }
-  }, [lyrics, showLyrics]);
-
   const loadHistory = async () => {
       if (!user) return;
       setLoading(true);
@@ -546,7 +539,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                )}
 
                {/* Lyrics Overlay */}
-               {showLyrics && currentSong && lyrics.length > 0 && (
+               {showLyrics && currentSong && (
                    <div className="absolute inset-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl flex flex-col md:flex-row items-center justify-center p-8 gap-8 md:gap-16 animate-in fade-in slide-in-from-bottom-4 duration-300">
                        <button 
                            onClick={() => setShowLyrics(false)}
@@ -562,28 +555,36 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
                        {/* Lyrics Scroll Area */}
                        <div className="flex-1 h-full max-h-[60vh] w-full max-w-xl relative" style={{ maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)' }}> 
-                          <div 
-                            ref={lyricsContainerRef}
-                            className="h-full overflow-y-auto no-scrollbar text-center space-y-6 py-[50%]"
-                            style={{ scrollBehavior: 'smooth', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                          >
-                              {lyrics.map((line, i) => (
-                                  <p 
-                                    key={i}
-                                    className={`transition-all duration-300 cursor-pointer px-4
-                                       ${i === activeLyricIndex 
-                                          ? 'text-xl md:text-2xl font-bold text-slate-800 dark:text-white scale-105' 
-                                          : 'text-sm md:text-base font-medium text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-                                       }
-                                    `}
-                                    onClick={() => {
-                                        if(audioRef.current) audioRef.current.currentTime = line.time;
-                                    }}
-                                  >
-                                      {line.text}
-                                  </p>
-                              ))}
-                          </div>
+                          {lyrics.length > 0 ? (
+                              <div 
+                                ref={lyricsContainerRef}
+                                className="h-full overflow-y-auto no-scrollbar text-center space-y-6 py-[50%]"
+                                style={{ scrollBehavior: 'smooth', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                              >
+                                  {lyrics.map((line, i) => (
+                                      <p 
+                                        key={i}
+                                        className={`transition-all duration-300 cursor-pointer px-4
+                                           ${i === activeLyricIndex 
+                                              ? 'text-xl md:text-2xl font-bold text-slate-800 dark:text-white scale-105' 
+                                              : 'text-sm md:text-base font-medium text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+                                           }
+                                        `}
+                                        onClick={() => {
+                                            if(audioRef.current) audioRef.current.currentTime = line.time;
+                                        }}
+                                      >
+                                          {line.text}
+                                      </p>
+                                  ))}
+                              </div>
+                          ) : (
+                              <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4">
+                                  <Mic2 size={48} className="opacity-20" />
+                                  <p className="text-lg font-medium">歌词加载中...</p>
+                                  <p className="text-sm opacity-60">纯音乐或暂无歌词</p>
+                              </div>
+                          )}
                        </div>
                    </div>
                )}
@@ -879,7 +880,6 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
               <button 
                 onClick={() => setShowLyrics(!showLyrics)} 
                 className={`ml-2 p-2 transition-colors ${showLyrics ? 'text-red-500 bg-red-50 dark:bg-red-900/20 rounded-full' : 'text-slate-400 hover:text-red-500'}`}
-                disabled={lyrics.length === 0}
               >
                  <Mic2 size={18} />
               </button>
