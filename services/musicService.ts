@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 
 // API Configuration
 const TUNEHUB_API_URL = 'https://tunehub.sayqz.com/api/v1/meting'; // For Metadata (Lyrics, Playlist)
-const PARSE_API_URL = 'https://music.byebug.cn/api/parse';   // For Audio URLs
+const PARSE_API_URL = '/music-api/parse';   // Proxy endpoint for audio URLs
 const TUNEHUB_API_KEY = 'th_394966cb240cca0b4bb4f36f7d568418e66d8d26e8d43dd5'; 
 
 // Quality Priority Chain

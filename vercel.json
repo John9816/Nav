@@ -9,6 +9,10 @@
       "destination": "https://u.y.qq.com/$1"
     },
     {
+      "source": "/music-api/(.*)",
+      "destination": "https://music.byebug.cn/api/$1"
+    },
+    {
       "source": "/((?!assets/|.*\\..*).*)",
       "destination": "/index.html"
     }

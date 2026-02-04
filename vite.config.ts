@@ -31,6 +31,23 @@ export default defineConfig(({ mode }) => {
               'Referer': 'https://y.qq.com/',
               'Origin': 'https://y.qq.com/'
             }
+          },
+          '/music-api': {
+            target: 'https://music.byebug.cn',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/music-api/, '/api'),
+            headers: {
+              'Referer': 'https://music.byebug.cn/',
+              'Origin': 'https://music.byebug.cn',
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36',
+              'priority': 'u=1, i',
+              'sec-ch-ua': '"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
+              'sec-ch-ua-mobile': '?0',
+              'sec-ch-ua-platform': '"macOS"',
+              'sec-fetch-dest': 'empty',
+              'sec-fetch-mode': 'cors',
+              'sec-fetch-site': 'same-origin'
+            }
           }
         }
       },
