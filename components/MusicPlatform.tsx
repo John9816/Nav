@@ -472,12 +472,18 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                       )}
                                                       <Play size={14} className="hidden group-hover:block text-slate-600 dark:text-slate-300" fill="currentColor" />
                                                    </div>
-                                                   <div className="min-w-0 pr-4">
-                                                       <div className={`font-medium truncate text-sm mb-0.5 ${currentSong?.id === song.id ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>{song.name}</div>
-                                                       <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-2">
-                                                           {song.source === 'qq' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">QQ</span>}
-                                                           {song.source === 'netease' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">WY</span>}
-                                                           {song.ar.map(a => a.name).join(', ')}
+                                                   <div className="min-w-0 pr-4 flex items-center gap-3">
+                                                       {/* Song Cover */}
+                                                       <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-700">
+                                                            <img src={song.al.picUrl} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
+                                                       </div>
+                                                       <div className="min-w-0 flex-1">
+                                                           <div className={`font-medium truncate text-sm mb-0.5 ${currentSong?.id === song.id ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>{song.name}</div>
+                                                           <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-2">
+                                                               {song.source === 'qq' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">QQ</span>}
+                                                               {song.source === 'netease' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">WY</span>}
+                                                               {song.ar.map(a => a.name).join(', ')}
+                                                           </div>
                                                        </div>
                                                    </div>
                                                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate hidden sm:block">{song.al.name}</div>
