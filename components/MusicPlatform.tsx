@@ -52,6 +52,10 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Song[]>([]);
   
+  // Search Source State
+  const [searchSource, setSearchSource] = useState<'netease' | 'qq' | 'kuwo'>('netease');
+  const [showSourceMenu, setShowSourceMenu] = useState(false);
+  
   // Lyrics State
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [rawLyric, setRawLyric] = useState<string>(''); // Store raw lyric text for DB saving
@@ -147,12 +151,13 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       setView('favorites');
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
-      e.preventDefault();
+  const handleSearch = async (e?: React.FormEvent) => {
+      if (e) e.preventDefault();
       if (!searchQuery.trim()) return;
+      setShowSourceMenu(false); // Close menu if open
       setView('search');
       setLoading(true);
-      const songs = await searchSongs(searchQuery);
+      const songs = await searchSongs(searchQuery, searchSource);
       setSearchResults(songs);
       setLoading(false);
   };
@@ -429,6 +434,15 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     return p.source === chartFilter;
   });
 
+  const getSourceLabel = (s: string) => {
+      switch(s) {
+          case 'netease': return '网易';
+          case 'qq': return 'QQ';
+          case 'kuwo': return '酷我';
+          default: return s;
+      }
+  };
+
   return (
     <div 
       className={`fixed inset-0 z-40 bg-slate-50 dark:bg-slate-900 flex flex-col pt-16 transition-all duration-300 ease-in-out
@@ -518,16 +532,54 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                         </button>
                     )}
                     
-                    {/* Search Input */}
-                    <form onSubmit={handleSearch} className="flex-1 relative group max-w-xl">
-                      <input 
-                        type="text" 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="搜索歌曲、歌手、专辑..."
-                        className="w-full pl-10 pr-4 py-2.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-red-500/30 transition-all text-slate-800 dark:text-slate-100 placeholder-slate-400 shadow-sm"
-                      />
-                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-red-500 transition-colors" />
+                    {/* Search Bar with Source Selector */}
+                    <form onSubmit={handleSearch} className="flex-1 flex items-center bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm focus-within:ring-2 focus-within:ring-red-500/30 max-w-xl relative">
+                        {/* Source Selector Dropdown */}
+                        <div className="relative shrink-0">
+                            <button 
+                               type="button"
+                               onClick={() => setShowSourceMenu(!showSourceMenu)}
+                               className="flex items-center gap-1 pl-4 pr-3 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 border-r border-slate-200 dark:border-slate-700 transition-colors"
+                            >
+                               {getSourceLabel(searchSource)}
+                               <ChevronDown size={12} className={`transition-transform duration-200 ${showSourceMenu ? 'rotate-180' : ''}`} />
+                            </button>
+                            
+                            {showSourceMenu && (
+                                <>
+                                    <div className="fixed inset-0 z-10" onClick={() => setShowSourceMenu(false)}></div>
+                                    <div className="absolute top-full left-0 mt-2 w-28 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 z-20">
+                                        {['netease', 'qq', 'kuwo'].map((s) => (
+                                            <button
+                                                key={s}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSearchSource(s as any);
+                                                    setShowSourceMenu(false);
+                                                }}
+                                                className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-700
+                                                   ${searchSource === s ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-slate-600 dark:text-slate-300'}
+                                                `}
+                                            >
+                                                {getSourceLabel(s)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Search Input */}
+                        <input 
+                            type="text" 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder={`搜索${getSourceLabel(searchSource)}音乐...`}
+                            className="flex-1 bg-transparent border-none focus:ring-0 py-2.5 px-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400"
+                        />
+                        <button type="submit" className="pr-4 pl-2 text-slate-400 hover:text-red-500 transition-colors">
+                            <Search size={18} />
+                        </button>
                     </form>
                </div>
 
@@ -672,6 +724,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                            <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-2">
                                                                {song.source === 'qq' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">QQ</span>}
                                                                {song.source === 'netease' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">WY</span>}
+                                                               {song.source === 'kuwo' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">KW</span>}
                                                                {song.ar.map(a => a.name).join(', ')}
                                                            </div>
                                                        </div>

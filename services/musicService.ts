@@ -2,7 +2,7 @@ import { Song, Playlist, LyricLine } from '../types';
 import { supabase } from './supabaseClient';
 
 // API Configuration
-const TUNEHUB_API_URL = 'https://tunehub.sayqz.com/api/v1/meting'; // For Metadata (Lyrics, Playlist)
+const TUNEHUB_API_URL = 'https://tunehub.sayqz.com/api/v1/meting'; // For Metadata (Lyrics, Playlist, Search)
 const PARSE_API_URL = '/music-api/parse';   // Proxy endpoint for audio URLs
 const TUNEHUB_API_KEY = 'th_394966cb240cca0b4bb4f36f7d568418e66d8d26e8d43dd5'; 
 
@@ -22,13 +22,14 @@ const toHttps = (url: string) => {
 const getMetingServer = (source: string) => {
     if (source === 'qq') return 'tencent';
     if (source === 'netease') return 'netease';
+    if (source === 'kuwo') return 'kuwo';
     return source;
 };
 
 // Helper to map internal source to Parse API platform param (Audio URL)
 // Parse API usually expects 'qq' for QQ Music
 const getParsePlatform = (source: string) => {
-    return source; // 'netease' | 'qq'
+    return source; // 'netease' | 'qq' | 'kuwo'
 };
 
 const mapApiItemToSong = (item: any): Song => {
@@ -211,21 +212,62 @@ export const fetchTopLists = async (): Promise<Playlist[]> => {
 };
 
 /**
- * Search Songs via Proxy
+ * Search Songs (Supports Netease, QQ, Kuwo)
  */
-export const searchSongs = async (keywords: string, page: number = 1, limit: number = 20): Promise<Song[]> => {
+export const searchSongs = async (
+    keywords: string, 
+    source: 'netease' | 'qq' | 'kuwo' = 'netease', 
+    page: number = 1, 
+    limit: number = 20
+): Promise<Song[]> => {
   try {
-    const offset = (page > 0 ? page - 1 : 0) * limit;
-    const response = await fetch(
-        `/netease-api/api/search/get/web?s=${encodeURIComponent(keywords)}&type=1&offset=${offset}&limit=${limit}`, 
-        { headers: { 'Accept': 'application/json' } }
-    );
+    // Legacy Netease Direct Proxy (Preferred for Netease if still valid)
+    if (source === 'netease') {
+        const offset = (page > 0 ? page - 1 : 0) * limit;
+        try {
+            const response = await fetch(
+                `/netease-api/api/search/get/web?s=${encodeURIComponent(keywords)}&type=1&offset=${offset}&limit=${limit}`, 
+                { headers: { 'Accept': 'application/json' } }
+            );
+            const data = await response.json();
+            const songs = data.result?.songs || [];
+            if (songs.length > 0) return songs.map(mapApiItemToSong);
+            // If empty, fall through to Meting? No, just return empty to be safe or maybe user really found nothing.
+            return [];
+        } catch (e) {
+            console.warn("Netease proxy search failed, trying Meting fallback...", e);
+            // Fallback to Meting logic below
+        }
+    }
 
+    // Meting API (TuneHub) for QQ, Kuwo, and Netease fallback
+    const response = await fetch(TUNEHUB_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },
+        body: JSON.stringify({ 
+            server: getMetingServer(source), 
+            type: 'search', 
+            keyword: keywords,
+            page: page, 
+            limit: limit
+        })
+    });
+    
     const data = await response.json();
-    const songs = data.result?.songs || [];
-    return songs.map(mapApiItemToSong);
+    const list = Array.isArray(data) ? data : (data.data || []);
+    
+    return list.map((item: any) => ({
+         id: item.id || item.songId,
+         name: item.name || item.title,
+         ar: item.artist ? item.artist.map((a: string) => ({ id: 0, name: a })) : [],
+         al: { id: 0, name: item.album || '', picUrl: toHttps(item.pic || item.cover) },
+         dt: item.dt || 0,
+         source: source,
+         url: undefined 
+    }));
+
   } catch (error) {
-    console.error("Search failed:", error);
+    console.error(`Search failed for ${source}:`, error);
     return [];
   }
 };
