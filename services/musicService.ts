@@ -18,6 +18,7 @@ const toHttps = (url: string) => {
 };
 
 // Helper to map internal source to Meting API server param (Metadata)
+// Meting API usually expects 'tencent' for QQ Music
 const getMetingServer = (source: string) => {
     if (source === 'qq') return 'tencent';
     if (source === 'netease') return 'netease';
@@ -25,9 +26,9 @@ const getMetingServer = (source: string) => {
 };
 
 // Helper to map internal source to Parse API platform param (Audio URL)
+// Parse API usually expects 'qq' for QQ Music
 const getParsePlatform = (source: string) => {
-    // Parse API uses 'qq' and 'netease' directly
-    return source;
+    return source; // 'netease' | 'qq'
 };
 
 const mapApiItemToSong = (item: any): Song => {
@@ -262,12 +263,13 @@ const resolveBatchForSource = async (songs: Song[], source: string, quality: str
         if (idsToFetch.length === 0) break;
 
         try {
+            // Join IDs with comma
             const idsStr = idsToFetch.join(',');
+            
             const response = await fetch(PARSE_API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json',
                     'X-API-Key': TUNEHUB_API_KEY
                 },
                 body: JSON.stringify({
@@ -284,23 +286,21 @@ const resolveBatchForSource = async (songs: Song[], source: string, quality: str
 
             if (list.length > 0) {
                 list.forEach((item: any) => {
-                    // Item usually contains { id: "...", url: "..." }
-                    // Some APIs return id as string or number
                     if (item.url) {
+                        // The parse API usually returns objects corresponding to the requested IDs.
+                        // If it doesn't return the ID field in the response, we might need to rely on order or assume 
+                        // matching if we requested single. For batch, having ID is crucial.
+                        // Most implementations of this API return { id, url, ... }
+                        
                         const idStr = String(item.id || item.songId || '');
-                        // If ID is missing in response, but we only sent one ID, we can assume it matches.
-                        // But for batch, we need the ID.
-                        // Fallback: if list length matches request length, we might map by index (risky).
-                        // Let's rely on ID presence first.
+                        
                         if (idStr && !resolvedMap.has(idStr)) {
                             const secureUrl = toHttps(item.url);
                             resolvedMap.set(idStr, secureUrl);
                             const cacheKey = `${idStr}-${quality}`;
                             urlPromiseCache.set(cacheKey, Promise.resolve(secureUrl));
-                        } 
-                        // If the API doesn't return ID in the object, check if we can infer it.
-                        // (Most Meting parsers return url, size, br, but maybe not original ID if not standard).
-                        // If we are parsing a specific ID, the response might just be the song object.
+                        }
+                        // Fallback: if we only requested 1 ID and got a result without ID field
                         else if (!idStr && idsToFetch.length === 1) {
                              const singleId = idsToFetch[0];
                              const secureUrl = toHttps(item.url);
@@ -342,7 +342,10 @@ export const fetchSongUrl = async (id: string | number, source: string = 'neteas
             try {
                 const response = await fetch(PARSE_API_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'X-API-Key': TUNEHUB_API_KEY 
+                    },
                     body: JSON.stringify({ 
                         platform: getParsePlatform(source), 
                         ids: String(id), 
