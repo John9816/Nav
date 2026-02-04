@@ -300,28 +300,38 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
             setRawLyric(raw);
             // Late save for lyrics if we fetched them
             if (user && raw) {
+                 // We don't have URL yet, pass undefined or check later
                  addToHistory(user.id, song, raw);
             }
         });
     }
 
-    if (user) {
-        // Save to history immediately with whatever lyric we have so far
-        addToHistory(user.id, song, lyricTextForSave).then(() => {
-             if (view === 'history') {
-                 loadHistory();
-             }
-        });
+    // URL Fetching Logic
+    let url = song.url;
+    
+    // If URL is missing, fetch it. If present, use it directly (Database Source).
+    if (!url) {
+        const fetchedUrl = await fetchSongUrl(song.id, song.source, quality);
+        if (fetchedUrl) url = fetchedUrl;
     }
 
-    let url = song.url;
-    // Single resolve request "Parse One by One"
-    const fetchedUrl = await fetchSongUrl(song.id, song.source, quality);
-    if (fetchedUrl) url = fetchedUrl;
-
     if (url) {
-      setCurrentSong(prev => (prev && prev.id === song.id ? { ...prev, url } : prev));
+      const finalUrl = url;
+      // Update state with valid URL
+      setCurrentSong(prev => (prev && prev.id === song.id ? { ...prev, url: finalUrl } : prev));
       setIsPlaying(true);
+      
+      // Save history with URL now that we have it
+      if (user) {
+          // Clone song to avoid mutating queue immediately
+          const songWithUrl = { ...song, url: finalUrl };
+          addToHistory(user.id, songWithUrl, lyricTextForSave).then(() => {
+               if (view === 'history') {
+                   // Optional: reloadHistory() if we want to see immediate update, 
+                   // but might cause re-render flicker. Often better to just let it update next time.
+               }
+          });
+      }
     } else {
       handleAudioError("No URL found");
     }

@@ -524,7 +524,7 @@ export const checkGuestLimit = async (): Promise<{ allowed: boolean, count: numb
     return { allowed, count: allowed ? count + 1 : count };
 };
 
-// Updated to save lyric
+// Updated to save lyric AND url
 export const addToHistory = async (userId: string, song: Song, lyric?: string) => {
     try {
         const { data: existing } = await supabase
@@ -548,6 +548,9 @@ export const addToHistory = async (userId: string, song: Song, lyric?: string) =
         
         if (lyric) {
             payload.lyric = lyric;
+        }
+        if (song.url) {
+            payload.url = song.url;
         }
 
         if (existing) {
@@ -582,7 +585,7 @@ export const getHistory = async (userId: string): Promise<Song[]> => {
         al: { id: 0, name: item.album || '', picUrl: item.cover_url || '' },
         dt: item.duration || 0,
         source: item.source || 'netease',
-        url: undefined,
+        url: item.url || undefined,
         lyric: item.lyric || undefined
     }));
 };
@@ -601,12 +604,12 @@ export const getLikedSongs = async (userId: string): Promise<Song[]> => {
         al: { id: 0, name: item.album || '', picUrl: item.cover_url || '' },
         dt: item.duration || 0,
         source: item.source || 'netease',
-        url: undefined,
+        url: item.url || undefined,
         lyric: item.lyric || undefined
     }));
 };
 
-// Updated to save lyric
+// Updated to save lyric AND url
 export const toggleLike = async (userId: string, song: Song, lyric?: string): Promise<boolean> => {
     const { data } = await supabase
         .from('liked_songs')
@@ -628,7 +631,8 @@ export const toggleLike = async (userId: string, song: Song, lyric?: string): Pr
             album: song.al.name,
             cover_url: song.al.picUrl,
             duration: song.dt,
-            lyric: lyric
+            lyric: lyric,
+            url: song.url
         });
         return true;
     }
