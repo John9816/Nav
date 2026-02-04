@@ -444,7 +444,16 @@ export const fetchSongUrl = async (id: string | number, source: string = 'neteas
     }
 
     const startIdx = QUALITY_LEVELS.indexOf(quality);
-    const qualitiesToTry = startIdx === -1 ? ['320k', '128k'] : QUALITY_LEVELS.slice(startIdx);
+    let qualitiesToTry = startIdx === -1 ? ['320k', '128k'] : QUALITY_LEVELS.slice(startIdx);
+
+    // FIX: Kuwo FLAC is often OGG container which fails on Safari/iOS. 
+    // Prefer 320k (MP3) for Kuwo to ensure playback compatibility unless 320k is not available then fallback.
+    // We remove flac/flac24bit from priority list for Kuwo.
+    if (source === 'kuwo') {
+        qualitiesToTry = qualitiesToTry.filter(q => q !== 'flac' && q !== 'flac24bit');
+        if (!qualitiesToTry.includes('320k')) qualitiesToTry.unshift('320k');
+        if (!qualitiesToTry.includes('128k')) qualitiesToTry.push('128k');
+    }
 
     const fetchTask = async (): Promise<{ url: string, lyric?: string } | null> => {
         for (const q of qualitiesToTry) {
