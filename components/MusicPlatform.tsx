@@ -73,6 +73,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const restoreTimeRef = useRef(0);
+  
+  // Guard for async callbacks
+  const currentSongIdRef = useRef<string | number | null>(null);
 
   // Load Charts on Mount
   useEffect(() => {
@@ -288,6 +291,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     setRawLyric('');
     restoreTimeRef.current = 0; 
     
+    currentSongIdRef.current = song.id;
     setCurrentSong(song);
 
     // Metadata Fetching Optimization:
@@ -329,6 +333,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
         setRawLyric(song.lyric);
     } else {
         fetchLyrics(song.id, song.source).then(({ lines, raw }) => {
+            // Guard: Check if we are still playing the same song
+            if (currentSongIdRef.current !== song.id) return;
+
             setLyrics(lines);
             setRawLyric(raw);
             // Late save for lyrics if we fetched them
