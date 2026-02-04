@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Song, Playlist, LyricLine } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -9,7 +9,8 @@ import {
 import { 
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
   List, Download, Search, Loader2,
-  Music, Disc, Radio, ArrowLeft, Clock, Mic2, LayoutGrid, Heart, Cloud
+  Music, Disc, Radio, ArrowLeft, Clock, Mic2, LayoutGrid, Heart, Cloud,
+  ChevronDown, Repeat1
 } from 'lucide-react';
 
 interface MusicPlatformProps {
@@ -49,7 +50,12 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Song[]>([]);
+  
+  // Lyrics State
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
+  const [showLyrics, setShowLyrics] = useState(false);
+  const lyricsContainerRef = useRef<HTMLDivElement>(null);
+
   const [loading, setLoading] = useState(false);
   const [checkingLimit, setCheckingLimit] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -81,6 +87,41 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
           onTabChangeHandled();
       }
   }, [requestedTab, onTabChangeHandled]);
+
+  // Determine active lyric index
+  const activeLyricIndex = useMemo(() => {
+      if (!lyrics.length) return -1;
+      let idx = -1;
+      for (let i = 0; i < lyrics.length; i++) {
+          if (lyrics[i].time <= progress) {
+              idx = i;
+          } else {
+              break;
+          }
+      }
+      return idx;
+  }, [lyrics, progress]);
+
+  // Auto-scroll lyrics
+  useEffect(() => {
+      if (showLyrics && activeLyricIndex !== -1 && lyricsContainerRef.current) {
+          const container = lyricsContainerRef.current;
+          const activeNode = container.children[activeLyricIndex] as HTMLElement;
+          if (activeNode) {
+              activeNode.scrollIntoView({
+                  behavior: 'smooth',
+                  block: 'center',
+              });
+          }
+      }
+  }, [activeLyricIndex, showLyrics]);
+
+  // Auto-hide lyrics if empty
+  useEffect(() => {
+      if (lyrics.length === 0 && showLyrics) {
+          setShowLyrics(false);
+      }
+  }, [lyrics, showLyrics]);
 
   const loadHistory = async () => {
       if (!user) return;
@@ -156,7 +197,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     setIsPlaying(false); 
     setErrorCount(0);
     setProgress(0);
-    setLyrics([]);
+    setLyrics([]); // Clear lyrics immediately on song change
     restoreTimeRef.current = 0; 
     
     setCurrentSong(song);
@@ -233,6 +274,17 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     }
   };
 
+  const handleSongEnd = () => {
+      if (playMode === 'single') {
+          if (audioRef.current) {
+              audioRef.current.currentTime = 0;
+              audioRef.current.play();
+          }
+      } else {
+          playNext();
+      }
+  };
+
   const playNext = () => {
     if (!currentSong || queue.length === 0) return;
     const currentIndex = queue.findIndex(s => s.id === currentSong.id);
@@ -307,7 +359,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     >
        
        {/* Main Content Area */}
-       <div className="flex-1 flex overflow-hidden">
+       <div className="flex-1 flex overflow-hidden relative">
            
            {/* Sidebar */}
            <div className="w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col hidden md:flex shrink-0">
@@ -396,6 +448,49 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                {currentSong && (
                    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
                        <div className="absolute -top-[20%] -right-[20%] w-[80%] h-[80%] opacity-5 dark:opacity-10 blur-[120px] rounded-full" style={{ backgroundColor: view === 'home' ? '#ef4444' : 'currentColor', color: 'inherit' }}></div>
+                   </div>
+               )}
+
+               {/* Lyrics Overlay */}
+               {showLyrics && currentSong && lyrics.length > 0 && (
+                   <div className="absolute inset-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl flex flex-col md:flex-row items-center justify-center p-8 gap-8 md:gap-16 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                       <button 
+                           onClick={() => setShowLyrics(false)}
+                           className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"
+                       >
+                           <ChevronDown size={24} />
+                       </button>
+                       
+                       {/* Cover Art */}
+                       <div className="w-64 h-64 md:w-96 md:h-96 shrink-0 rounded-2xl shadow-2xl overflow-hidden relative group hidden md:block">
+                           <img src={currentSong.al.picUrl} className="w-full h-full object-cover" />
+                       </div>
+
+                       {/* Lyrics Scroll Area */}
+                       <div className="flex-1 h-full max-h-[60vh] w-full max-w-xl relative" style={{ maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)' }}> 
+                          <div 
+                            ref={lyricsContainerRef}
+                            className="h-full overflow-y-auto no-scrollbar text-center space-y-6 py-[50%]"
+                            style={{ scrollBehavior: 'smooth', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                          >
+                              {lyrics.map((line, i) => (
+                                  <p 
+                                    key={i}
+                                    className={`transition-all duration-300 cursor-pointer px-4
+                                       ${i === activeLyricIndex 
+                                          ? 'text-xl md:text-2xl font-bold text-slate-800 dark:text-white scale-105' 
+                                          : 'text-sm md:text-base font-medium text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+                                       }
+                                    `}
+                                    onClick={() => {
+                                        if(audioRef.current) audioRef.current.currentTime = line.time;
+                                    }}
+                                  >
+                                      {line.text}
+                                  </p>
+                              ))}
+                          </div>
+                       </div>
                    </div>
                )}
 
@@ -628,7 +723,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
            <div className="flex-1 flex flex-col items-center justify-center max-w-lg">
                <div className="flex items-center gap-8">
                    <button onClick={togglePlayMode} className={`p-2 rounded-full transition-colors ${playMode !== 'loop' ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
-                       {playMode === 'single' ? <Repeat size={18} className="relative"><span className="absolute -top-1 -right-1 text-[8px] font-bold">1</span></Repeat> : playMode === 'shuffle' ? <Shuffle size={18} /> : <Repeat size={18} />}
+                       {playMode === 'single' ? <Repeat1 size={18} /> : playMode === 'shuffle' ? <Shuffle size={18} /> : <Repeat size={18} />}
                    </button>
                    
                    <button onClick={playPrev} className="text-slate-700 dark:text-slate-200 hover:text-red-500 dark:hover:text-red-400 transition-colors">
@@ -684,14 +779,13 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                    />
                </div>
-               {view === 'playlist' && lyrics.length > 0 && (
-                  <button 
-                    onClick={() => { /* Toggle Lyrics View Logic could go here */ }} 
-                    className="ml-2 p-2 text-slate-400 hover:text-red-500 transition-colors"
-                  >
-                     <Mic2 size={18} />
-                  </button>
-               )}
+              <button 
+                onClick={() => setShowLyrics(!showLyrics)} 
+                className={`ml-2 p-2 transition-colors ${showLyrics ? 'text-red-500 bg-red-50 dark:bg-red-900/20 rounded-full' : 'text-slate-400 hover:text-red-500'}`}
+                disabled={lyrics.length === 0}
+              >
+                 <Mic2 size={18} />
+              </button>
            </div>
        </div>
 
@@ -709,7 +803,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
          onPause={() => setIsPlaying(false)}
          onTimeUpdate={(e) => setProgress(e.currentTarget.currentTime)}
          onDurationChange={(e) => setDuration(e.currentTarget.duration)}
-         onEnded={playNext}
+         onEnded={handleSongEnd}
          onError={() => handleAudioError("Playback Error")}
          onLoadedMetadata={() => {
              if (restoreTimeRef.current > 0 && audioRef.current) {
