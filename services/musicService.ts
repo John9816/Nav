@@ -287,7 +287,22 @@ export const fetchSongUrl = async (id: string | number, source: string = 'neteas
                     })
                 });
                 const data = await response.json();
-                const list = Array.isArray(data) ? data : (data.data || []);
+                
+                // Robust response parsing to handle different nesting levels
+                // Structure can be: 
+                // 1. Array directly: [...]
+                // 2. Standard wrapper: { data: [...] }
+                // 3. Nested wrapper (QQ): { data: { data: [...] } }
+                let list: any[] = [];
+                if (Array.isArray(data)) {
+                    list = data;
+                } else if (data.data) {
+                    if (Array.isArray(data.data)) {
+                        list = data.data;
+                    } else if (typeof data.data === 'object' && data.data.data && Array.isArray(data.data.data)) {
+                        list = data.data.data;
+                    }
+                }
                 
                 if (list.length > 0 && list[0].url) {
                     return toHttps(list[0].url);
