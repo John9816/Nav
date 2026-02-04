@@ -332,16 +332,20 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
         setLyrics(parseLyrics(song.lyric));
         setRawLyric(song.lyric);
     } else {
+        // Kick off Meting lyric fetch in background
         fetchLyrics(song.id, song.source).then(({ lines, raw }) => {
             // Guard: Check if we are still playing the same song
             if (currentSongIdRef.current !== song.id) return;
-
-            setLyrics(lines);
-            setRawLyric(raw);
-            // Late save for lyrics if we fetched them
-            if (user && raw) {
-                 // We don't have URL yet, pass undefined or check later
-                 addToHistory(user.id, song, raw);
+            
+            // Only update if we don't have lyrics yet, or if this is the primary source
+            // Note: If URL fetch returned lyrics (see below), they might be more reliable for some sources (like QQ)
+            // But usually Meting is fine too. We'll let whichever comes last update, OR
+            // we could prefer URL lyrics if available. 
+            // For now, let's allow update to ensure we show something.
+            if (raw && (!lyricTextForSave || lyricTextForSave.length < 10)) {
+               setLyrics(lines);
+               setRawLyric(raw);
+               if (user) addToHistory(user.id, song, raw);
             }
         });
     }
@@ -351,8 +355,22 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     
     // If URL is missing, fetch it. If present, use it directly (Database Source).
     if (!url) {
-        const fetchedUrl = await fetchSongUrl(song.id, song.source, quality);
-        if (fetchedUrl) url = fetchedUrl;
+        // Fetch URL and possibly lyrics (for QQ especially)
+        const result = await fetchSongUrl(song.id, song.source, quality);
+        if (result) {
+            url = result.url;
+            
+            // If the parse endpoint returned lyrics, use them!
+            // This is often more reliable for QQ than the Meting API
+            if (result.lyric && result.lyric.length > 0) {
+                const parsed = parseLyrics(result.lyric);
+                if (parsed.length > 0) {
+                    setLyrics(parsed);
+                    setRawLyric(result.lyric);
+                    lyricTextForSave = result.lyric;
+                }
+            }
+        }
     }
 
     if (url) {
@@ -386,17 +404,17 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     setQuality(q);
     const currentTime = audioRef.current?.currentTime || 0;
     restoreTimeRef.current = currentTime;
-    const url = await fetchSongUrl(currentSong.id, currentSong.source, q);
-    if (url) {
-        setCurrentSong(prev => prev ? { ...prev, url } : null);
+    const result = await fetchSongUrl(currentSong.id, currentSong.source, q);
+    if (result && result.url) {
+        setCurrentSong(prev => prev ? { ...prev, url: result.url } : null);
     }
   };
 
   const handleDownload = async (e: React.MouseEvent, song: Song) => {
     e.stopPropagation();
-    const url = await fetchSongUrl(song.id, song.source, quality);
-    if (url) {
-      window.open(url, '_blank');
+    const result = await fetchSongUrl(song.id, song.source, quality);
+    if (result && result.url) {
+      window.open(result.url, '_blank');
     } else {
       alert("无法获取下载链接");
     }

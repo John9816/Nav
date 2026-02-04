@@ -9,7 +9,8 @@ const TUNEHUB_API_KEY = 'th_394966cb240cca0b4bb4f36f7d568418e66d8d26e8d43dd5';
 // Quality Priority Chain
 const QUALITY_LEVELS = ['flac24bit', 'flac', '320k', '128k'];
 
-export const urlPromiseCache = new Map<string, Promise<string>>();
+// Cache now stores an object containing URL and optional lyric
+export const urlPromiseCache = new Map<string, Promise<{ url: string, lyric?: string } | null>>();
 
 // Helper to enforce HTTPS
 const toHttps = (url: string) => {
@@ -325,11 +326,12 @@ export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'):
   
   const songPromises = songs.map(async (song) => {
       // Reuse existing fetchSongUrl which handles caching and retry logic
-      const url = await fetchSongUrl(song.id, song.source || 'netease', quality);
+      const result = await fetchSongUrl(song.id, song.source || 'netease', quality);
       
       return {
           ...song,
-          url: url || song.url // Update if we found a URL, otherwise keep existing
+          url: result?.url || song.url, // Update if we found a URL, otherwise keep existing
+          lyric: result?.lyric || song.lyric // Opportunistically update lyric if found in parse response
       };
   });
 
@@ -341,8 +343,9 @@ export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'):
 
 /**
  * Fetch a single song URL with fallback logic using PARSE endpoint.
+ * Returns object with URL and optional lyrics.
  */
-export const fetchSongUrl = async (id: string | number, source: string = 'netease', quality: string = '320k'): Promise<string | null> => {
+export const fetchSongUrl = async (id: string | number, source: string = 'netease', quality: string = '320k'): Promise<{ url: string, lyric?: string } | null> => {
     const cacheKey = `${id}-${quality}`;
     if (urlPromiseCache.has(cacheKey)) {
         return urlPromiseCache.get(cacheKey)!;
@@ -351,7 +354,7 @@ export const fetchSongUrl = async (id: string | number, source: string = 'neteas
     const startIdx = QUALITY_LEVELS.indexOf(quality);
     const qualitiesToTry = startIdx === -1 ? ['320k', '128k'] : QUALITY_LEVELS.slice(startIdx);
 
-    const fetchTask = async (): Promise<string | null> => {
+    const fetchTask = async (): Promise<{ url: string, lyric?: string } | null> => {
         for (const q of qualitiesToTry) {
             try {
                 const response = await fetch(PARSE_API_URL, {
@@ -384,7 +387,10 @@ export const fetchSongUrl = async (id: string | number, source: string = 'neteas
                 }
                 
                 if (list.length > 0 && list[0].url) {
-                    return toHttps(list[0].url);
+                    return {
+                        url: toHttps(list[0].url),
+                        lyric: list[0].lyrics || undefined 
+                    };
                 }
             } catch (e) {
                 console.error(`Fetch URL failed for ${q}`, e);
@@ -396,8 +402,8 @@ export const fetchSongUrl = async (id: string | number, source: string = 'neteas
     const promise = fetchTask();
     urlPromiseCache.set(cacheKey, promise);
     
-    promise.then(url => {
-        if (!url) urlPromiseCache.delete(cacheKey);
+    promise.then(result => {
+        if (!result) urlPromiseCache.delete(cacheKey);
     });
 
     return promise;
