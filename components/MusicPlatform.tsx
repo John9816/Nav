@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { 
   fetchSongUrl, fetchSongDetail, fetchLyrics, 
   fetchPlaylistDetails, checkGuestLimit, addToHistory, getHistory,
-  fetchTopLists, searchSongs
+  fetchTopLists, searchSongs, getLikedSongs, toggleLike, checkIsLiked
 } from '../services/musicService';
 import { 
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
@@ -42,9 +42,10 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.8);
+  const [isLiked, setIsLiked] = useState(false);
   
   // UI State
-  const [view, setView] = useState<'home' | 'playlist' | 'history' | 'search'>('home');
+  const [view, setView] = useState<'home' | 'playlist' | 'history' | 'search' | 'favorites'>('home');
   const [chartFilter, setChartFilter] = useState<'all' | 'netease' | 'qq'>('all');
   const [playlistSongs, setPlaylistSongs] = useState<Song[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
@@ -82,11 +83,19 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
           setView('history');
           onTabChangeHandled();
       } else if (requestedTab === 'favorites') {
-          setView('home'); 
-          setChartFilter('all');
+          loadFavorites();
           onTabChangeHandled();
       }
   }, [requestedTab, onTabChangeHandled]);
+
+  // Check Liked Status on Song Change
+  useEffect(() => {
+    if (currentSong && user) {
+        checkIsLiked(user.id, currentSong.id).then(setIsLiked);
+    } else {
+        setIsLiked(false);
+    }
+  }, [currentSong?.id, user]);
 
   // Determine active lyric index
   const activeLyricIndex = useMemo(() => {
@@ -129,6 +138,19 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       const songs = await getHistory(user.id);
       setPlaylistSongs(songs);
       setLoading(false);
+      setView('history');
+  };
+
+  const loadFavorites = async () => {
+      if (!user) {
+          if (onAuthRequest) onAuthRequest();
+          return;
+      }
+      setLoading(true);
+      const songs = await getLikedSongs(user.id);
+      setPlaylistSongs(songs);
+      setLoading(false);
+      setView('favorites');
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -150,6 +172,36 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
         setToastMessage("播放出错，已跳过");
         setErrorCount(0);
         playNext();
+    }
+  };
+
+  const handleLikeToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) {
+        if (onAuthRequest) onAuthRequest();
+        return;
+    }
+    if (!currentSong) return;
+    
+    // Optimistic Update
+    const newStatus = !isLiked;
+    setIsLiked(newStatus);
+    
+    try {
+        const result = await toggleLike(user.id, currentSong);
+        if (result !== newStatus) setIsLiked(result); 
+        
+        // If unliking while in favorites view, remove from list
+        if (view === 'favorites' && !result) {
+            setPlaylistSongs(prev => prev.filter(s => String(s.id) !== String(currentSong.id)));
+        }
+        // If liking and in favorites (edge case, usually means re-adding), add to top
+        if (view === 'favorites' && result) {
+            setPlaylistSongs(prev => [currentSong, ...prev]);
+        }
+    } catch (e) {
+        setIsLiked(!newStatus);
+        console.error("Toggle like failed", e);
     }
   };
 
@@ -376,6 +428,12 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                <LayoutGrid size={18} /> 发现音乐
                            </button>
                            <button 
+                             onClick={loadFavorites}
+                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === 'favorites' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                           >
+                               <Heart size={18} /> 我喜欢的音乐
+                           </button>
+                           <button 
                              onClick={loadHistory}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === 'history' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
                            >
@@ -502,7 +560,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        </div>
                    ) : (
                        <>
-                           {(view === 'playlist' || view === 'history' || view === 'search') && (
+                           {(view === 'playlist' || view === 'history' || view === 'search' || view === 'favorites') && (
                                <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
                                    <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-8 gap-4">
                                         <div className="flex items-center gap-4">
@@ -512,14 +570,14 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                 </div>
                                             ) : (
                                                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg shrink-0
-                                                    ${view === 'history' ? 'bg-blue-500 text-white' : 'bg-red-500 text-white'}
+                                                    ${view === 'history' ? 'bg-blue-500 text-white' : view === 'favorites' ? 'bg-red-500 text-white' : 'bg-red-500 text-white'}
                                                 `}>
-                                                    {view === 'history' ? <Clock size={32} /> : <Search size={32} />}
+                                                    {view === 'history' ? <Clock size={32} /> : view === 'favorites' ? <Heart size={32} /> : <Search size={32} />}
                                                 </div>
                                             )}
                                             <div>
                                                 <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 mb-1">
-                                                    {view === 'history' ? '播放历史' : view === 'search' ? `搜索: "${searchQuery}"` : selectedPlaylist?.name}
+                                                    {view === 'history' ? '播放历史' : view === 'favorites' ? '我喜欢的音乐' : view === 'search' ? `搜索: "${searchQuery}"` : selectedPlaylist?.name}
                                                 </h2>
                                                 <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
                                                     {(view === 'search' ? searchResults : playlistSongs).length} 首歌曲
@@ -705,8 +763,11 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                            <div className="font-bold text-slate-800 dark:text-slate-100 truncate text-base mb-0.5">{currentSong.name}</div>
                            <div className="text-xs text-slate-500 dark:text-slate-400 truncate font-medium">{currentSong.ar.map(a => a.name).join(', ')}</div>
                        </div>
-                       <button className="text-slate-400 hover:text-red-500 transition-colors ml-2 hidden sm:block">
-                           <Heart size={18} />
+                       <button 
+                         onClick={handleLikeToggle}
+                         className={`ml-2 transition-all active:scale-90 ${isLiked ? 'text-red-500' : 'text-slate-400 hover:text-red-500'} hidden sm:block`}
+                       >
+                           <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
                        </button>
                    </>
                ) : (

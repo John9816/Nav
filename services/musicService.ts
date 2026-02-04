@@ -523,7 +523,7 @@ export const checkGuestLimit = async (): Promise<{ allowed: boolean, count: numb
 export const addToHistory = async (userId: string, song: Song) => {
     try {
         const { data: existing } = await supabase
-            .from('music_history') // Use correct table name
+            .from('music_history')
             .select('id')
             .eq('user_id', userId)
             .eq('song_id', String(song.id))
@@ -545,7 +545,7 @@ export const addToHistory = async (userId: string, song: Song) => {
                     album: song.al.name,
                     cover_url: song.al.picUrl,
                     source: song.source || 'netease',
-                    duration: song.dt // Store duration
+                    duration: song.dt
                 });
         }
     } catch (e) {
@@ -555,7 +555,7 @@ export const addToHistory = async (userId: string, song: Song) => {
 
 export const getHistory = async (userId: string): Promise<Song[]> => {
     const { data } = await supabase
-        .from('music_history') // Use correct table name
+        .from('music_history')
         .select('*')
         .eq('user_id', userId)
         .order('played_at', { ascending: false })
@@ -564,11 +564,64 @@ export const getHistory = async (userId: string): Promise<Song[]> => {
     return (data || []).map((item: any) => ({
         id: item.song_id,
         name: item.name,
-        // Reconstruct array from string
         ar: item.artist ? item.artist.split(', ').map((n: string) => ({ id: 0, name: n })) : [{ id: 0, name: 'Unknown' }],
         al: { id: 0, name: item.album || '', picUrl: item.cover_url || '' },
         dt: item.duration || 0,
         source: item.source || 'netease',
         url: undefined
     }));
+};
+
+export const getLikedSongs = async (userId: string): Promise<Song[]> => {
+    const { data } = await supabase
+        .from('liked_songs')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+        
+    return (data || []).map((item: any) => ({
+        id: item.song_id,
+        name: item.name,
+        ar: item.artist ? item.artist.split(', ').map((n: string) => ({ id: 0, name: n })) : [{ id: 0, name: 'Unknown' }],
+        al: { id: 0, name: item.album || '', picUrl: item.cover_url || '' },
+        dt: item.duration || 0,
+        source: item.source || 'netease',
+        url: undefined
+    }));
+};
+
+export const toggleLike = async (userId: string, song: Song): Promise<boolean> => {
+    const { data } = await supabase
+        .from('liked_songs')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('song_id', String(song.id))
+        .single();
+        
+    if (data) {
+        await supabase.from('liked_songs').delete().eq('id', data.id);
+        return false;
+    } else {
+        await supabase.from('liked_songs').insert({
+            user_id: userId,
+            song_id: String(song.id),
+            source: song.source || 'netease',
+            name: song.name,
+            artist: song.ar.map(a => a.name).join(', '),
+            album: song.al.name,
+            cover_url: song.al.picUrl,
+            duration: song.dt
+        });
+        return true;
+    }
+};
+
+export const checkIsLiked = async (userId: string, songId: string | number): Promise<boolean> => {
+    const { data } = await supabase
+        .from('liked_songs')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('song_id', String(songId))
+        .single();
+    return !!data;
 };
