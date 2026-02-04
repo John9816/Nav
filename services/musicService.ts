@@ -65,23 +65,32 @@ const mapQQItemToSong = (item: any): Song => {
 
     // Album
     // Handle various casing and nesting for album MID found in different QQ APIs
-    const albumMid = item.album?.mid || item.albummid || item.albumMid;
-    const albumName = item.album?.name || item.albumname || item.albumName || 'Unknown Album';
+    const albumObj = item.album || {};
+    const albumMid = albumObj.mid || albumObj.kid || item.albummid || item.albumMid || item.album_mid;
+    const albumId = albumObj.id || item.albumid || item.albumId; // Integer ID as fallback
+    const albumName = albumObj.name || item.albumname || item.albumName || 'Unknown Album';
     
     // Cover
     // 1. Try direct cover property (common in some endpoints)
     // 2. Try constructing from album mid
-    let picUrl = item.cover || item.albumpic || item.album?.cover || item.album?.pic;
+    // 3. Fallback to album id
+    let picUrl = item.cover || item.albumpic || albumObj.cover || albumObj.pic;
     
-    if (!picUrl && albumMid) {
-        picUrl = `https://y.gtimg.cn/music/photo_new/T002R300x300M000${albumMid}.jpg`;
+    if (!picUrl) {
+        if (albumMid) {
+             picUrl = `https://y.gtimg.cn/music/photo_new/T002R300x300M000${albumMid}.jpg`;
+        } else if (albumId) {
+             // Fallback using integer ID logic if MID is missing
+             const albIdStr = String(albumId);
+             picUrl = `https://imgcache.qq.com/music/photo/album_300/${albIdStr.length % 100}/300_albumpic_${albIdStr}_0.jpg`;
+        }
     }
-
+    
     return {
         id: id,
         name: name,
         ar: artists,
-        al: { id: 0, name: albumName, picUrl: toHttps(picUrl) },
+        al: { id: albumId || 0, name: albumName, picUrl: toHttps(picUrl) },
         dt: item.interval ? item.interval * 1000 : 0,
         source: 'qq',
         url: undefined
@@ -431,7 +440,11 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
             });
             const data = await response.json();
             // Typically songInfoList is at data.toplist.data.songInfoList
-            const songList = data.toplist?.data?.songInfoList || [];
+            // Fallback to data.detail or just data.songInfoList if structure varies
+            const songList = data.toplist?.data?.songInfoList || 
+                             data.detail?.data?.songInfoList || 
+                             data.songInfoList || 
+                             [];
             console.log(`QQ Playlist fetched: ${songList.length} songs`);
             return songList.map(mapQQItemToSong);
         } catch (e) {
