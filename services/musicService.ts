@@ -232,9 +232,6 @@ export const searchSongs = async (keywords: string, page: number = 1, limit: num
 
 /**
  * Batch resolve URLs (Converted to Single Requests Concurrently)
- * 
- * NOTE: The user requested to switch from batch parsing (comma separated IDs) 
- * to single parsing requests to ensure better API compatibility.
  */
 export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'): Promise<Song[]> => {
   if (songs.length === 0) return [];
@@ -526,7 +523,7 @@ export const checkGuestLimit = async (): Promise<{ allowed: boolean, count: numb
 export const addToHistory = async (userId: string, song: Song) => {
     try {
         const { data: existing } = await supabase
-            .from('play_history')
+            .from('music_history') // Use correct table name
             .select('id')
             .eq('user_id', userId)
             .eq('song_id', String(song.id))
@@ -534,21 +531,21 @@ export const addToHistory = async (userId: string, song: Song) => {
 
         if (existing) {
              await supabase
-                .from('play_history')
+                .from('music_history')
                 .update({ played_at: new Date().toISOString() })
                 .eq('id', existing.id);
         } else {
              await supabase
-                .from('play_history')
+                .from('music_history')
                 .insert({ 
                     user_id: userId, 
                     song_id: String(song.id), 
-                    title: song.name,
+                    name: song.name,
                     artist: song.ar.map(a => a.name).join(', '),
                     album: song.al.name,
                     cover_url: song.al.picUrl,
                     source: song.source || 'netease',
-                    song_json: song 
+                    duration: song.dt // Store duration
                 });
         }
     } catch (e) {
@@ -558,11 +555,20 @@ export const addToHistory = async (userId: string, song: Song) => {
 
 export const getHistory = async (userId: string): Promise<Song[]> => {
     const { data } = await supabase
-        .from('play_history')
+        .from('music_history') // Use correct table name
         .select('*')
         .eq('user_id', userId)
         .order('played_at', { ascending: false })
         .limit(50);
         
-    return (data || []).map((item: any) => item.song_json as Song);
+    return (data || []).map((item: any) => ({
+        id: item.song_id,
+        name: item.name,
+        // Reconstruct array from string
+        ar: item.artist ? item.artist.split(', ').map((n: string) => ({ id: 0, name: n })) : [{ id: 0, name: 'Unknown' }],
+        al: { id: 0, name: item.album || '', picUrl: item.cover_url || '' },
+        dt: item.duration || 0,
+        source: item.source || 'netease',
+        url: undefined
+    }));
 };
