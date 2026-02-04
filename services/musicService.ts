@@ -115,6 +115,41 @@ const mapQQItemToSong = (item: any): Song => {
     };
 };
 
+const mapKuwoItemToSong = (item: any): Song => {
+    // Kuwo IDs often look like "MUSIC_12345". 
+    // Most parse APIs expect just the numeric part, but some handle both.
+    // We strip "MUSIC_" to be safe for compatibility with generic Meting-style APIs.
+    const rawId = item.MUSICRID || '';
+    const id = rawId.replace('MUSIC_', '');
+    
+    // Decode HTML entities in names if necessary (Kuwo sometimes returns encoded strings)
+    const decode = (str: string) => {
+        if (!str) return '';
+        return str.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+    };
+
+    const name = decode(item.SONGNAME || 'Unknown Title');
+    const artistName = decode(item.ARTIST || 'Unknown Artist');
+    const albumName = decode(item.ALBUM || 'Unknown Album');
+
+    return {
+        id: id,
+        name: name,
+        ar: [{ id: 0, name: artistName }],
+        al: { 
+            id: 0, 
+            name: albumName, 
+            // Kuwo search often doesn't return album art. 
+            // We can try a heuristic or leave empty.
+            // Some results might have `albumpic` or `web_albumpic_short`.
+            picUrl: item.albumpic || '' 
+        },
+        dt: item.duration ? parseInt(item.duration) * 1000 : 0,
+        source: 'kuwo',
+        url: undefined
+    };
+};
+
 /**
  * Fetch Netease Top Lists
  */
@@ -242,7 +277,7 @@ export const searchSongs = async (
         }
     }
 
-    // NEW: QQ Direct Search via Proxy
+    // QQ Direct Search via Proxy
     if (source === 'qq') {
         try {
             const response = await fetch('/qq-api/cgi-bin/musicu.fcg', {
@@ -282,7 +317,64 @@ export const searchSongs = async (
         }
     }
 
-    // Meting API (TuneHub) for Kuwo, and Netease/QQ fallback
+    // Kuwo Direct Search via Proxy
+    if (source === 'kuwo') {
+        try {
+            // Using params provided by user
+            const params = new URLSearchParams({
+                client: 'kt',
+                pn: String(page - 1), // Kuwo typically 0-indexed
+                rn: String(limit),
+                uid: '794762570',
+                ver: 'kwplayer_ar_9.2.2.1',
+                vipver: '1',
+                show_copyright_off: '1',
+                newver: '1',
+                ft: 'music',
+                cluster: '0',
+                strategy: '2012',
+                encoding: 'utf8',
+                rformat: 'json',
+                vermerge: '1',
+                mobi: '1',
+                issubtitle: '1',
+                all: keywords
+            });
+
+            const response = await fetch(`/kuwo-api/r.s?${params.toString()}`);
+            
+            // Handle potentially malformed JSON or text response
+            const text = await response.text();
+            let data: any = {};
+            
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.warn("Kuwo search returned non-standard JSON, trying to parse safely...", e);
+                // Kuwo sometimes returns JS object literals without quoted keys e.g. {a:1}
+                // Try a safer evaluation if JSON.parse fails (fallback)
+                // Note: In strict environments this might fail, but for Kuwo legacy API it's often needed
+                // We'll try to convert keys to quotes with regex first
+                try {
+                    // Very basic regex to quote unquoted keys
+                    const fixedJson = text.replace(/([a-zA-Z0-9_]+?):/g, '"$1":').replace(/'/g, '"');
+                    data = JSON.parse(fixedJson);
+                } catch (e2) {
+                    console.error("Failed to fix Kuwo JSON", e2);
+                }
+            }
+
+            const abslist = data.abslist || [];
+            if (abslist.length > 0) {
+                return abslist.map(mapKuwoItemToSong);
+            }
+            return [];
+        } catch (e) {
+            console.warn("Kuwo direct search failed, falling back to Meting...", e);
+        }
+    }
+
+    // Meting API (TuneHub) for Kuwo fallback, and others
     const response = await fetch(TUNEHUB_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },

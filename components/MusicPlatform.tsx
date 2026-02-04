@@ -338,10 +338,6 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
             if (currentSongIdRef.current !== song.id) return;
             
             // Only update if we don't have lyrics yet, or if this is the primary source
-            // Note: If URL fetch returned lyrics (see below), they might be more reliable for some sources (like QQ)
-            // But usually Meting is fine too. We'll let whichever comes last update, OR
-            // we could prefer URL lyrics if available. 
-            // For now, let's allow update to ensure we show something.
             if (raw && (!lyricTextForSave || lyricTextForSave.length < 10)) {
                setLyrics(lines);
                setRawLyric(raw);
@@ -581,81 +577,22 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                </div>
            </div>
 
-           {/* Content View */}
-           <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 relative">
+           {/* Right Content Wrapper - Anchors overlays and manages scroll */}
+           <div className="flex-1 flex flex-col relative min-w-0 bg-slate-50 dark:bg-slate-900 overflow-hidden">
                
-               {/* NEW: Internal Toolbar for Search and Navigation */}
-               <div className="sticky top-0 z-20 px-6 py-4 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-slate-100 dark:border-slate-800/50 flex items-center gap-4">
-                    {view !== 'home' && (
-                        <button onClick={() => setView('home')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
-                           <ArrowLeft size={20} className="text-slate-600 dark:text-slate-300" />
-                        </button>
-                    )}
-                    
-                    {/* Search Bar with Source Selector */}
-                    <form onSubmit={handleSearch} className="flex-1 flex items-center bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm focus-within:ring-2 focus-within:ring-red-500/30 max-w-xl relative">
-                        {/* Source Selector Dropdown */}
-                        <div className="relative shrink-0">
-                            <button 
-                               type="button"
-                               onClick={() => setShowSourceMenu(!showSourceMenu)}
-                               className="flex items-center gap-1 pl-4 pr-3 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 border-r border-slate-200 dark:border-slate-700 transition-colors"
-                            >
-                               {getSourceLabel(searchSource)}
-                               <ChevronDown size={12} className={`transition-transform duration-200 ${showSourceMenu ? 'rotate-180' : ''}`} />
-                            </button>
-                            
-                            {showSourceMenu && (
-                                <>
-                                    <div className="fixed inset-0 z-10" onClick={() => setShowSourceMenu(false)}></div>
-                                    <div className="absolute top-full left-0 mt-2 w-28 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 z-20">
-                                        {['netease', 'qq', 'kuwo'].map((s) => (
-                                            <button
-                                                key={s}
-                                                type="button"
-                                                onClick={() => {
-                                                    setSearchSource(s as any);
-                                                    setShowSourceMenu(false);
-                                                }}
-                                                className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-700
-                                                   ${searchSource === s ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-slate-600 dark:text-slate-300'}
-                                                `}
-                                            >
-                                                {getSourceLabel(s)}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-
-                        {/* Search Input */}
-                        <input 
-                            type="text" 
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder={`搜索${getSourceLabel(searchSource)}音乐...`}
-                            className="flex-1 bg-transparent border-none focus:ring-0 py-2.5 px-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400"
-                        />
-                        <button type="submit" className="pr-4 pl-2 text-slate-400 hover:text-red-500 transition-colors">
-                            <Search size={18} />
-                        </button>
-                    </form>
-               </div>
-
-               {/* Ambient Background Blur */}
+               {/* Ambient Background Blur - Static */}
                {currentSong && (
                    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
                        <div className="absolute -top-[20%] -right-[20%] w-[80%] h-[80%] opacity-5 dark:opacity-10 blur-[120px] rounded-full" style={{ backgroundColor: view === 'home' ? '#ef4444' : 'currentColor', color: 'inherit' }}></div>
                    </div>
                )}
 
-               {/* Lyrics Overlay */}
+               {/* Lyrics Overlay - Full Cover, Non-scrolling */}
                {showLyrics && currentSong && (
-                   <div className="absolute inset-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl flex flex-col md:flex-row items-center justify-center p-8 gap-8 md:gap-16 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                   <div className="absolute inset-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl flex flex-col md:flex-row items-center justify-center p-8 gap-8 md:gap-16 animate-in fade-in slide-in-from-bottom-4 duration-300">
                        <button 
                            onClick={() => setShowLyrics(false)}
-                           className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"
+                           className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors z-50"
                        >
                            <ChevronDown size={24} />
                        </button>
@@ -701,194 +638,257 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                    </div>
                )}
 
-               <div className="p-6 md:p-8 lg:p-10 relative z-10 min-h-full pb-32">
-                   {loading ? (
-                       <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
-                           <Loader2 className="animate-spin text-red-500" size={32} />
-                           <p className="text-sm">加载精彩内容...</p>
-                       </div>
-                   ) : (
-                       <>
-                           {(view === 'playlist' || view === 'history' || view === 'search' || view === 'favorites') && (
-                               <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                   <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-8 gap-4">
-                                        <div className="flex items-center gap-4">
-                                            {view === 'playlist' && selectedPlaylist ? (
-                                                <div className="w-32 h-32 rounded-2xl shadow-lg overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-800">
-                                                    <img src={selectedPlaylist.coverImgUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                                </div>
-                                            ) : (
-                                                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg shrink-0
-                                                    ${view === 'history' ? 'bg-blue-500 text-white' : view === 'favorites' ? 'bg-red-500 text-white' : 'bg-red-500 text-white'}
-                                                `}>
-                                                    {view === 'history' ? <Clock size={32} /> : view === 'favorites' ? <Heart size={32} /> : <Search size={32} />}
-                                                </div>
-                                            )}
-                                            <div>
-                                                <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 mb-1">
-                                                    {view === 'history' ? '播放历史' : view === 'favorites' ? '我喜欢的音乐' : view === 'search' ? `搜索: "${searchQuery}"` : selectedPlaylist?.name}
-                                                </h2>
-                                                <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                                                    {(view === 'search' ? searchResults : playlistSongs).length} 首歌曲
-                                                    {view === 'playlist' && selectedPlaylist?.source === 'qq' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">QQ音乐</span>}
-                                                    {view === 'playlist' && selectedPlaylist?.source === 'netease' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">网易云</span>}
-                                                </p>
-                                            </div>
+               {/* Scrollable Content Container */}
+               <div className="flex-1 overflow-y-auto relative z-10">
+                   
+                   {/* Internal Toolbar for Search and Navigation */}
+                   <div className="sticky top-0 z-20 px-6 py-4 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-slate-100 dark:border-slate-800/50 flex items-center gap-4">
+                        {view !== 'home' && (
+                            <button onClick={() => setView('home')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
+                               <ArrowLeft size={20} className="text-slate-600 dark:text-slate-300" />
+                            </button>
+                        )}
+                        
+                        {/* Search Bar with Source Selector */}
+                        <form onSubmit={handleSearch} className="flex-1 flex items-center bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm focus-within:ring-2 focus-within:ring-red-500/30 max-w-xl relative">
+                            {/* Source Selector Dropdown */}
+                            <div className="relative shrink-0">
+                                <button 
+                                   type="button"
+                                   onClick={() => setShowSourceMenu(!showSourceMenu)}
+                                   className="flex items-center gap-1 pl-4 pr-3 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 border-r border-slate-200 dark:border-slate-700 transition-colors"
+                                >
+                                   {getSourceLabel(searchSource)}
+                                   <ChevronDown size={12} className={`transition-transform duration-200 ${showSourceMenu ? 'rotate-180' : ''}`} />
+                                </button>
+                                
+                                {showSourceMenu && (
+                                    <>
+                                        <div className="fixed inset-0 z-10" onClick={() => setShowSourceMenu(false)}></div>
+                                        <div className="absolute top-full left-0 mt-2 w-28 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 z-20">
+                                            {['netease', 'qq', 'kuwo'].map((s) => (
+                                                <button
+                                                    key={s}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSearchSource(s as any);
+                                                        setShowSourceMenu(false);
+                                                    }}
+                                                    className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-700
+                                                       ${searchSource === s ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-slate-600 dark:text-slate-300'}
+                                                    `}
+                                                >
+                                                    {getSourceLabel(s)}
+                                                </button>
+                                            ))}
                                         </div>
-                                        
-                                        <div className="flex gap-3">
-                                            <button 
-                                              onClick={() => playAll(view === 'search' ? searchResults : playlistSongs)}
-                                              className="flex items-center gap-2 px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-full text-sm font-bold shadow-lg shadow-red-500/30 transition-all hover:scale-105 active:scale-95"
-                                            >
-                                                <Play size={18} fill="currentColor" /> 播放全部
-                                            </button>
-                                        </div>
-                                   </div>
+                                    </>
+                                )}
+                            </div>
 
-                                   <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                                       <div className="grid grid-cols-[50px_1fr_120px_60px] gap-4 px-6 py-3 border-b border-slate-100 dark:border-slate-700/50 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                           <div className="text-center">#</div>
-                                           <div>标题</div>
-                                           <div className="hidden sm:block">专辑</div>
-                                           <div className="text-right hidden sm:block">操作</div>
+                            {/* Search Input */}
+                            <input 
+                                type="text" 
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder={`搜索${getSourceLabel(searchSource)}音乐...`}
+                                className="flex-1 bg-transparent border-none focus:ring-0 py-2.5 px-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400"
+                            />
+                            <button type="submit" className="pr-4 pl-2 text-slate-400 hover:text-red-500 transition-colors">
+                                <Search size={18} />
+                            </button>
+                        </form>
+                   </div>
+
+                   <div className="p-6 md:p-8 lg:p-10 relative min-h-full pb-32">
+                       {loading ? (
+                           <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
+                               <Loader2 className="animate-spin text-red-500" size={32} />
+                               <p className="text-sm">加载精彩内容...</p>
+                           </div>
+                       ) : (
+                           <>
+                               {(view === 'playlist' || view === 'history' || view === 'search' || view === 'favorites') && (
+                                   <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                       <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-8 gap-4">
+                                            <div className="flex items-center gap-4">
+                                                {view === 'playlist' && selectedPlaylist ? (
+                                                    <div className="w-32 h-32 rounded-2xl shadow-lg overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-800">
+                                                        <img src={selectedPlaylist.coverImgUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                                    </div>
+                                                ) : (
+                                                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg shrink-0
+                                                        ${view === 'history' ? 'bg-blue-500 text-white' : view === 'favorites' ? 'bg-red-500 text-white' : 'bg-red-500 text-white'}
+                                                    `}>
+                                                        {view === 'history' ? <Clock size={32} /> : view === 'favorites' ? <Heart size={32} /> : <Search size={32} />}
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 mb-1">
+                                                        {view === 'history' ? '播放历史' : view === 'favorites' ? '我喜欢的音乐' : view === 'search' ? `搜索: "${searchQuery}"` : selectedPlaylist?.name}
+                                                    </h2>
+                                                    <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                                                        {(view === 'search' ? searchResults : playlistSongs).length} 首歌曲
+                                                        {view === 'playlist' && selectedPlaylist?.source === 'qq' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">QQ音乐</span>}
+                                                        {view === 'playlist' && selectedPlaylist?.source === 'netease' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">网易云</span>}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="flex gap-3">
+                                                <button 
+                                                  onClick={() => playAll(view === 'search' ? searchResults : playlistSongs)}
+                                                  className="flex items-center gap-2 px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-full text-sm font-bold shadow-lg shadow-red-500/30 transition-all hover:scale-105 active:scale-95"
+                                                >
+                                                    <Play size={18} fill="currentColor" /> 播放全部
+                                                </button>
+                                            </div>
                                        </div>
-                                       <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                                           {(view === 'search' ? searchResults : playlistSongs).map((song, i) => (
-                                               <div 
-                                                 key={song.id} 
-                                                 onClick={() => playSong(song, view === 'search' ? searchResults : playlistSongs)}
-                                                 className={`group grid grid-cols-[50px_1fr_auto] sm:grid-cols-[50px_1fr_120px_60px] gap-4 px-6 py-3.5 items-center hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer
-                                                    ${currentSong?.id === song.id ? 'bg-red-50/50 dark:bg-red-900/10' : ''}
-                                                 `}
-                                               >
-                                                   <div className="text-center text-sm font-medium text-slate-400 flex justify-center">
-                                                      {currentSong?.id === song.id && isPlaying ? (
-                                                          <div className="flex gap-0.5 items-end h-3">
-                                                              <div className="w-1 bg-red-500 animate-[bounce_1s_infinite] h-2"></div>
-                                                              <div className="w-1 bg-red-500 animate-[bounce_1.2s_infinite] h-3"></div>
-                                                              <div className="w-1 bg-red-500 animate-[bounce_0.8s_infinite] h-1.5"></div>
-                                                          </div>
-                                                      ) : (
-                                                          <span className="group-hover:hidden">{i + 1}</span>
-                                                      )}
-                                                      <Play size={14} className="hidden group-hover:block text-slate-600 dark:text-slate-300" fill="currentColor" />
-                                                   </div>
-                                                   <div className="min-w-0 pr-4 flex items-center gap-3">
-                                                       {/* Song Cover */}
-                                                       <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-700">
-                                                            <img src={song.al.picUrl} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
+
+                                       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                                           <div className="grid grid-cols-[50px_1fr_120px_60px] gap-4 px-6 py-3 border-b border-slate-100 dark:border-slate-700/50 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                               <div className="text-center">#</div>
+                                               <div>标题</div>
+                                               <div className="hidden sm:block">专辑</div>
+                                               <div className="text-right hidden sm:block">操作</div>
+                                           </div>
+                                           <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                               {(view === 'search' ? searchResults : playlistSongs).map((song, i) => (
+                                                   <div 
+                                                     key={song.id} 
+                                                     onClick={() => playSong(song, view === 'search' ? searchResults : playlistSongs)}
+                                                     className={`group grid grid-cols-[50px_1fr_auto] sm:grid-cols-[50px_1fr_120px_60px] gap-4 px-6 py-3.5 items-center hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer
+                                                        ${currentSong?.id === song.id ? 'bg-red-50/50 dark:bg-red-900/10' : ''}
+                                                     `}
+                                                   >
+                                                       <div className="text-center text-sm font-medium text-slate-400 flex justify-center">
+                                                          {currentSong?.id === song.id && isPlaying ? (
+                                                              <div className="flex gap-0.5 items-end h-3">
+                                                                  <div className="w-1 bg-red-500 animate-[bounce_1s_infinite] h-2"></div>
+                                                                  <div className="w-1 bg-red-500 animate-[bounce_1.2s_infinite] h-3"></div>
+                                                                  <div className="w-1 bg-red-500 animate-[bounce_0.8s_infinite] h-1.5"></div>
+                                                              </div>
+                                                          ) : (
+                                                              <span className="group-hover:hidden">{i + 1}</span>
+                                                          )}
+                                                          <Play size={14} className="hidden group-hover:block text-slate-600 dark:text-slate-300" fill="currentColor" />
                                                        </div>
-                                                       <div className="min-w-0 flex-1">
-                                                           <div className={`font-medium truncate text-sm mb-0.5 ${currentSong?.id === song.id ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>{song.name}</div>
-                                                           <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-2">
-                                                               {song.source === 'qq' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">QQ</span>}
-                                                               {song.source === 'netease' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">WY</span>}
-                                                               {song.source === 'kuwo' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">KW</span>}
-                                                               {song.ar.map(a => a.name).join(', ')}
+                                                       <div className="min-w-0 pr-4 flex items-center gap-3">
+                                                           {/* Song Cover */}
+                                                           <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-700">
+                                                                <img src={song.al.picUrl} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
+                                                           </div>
+                                                           <div className="min-w-0 flex-1">
+                                                               <div className={`font-medium truncate text-sm mb-0.5 ${currentSong?.id === song.id ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>{song.name}</div>
+                                                               <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-2">
+                                                                   {song.source === 'qq' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">QQ</span>}
+                                                                   {song.source === 'netease' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">WY</span>}
+                                                                   {song.source === 'kuwo' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">KW</span>}
+                                                                   {song.ar.map(a => a.name).join(', ')}
+                                                               </div>
                                                            </div>
                                                        </div>
+                                                       <div className="text-xs text-slate-500 dark:text-slate-400 truncate hidden sm:block">{song.al.name}</div>
+                                                       <div className="text-right hidden sm:block">
+                                                           <button 
+                                                             onClick={(e) => handleDownload(e, song)} 
+                                                             className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                                                             title="下载"
+                                                           >
+                                                               <Download size={16} />
+                                                           </button>
+                                                       </div>
                                                    </div>
-                                                   <div className="text-xs text-slate-500 dark:text-slate-400 truncate hidden sm:block">{song.al.name}</div>
-                                                   <div className="text-right hidden sm:block">
-                                                       <button 
-                                                         onClick={(e) => handleDownload(e, song)} 
-                                                         className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                                                         title="下载"
-                                                       >
-                                                           <Download size={16} />
-                                                       </button>
-                                                   </div>
+                                               ))}
+                                           </div>
+                                           
+                                           {/* Search Results Pagination (Load More) */}
+                                           {view === 'search' && searchResults.length > 0 && hasMoreResults && (
+                                               <div className="p-4 flex justify-center border-t border-slate-100 dark:border-slate-700/50">
+                                                   <button
+                                                      onClick={handleLoadMore}
+                                                      disabled={isLoadingMore}
+                                                      className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
+                                                   >
+                                                      {isLoadingMore ? <Loader2 size={16} className="animate-spin" /> : <ArrowDown size={16} />}
+                                                      {isLoadingMore ? '正在加载...' : '加载更多结果'}
+                                                   </button>
                                                </div>
-                                           ))}
+                                           )}
                                        </div>
                                        
-                                       {/* Search Results Pagination (Load More) */}
-                                       {view === 'search' && searchResults.length > 0 && hasMoreResults && (
-                                           <div className="p-4 flex justify-center border-t border-slate-100 dark:border-slate-700/50">
-                                               <button
-                                                  onClick={handleLoadMore}
-                                                  disabled={isLoadingMore}
-                                                  className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
-                                               >
-                                                  {isLoadingMore ? <Loader2 size={16} className="animate-spin" /> : <ArrowDown size={16} />}
-                                                  {isLoadingMore ? '正在加载...' : '加载更多结果'}
-                                               </button>
+                                       {(view === 'search' ? searchResults : playlistSongs).length === 0 && (
+                                           <div className="text-center py-20 text-slate-400">
+                                               <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                   <Disc size={32} className="opacity-20" />
+                                               </div>
+                                               <p>暂无内容</p>
                                            </div>
                                        )}
                                    </div>
-                                   
-                                   {(view === 'search' ? searchResults : playlistSongs).length === 0 && (
-                                       <div className="text-center py-20 text-slate-400">
-                                           <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                                               <Disc size={32} className="opacity-20" />
+                               )}
+
+                               {view === 'home' && (
+                                   <div className="max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                       <div className="flex items-center gap-2 mb-6">
+                                           <div className="p-2 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
+                                               <Radio size={20} />
                                            </div>
-                                           <p>暂无内容</p>
+                                           <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                                              {chartFilter === 'all' ? '热门推荐' : (chartFilter === 'netease' ? '网易云榜单' : 'QQ音乐榜单')}
+                                           </h2>
                                        </div>
-                                   )}
-                               </div>
-                           )}
-
-                           {view === 'home' && (
-                               <div className="max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                   <div className="flex items-center gap-2 mb-6">
-                                       <div className="p-2 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
-                                           <Radio size={20} />
-                                       </div>
-                                       <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                                          {chartFilter === 'all' ? '热门推荐' : (chartFilter === 'netease' ? '网易云榜单' : 'QQ音乐榜单')}
-                                       </h2>
-                                   </div>
-                                   
-                                   {/* Compact Layout Grid */}
-                                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
-                                      {displayedPlaylists.map(list => (
-                                          <div 
-                                            key={list.id} 
-                                            onClick={() => openPlaylist(list)}
-                                            className="group cursor-pointer flex flex-col gap-2"
-                                          >
-                                              <div className="aspect-square rounded-xl overflow-hidden relative shadow-sm bg-slate-200 dark:bg-slate-800 group-hover:shadow-md group-hover:shadow-red-500/10 transition-all duration-300">
-                                                  <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" referrerPolicy="no-referrer" />
-                                                  
-                                                  {/* Overlay Play Button */}
-                                                  <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
-                                                      <div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center text-red-500 shadow-xl scale-75 group-hover:scale-100 transition-transform duration-300">
-                                                          <Play fill="currentColor" size={18} className="ml-0.5" />
+                                       
+                                       {/* Compact Layout Grid */}
+                                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
+                                          {displayedPlaylists.map(list => (
+                                              <div 
+                                                key={list.id} 
+                                                onClick={() => openPlaylist(list)}
+                                                className="group cursor-pointer flex flex-col gap-2"
+                                              >
+                                                  <div className="aspect-square rounded-xl overflow-hidden relative shadow-sm bg-slate-200 dark:bg-slate-800 group-hover:shadow-md group-hover:shadow-red-500/10 transition-all duration-300">
+                                                      <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" referrerPolicy="no-referrer" />
+                                                      
+                                                      {/* Overlay Play Button */}
+                                                      <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
+                                                          <div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center text-red-500 shadow-xl scale-75 group-hover:scale-100 transition-transform duration-300">
+                                                              <Play fill="currentColor" size={18} className="ml-0.5" />
+                                                          </div>
                                                       </div>
+                                                      
+                                                      {/* Count Badge */}
+                                                      <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-black/40 backdrop-blur-md rounded-md text-[9px] text-white font-medium flex items-center gap-0.5">
+                                                          <Play size={8} fill="currentColor" />
+                                                          {Math.floor(list.playCount / 10000)}万
+                                                      </div>
+
+                                                      {/* Source Badge */}
+                                                      {list.source === 'qq' && (
+                                                        <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-green-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm">
+                                                            QQ
+                                                        </div>
+                                                      )}
+                                                      {list.source === 'netease' && (
+                                                        <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-red-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm">
+                                                            WY
+                                                        </div>
+                                                      )}
                                                   </div>
                                                   
-                                                  {/* Count Badge */}
-                                                  <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-black/40 backdrop-blur-md rounded-md text-[9px] text-white font-medium flex items-center gap-0.5">
-                                                      <Play size={8} fill="currentColor" />
-                                                      {Math.floor(list.playCount / 10000)}万
+                                                  <div>
+                                                      <h3 className="font-bold text-xs text-slate-700 dark:text-slate-200 line-clamp-1 leading-tight group-hover:text-red-500 transition-colors" title={list.name}>
+                                                          {list.name}
+                                                      </h3>
                                                   </div>
-
-                                                  {/* Source Badge */}
-                                                  {list.source === 'qq' && (
-                                                    <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-green-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm">
-                                                        QQ
-                                                    </div>
-                                                  )}
-                                                  {list.source === 'netease' && (
-                                                    <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-red-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm">
-                                                        WY
-                                                    </div>
-                                                  )}
                                               </div>
-                                              
-                                              <div>
-                                                  <h3 className="font-bold text-xs text-slate-700 dark:text-slate-200 line-clamp-1 leading-tight group-hover:text-red-500 transition-colors" title={list.name}>
-                                                      {list.name}
-                                                  </h3>
-                                              </div>
-                                          </div>
-                                      ))}
+                                          ))}
+                                       </div>
                                    </div>
-                               </div>
-                           )}
-                       </>
-                   )}
+                               )}
+                           </>
+                       )}
+                   </div>
                </div>
            </div>
        </div>
