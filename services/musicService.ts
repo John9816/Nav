@@ -2,7 +2,8 @@ import { Song, Playlist, LyricLine } from '../types';
 import { supabase } from './supabaseClient';
 
 // API Configuration
-const TUNEHUB_API_URL = 'https://tunehub.sayqz.com/api/v1/meting';
+const TUNEHUB_API_URL = 'https://tunehub.sayqz.com/api/v1/meting'; // For Metadata (Lyrics, Playlist)
+const PARSE_API_URL = 'https://tunehub.sayqz.com/api/v1/parse';   // For Audio URLs
 const TUNEHUB_API_KEY = 'sayqz-tunehub-public'; 
 
 // Quality Priority Chain
@@ -14,6 +15,19 @@ export const urlPromiseCache = new Map<string, Promise<string>>();
 const toHttps = (url: string) => {
     if (!url) return '';
     return url.replace(/^http:\/\//i, 'https://');
+};
+
+// Helper to map internal source to Meting API server param (Metadata)
+const getMetingServer = (source: string) => {
+    if (source === 'qq') return 'tencent';
+    if (source === 'netease') return 'netease';
+    return source;
+};
+
+// Helper to map internal source to Parse API platform param (Audio URL)
+const getParsePlatform = (source: string) => {
+    // Parse API uses 'qq' and 'netease' directly
+    return source;
 };
 
 const mapApiItemToSong = (item: any): Song => {
@@ -216,7 +230,7 @@ export const searchSongs = async (keywords: string, page: number = 1, limit: num
 };
 
 /**
- * Batch resolve URLs with Quality Fallback.
+ * Batch resolve URLs with Quality Fallback using PARSE endpoint.
  */
 export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'): Promise<Song[]> => {
   if (songs.length === 0) return [];
@@ -249,17 +263,16 @@ const resolveBatchForSource = async (songs: Song[], source: string, quality: str
 
         try {
             const idsStr = idsToFetch.join(',');
-            const response = await fetch(TUNEHUB_API_URL, {
+            const response = await fetch(PARSE_API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json, text/plain, */*',
+                    'Accept': 'application/json',
                     'X-API-Key': TUNEHUB_API_KEY
                 },
                 body: JSON.stringify({
-                    platform: source,
-                    type: 'url',
-                    id: idsStr,
+                    platform: getParsePlatform(source),
+                    ids: idsStr,
                     quality: q
                 })
             });
@@ -271,13 +284,29 @@ const resolveBatchForSource = async (songs: Song[], source: string, quality: str
 
             if (list.length > 0) {
                 list.forEach((item: any) => {
+                    // Item usually contains { id: "...", url: "..." }
+                    // Some APIs return id as string or number
                     if (item.url) {
-                        const idStr = String(item.id);
-                        if (!resolvedMap.has(idStr)) {
+                        const idStr = String(item.id || item.songId || '');
+                        // If ID is missing in response, but we only sent one ID, we can assume it matches.
+                        // But for batch, we need the ID.
+                        // Fallback: if list length matches request length, we might map by index (risky).
+                        // Let's rely on ID presence first.
+                        if (idStr && !resolvedMap.has(idStr)) {
                             const secureUrl = toHttps(item.url);
                             resolvedMap.set(idStr, secureUrl);
                             const cacheKey = `${idStr}-${quality}`;
                             urlPromiseCache.set(cacheKey, Promise.resolve(secureUrl));
+                        } 
+                        // If the API doesn't return ID in the object, check if we can infer it.
+                        // (Most Meting parsers return url, size, br, but maybe not original ID if not standard).
+                        // If we are parsing a specific ID, the response might just be the song object.
+                        else if (!idStr && idsToFetch.length === 1) {
+                             const singleId = idsToFetch[0];
+                             const secureUrl = toHttps(item.url);
+                             resolvedMap.set(singleId, secureUrl);
+                             const cacheKey = `${singleId}-${quality}`;
+                             urlPromiseCache.set(cacheKey, Promise.resolve(secureUrl));
                         }
                     }
                 });
@@ -297,7 +326,7 @@ const resolveBatchForSource = async (songs: Song[], source: string, quality: str
 };
 
 /**
- * Fetch a single song URL with fallback logic.
+ * Fetch a single song URL with fallback logic using PARSE endpoint.
  */
 export const fetchSongUrl = async (id: string | number, source: string = 'netease', quality: string = '320k'): Promise<string | null> => {
     const cacheKey = `${id}-${quality}`;
@@ -311,10 +340,14 @@ export const fetchSongUrl = async (id: string | number, source: string = 'neteas
     const fetchTask = async (): Promise<string | null> => {
         for (const q of qualitiesToTry) {
             try {
-                const response = await fetch(TUNEHUB_API_URL, {
+                const response = await fetch(PARSE_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },
-                    body: JSON.stringify({ platform: source, type: 'url', id, quality: q })
+                    body: JSON.stringify({ 
+                        platform: getParsePlatform(source), 
+                        ids: String(id), 
+                        quality: q 
+                    })
                 });
                 const data = await response.json();
                 const list = Array.isArray(data) ? data : (data.data || []);
@@ -344,7 +377,11 @@ export const fetchSongDetail = async (id: string | number, source: string = 'net
         const response = await fetch(TUNEHUB_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },
-            body: JSON.stringify({ platform: source, type: 'song', id })
+            body: JSON.stringify({ 
+                server: getMetingServer(source), 
+                type: 'song', 
+                id 
+            })
         });
         const data = await response.json();
         const list = Array.isArray(data) ? data : (data.data || []);
@@ -372,7 +409,11 @@ export const fetchLyrics = async (id: string | number, source: string = 'netease
         const response = await fetch(TUNEHUB_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },
-            body: JSON.stringify({ platform: source, type: 'lrc', id })
+            body: JSON.stringify({ 
+                server: getMetingServer(source), 
+                type: 'lrc', 
+                id 
+            })
         });
         const data = await response.json();
         if (data && data.lyric) {
@@ -459,7 +500,11 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
         const response = await fetch(TUNEHUB_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },
-            body: JSON.stringify({ platform: source, type: 'playlist', id })
+            body: JSON.stringify({ 
+                server: getMetingServer(source), 
+                type: 'playlist', 
+                id 
+            })
         });
         const data = await response.json();
         const list = Array.isArray(data) ? data : (data.data || []);
