@@ -231,98 +231,32 @@ export const searchSongs = async (keywords: string, page: number = 1, limit: num
 };
 
 /**
- * Batch resolve URLs with Quality Fallback using PARSE endpoint.
+ * Batch resolve URLs (Converted to Single Requests Concurrently)
+ * 
+ * NOTE: The user requested to switch from batch parsing (comma separated IDs) 
+ * to single parsing requests to ensure better API compatibility.
  */
 export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'): Promise<Song[]> => {
   if (songs.length === 0) return [];
+
+  // Instead of grouping IDs and sending a batch request, 
+  // we concurrently call fetchSongUrl for each song.
+  // This reuses the single-parse logic which includes quality fallback.
   
-  const neteaseSongs = songs.filter(s => !s.source || s.source === 'netease');
-  const qqSongs = songs.filter(s => s.source === 'qq');
+  const songPromises = songs.map(async (song) => {
+      // Reuse existing fetchSongUrl which handles caching and retry logic
+      const url = await fetchSongUrl(song.id, song.source || 'netease', quality);
+      
+      return {
+          ...song,
+          url: url || song.url // Update if we found a URL, otherwise keep existing
+      };
+  });
+
+  // Wait for all single requests to complete
+  const resolvedSongs = await Promise.all(songPromises);
   
-  let resolved: Song[] = [];
-
-  if (neteaseSongs.length > 0) {
-      resolved = resolved.concat(await resolveBatchForSource(neteaseSongs, 'netease', quality));
-  }
-  if (qqSongs.length > 0) {
-      resolved = resolved.concat(await resolveBatchForSource(qqSongs, 'qq', quality));
-  }
-
-  return songs.map(s => resolved.find(r => String(r.id) === String(s.id)) || s);
-};
-
-const resolveBatchForSource = async (songs: Song[], source: string, quality: string) => {
-    const batch = songs.slice(0, 20); 
-    const startIdx = QUALITY_LEVELS.indexOf(quality);
-    const qualitiesToTry = startIdx === -1 ? ['320k', '128k'] : QUALITY_LEVELS.slice(startIdx);
-
-    const resolvedMap = new Map<string, string>();
-    let idsToFetch = batch.map(s => String(s.id));
-
-    for (const q of qualitiesToTry) {
-        if (idsToFetch.length === 0) break;
-
-        try {
-            // Join IDs with comma
-            const idsStr = idsToFetch.join(',');
-            
-            const response = await fetch(PARSE_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-API-Key': TUNEHUB_API_KEY
-                },
-                body: JSON.stringify({
-                    platform: getParsePlatform(source),
-                    ids: idsStr,
-                    quality: q
-                })
-            });
-
-            if (!response.ok) continue;
-
-            const result = await response.json();
-            const list = Array.isArray(result) ? result : (result.data || []);
-
-            if (list.length > 0) {
-                list.forEach((item: any) => {
-                    if (item.url) {
-                        // The parse API usually returns objects corresponding to the requested IDs.
-                        // If it doesn't return the ID field in the response, we might need to rely on order or assume 
-                        // matching if we requested single. For batch, having ID is crucial.
-                        // Most implementations of this API return { id, url, ... }
-                        
-                        const idStr = String(item.id || item.songId || '');
-                        
-                        if (idStr && !resolvedMap.has(idStr)) {
-                            const secureUrl = toHttps(item.url);
-                            resolvedMap.set(idStr, secureUrl);
-                            const cacheKey = `${idStr}-${quality}`;
-                            urlPromiseCache.set(cacheKey, Promise.resolve(secureUrl));
-                        }
-                        // Fallback: if we only requested 1 ID and got a result without ID field
-                        else if (!idStr && idsToFetch.length === 1) {
-                             const singleId = idsToFetch[0];
-                             const secureUrl = toHttps(item.url);
-                             resolvedMap.set(singleId, secureUrl);
-                             const cacheKey = `${singleId}-${quality}`;
-                             urlPromiseCache.set(cacheKey, Promise.resolve(secureUrl));
-                        }
-                    }
-                });
-            }
-
-            idsToFetch = idsToFetch.filter(id => !resolvedMap.has(id));
-
-        } catch (err) {
-            console.warn(`Batch resolve failed for ${q} (${source}):`, err);
-        }
-    }
-
-    return songs.map(song => ({
-        ...song,
-        url: resolvedMap.get(String(song.id)) || song.url
-    }));
+  return resolvedSongs;
 };
 
 /**
@@ -348,7 +282,7 @@ export const fetchSongUrl = async (id: string | number, source: string = 'neteas
                     },
                     body: JSON.stringify({ 
                         platform: getParsePlatform(source), 
-                        ids: String(id), 
+                        ids: String(id), // Parsing single ID
                         quality: q 
                     })
                 });

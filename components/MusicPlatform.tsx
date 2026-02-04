@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Song, Playlist, LyricLine } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { 
-  resolveBatchUrls, fetchSongUrl, fetchSongDetail, fetchLyrics, 
+  fetchSongUrl, fetchSongDetail, fetchLyrics, 
   fetchPlaylistDetails, checkGuestLimit, addToHistory, getHistory,
   fetchTopLists, searchSongs
 } from '../services/musicService';
@@ -119,32 +119,6 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       setQueue(newQueue);
     }
 
-    if (!song.url) {
-        const idx = currentQueue.findIndex(s => s.id === song.id);
-        if (idx !== -1) {
-            const batchToResolve = currentQueue.slice(idx, idx + 20);
-            const resolvedBatch = await resolveBatchUrls(batchToResolve, quality);
-            const updateList = (list: Song[]) => {
-                return list.map(s => {
-                    const resolved = resolvedBatch.find(r => String(r.id) === String(s.id));
-                    return resolved ? resolved : s;
-                });
-            };
-            const updatedQueue = updateList(currentQueue);
-            setQueue(updatedQueue);
-            currentQueue = updatedQueue;
-            setPlaylistSongs(prev => updateList(prev));
-            // Also update search results if that's where we are
-            if (view === 'search') {
-                setSearchResults(prev => updateList(prev));
-            }
-            const updatedSong = resolvedBatch.find(s => String(s.id) === String(song.id));
-            if (updatedSong) {
-                song = updatedSong;
-            }
-        }
-    }
-
     if (currentSong?.id === song.id) {
       if (audioRef.current) {
           if (isPlaying) {
@@ -222,6 +196,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     });
 
     let url = song.url;
+    // Single resolve request "Parse One by One"
     const fetchedUrl = await fetchSongUrl(song.id, song.source, quality);
     if (fetchedUrl) url = fetchedUrl;
 
@@ -308,15 +283,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     // Pass source to fetchPlaylistDetails (netease or qq)
     let songs = await fetchPlaylistDetails(list.id, list.source);
     
-    const initialBatch = songs.slice(0, 20);
-    if (initialBatch.length > 0) {
-        const resolvedBatch = await resolveBatchUrls(initialBatch, quality);
-        resolvedBatch.forEach((resolvedSong, index) => {
-            if (index < songs.length) {
-                songs[index] = resolvedSong;
-            }
-        });
-    }
+    // Removed batch resolving to support "parse one by one when playing"
+    // Songs will have undefined URLs initially, and will be resolved when playSong is called.
     
     setPlaylistSongs(songs);
     setLoading(false);
