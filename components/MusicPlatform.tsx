@@ -10,7 +10,7 @@ import {
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
   List, Download, Search, Loader2,
   Music, Disc, Radio, ArrowLeft, Clock, Mic2, LayoutGrid, Heart, Cloud,
-  ChevronDown, Repeat1
+  ChevronDown, Repeat1, ArrowDown
 } from 'lucide-react';
 
 interface MusicPlatformProps {
@@ -51,6 +51,11 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Song[]>([]);
+  
+  // Search Pagination State
+  const [searchPage, setSearchPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreResults, setHasMoreResults] = useState(true);
   
   // Search Source State
   const [searchSource, setSearchSource] = useState<'netease' | 'qq' | 'kuwo'>('netease');
@@ -157,9 +162,39 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       setShowSourceMenu(false); // Close menu if open
       setView('search');
       setLoading(true);
-      const songs = await searchSongs(searchQuery, searchSource);
+      setSearchPage(1); // Reset page
+      setHasMoreResults(true);
+      
+      const songs = await searchSongs(searchQuery, searchSource, 1);
       setSearchResults(songs);
+      
+      // If we got fewer than limit (20), assume no more results
+      if (songs.length < 20) {
+          setHasMoreResults(false);
+      }
+      
       setLoading(false);
+  };
+
+  const handleLoadMore = async () => {
+      if (isLoadingMore || !hasMoreResults) return;
+      
+      setIsLoadingMore(true);
+      const nextPage = searchPage + 1;
+      
+      const newSongs = await searchSongs(searchQuery, searchSource, nextPage);
+      
+      if (newSongs.length > 0) {
+          setSearchResults(prev => [...prev, ...newSongs]);
+          setSearchPage(nextPage);
+          if (newSongs.length < 20) {
+              setHasMoreResults(false);
+          }
+      } else {
+          setHasMoreResults(false);
+      }
+      
+      setIsLoadingMore(false);
   };
 
   const handleAudioError = (msg: string) => {
@@ -742,6 +777,20 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                </div>
                                            ))}
                                        </div>
+                                       
+                                       {/* Search Results Pagination (Load More) */}
+                                       {view === 'search' && searchResults.length > 0 && hasMoreResults && (
+                                           <div className="p-4 flex justify-center border-t border-slate-100 dark:border-slate-700/50">
+                                               <button
+                                                  onClick={handleLoadMore}
+                                                  disabled={isLoadingMore}
+                                                  className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
+                                               >
+                                                  {isLoadingMore ? <Loader2 size={16} className="animate-spin" /> : <ArrowDown size={16} />}
+                                                  {isLoadingMore ? '正在加载...' : '加载更多结果'}
+                                               </button>
+                                           </div>
+                                       )}
                                    </div>
                                    
                                    {(view === 'search' ? searchResults : playlistSongs).length === 0 && (

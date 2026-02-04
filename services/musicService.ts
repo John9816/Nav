@@ -64,6 +64,7 @@ const mapApiItemToSong = (item: any): Song => {
 const mapQQItemToSong = (item: any): Song => {
     // QQ often uses 'mid' (media id) for playback and 'id' for metadata. 
     // TuneHub generally prefers 'mid' for QQ if available.
+    // For search results from musicu.fcg, 'mid' is the string ID we want.
     const id = item.mid || item.file?.media_mid || item.id || item.songId; 
     const name = item.name || item.title || item.songname || 'Unknown Title';
     
@@ -240,7 +241,47 @@ export const searchSongs = async (
         }
     }
 
-    // Meting API (TuneHub) for QQ, Kuwo, and Netease fallback
+    // NEW: QQ Direct Search via Proxy
+    if (source === 'qq') {
+        try {
+            const response = await fetch('/qq-api/cgi-bin/musicu.fcg', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    comm: {
+                        ct: "19",
+                        cv: "1873",
+                        uin: "0"
+                    },
+                    "music.search.SearchCgiService": {
+                        method: "DoSearchForQQMusicDesktop",
+                        module: "music.search.SearchCgiService",
+                        param: {
+                            grp: 1,
+                            num_per_page: limit,
+                            page_num: page,
+                            query: keywords,
+                            search_type: 0
+                        }
+                    }
+                })
+            });
+            const data = await response.json();
+            const searchResult = data['music.search.SearchCgiService']?.data?.body?.song?.list || [];
+            
+            if (searchResult.length > 0) {
+                return searchResult.map(mapQQItemToSong);
+            }
+            return [];
+        } catch (e) {
+            console.warn("QQ direct search failed, falling back to Meting...", e);
+            // Fallback to Meting logic below
+        }
+    }
+
+    // Meting API (TuneHub) for Kuwo, and Netease/QQ fallback
     const response = await fetch(TUNEHUB_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },
@@ -492,32 +533,69 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
     }
 
     // Netease Handling
-    // Priority 1: Direct Proxy (Much faster than Meting)
+    // Priority 1: Direct Proxy (Optimized for Large Lists)
     if (source === 'netease') {
         try {
             console.log("Fetching Netease playlist via Proxy...");
-            // Use the standard web API endpoint which is usually available via our proxy
             const response = await fetch(`/netease-api/api/playlist/detail?id=${id}`);
             const data = await response.json();
             
-            // The structure is typically { result: { tracks: [...] } } or { playlist: { tracks: [...] } }
             const resultObj = data.result || data.playlist;
             
-            if (data.code === 200 && resultObj && resultObj.tracks) {
-                console.log(`Netease Proxy success: ${resultObj.tracks.length} tracks`);
-                return resultObj.tracks.map((item: any) => ({
-                    id: item.id,
-                    name: item.name,
-                    ar: item.artists ? item.artists.map((a: any) => ({ id: a.id, name: a.name })) : [],
-                    al: { 
-                        id: item.album?.id || 0, 
-                        name: item.album?.name || '', 
-                        picUrl: toHttps(item.album?.picUrl) 
-                    },
-                    dt: item.duration,
-                    source: 'netease' as const,
-                    url: undefined
-                }));
+            if (data.code === 200 && resultObj) {
+                // OPTIMIZATION:
+                // Official Top Lists or large playlists often return incomplete 'tracks' array
+                // or throttle the response if we rely on it.
+                // However, 'trackIds' is always complete.
+                // We use trackIds to fetch details via /song/detail which is much faster and reliable.
+                
+                const trackIds = resultObj.trackIds || [];
+                
+                if (trackIds.length > 0) {
+                     console.log(`Netease Proxy: Found ${trackIds.length} IDs, fetching details...`);
+                     const ids = trackIds.map((t: any) => t.id);
+                     
+                     // Fetch in chunks of 500 to be safe (URL length limits)
+                     // Netease supports many IDs, but 500 is a safe upper bound for GET requests
+                     const chunkSize = 500;
+                     const chunks = [];
+                     for (let i = 0; i < ids.length; i += chunkSize) {
+                         const chunk = ids.slice(i, i + chunkSize);
+                         chunks.push(chunk.join(','));
+                     }
+
+                     const responses = await Promise.all(chunks.map(chunkIds => 
+                         fetch(`/netease-api/api/song/detail?ids=${chunkIds}`).then(res => res.json())
+                     ));
+                     
+                     let allSongs: any[] = [];
+                     responses.forEach(res => {
+                         if (res.songs) allSongs = allSongs.concat(res.songs);
+                     });
+
+                     if (allSongs.length > 0) {
+                        console.log(`Netease Proxy: Fetched ${allSongs.length} song details successfully.`);
+                        return allSongs.map(mapApiItemToSong);
+                     }
+                }
+                
+                // Fallback: If trackIds logic fails, try the standard tracks array
+                if (resultObj.tracks && resultObj.tracks.length > 0) {
+                    console.log(`Netease Proxy: Fallback to existing tracks array`);
+                    return resultObj.tracks.map((item: any) => ({
+                        id: item.id,
+                        name: item.name,
+                        ar: item.artists ? item.artists.map((a: any) => ({ id: a.id, name: a.name })) : (item.ar || []),
+                        al: { 
+                            id: item.album?.id || 0, 
+                            name: item.album?.name || '', 
+                            picUrl: toHttps(item.album?.picUrl || item.al?.picUrl) 
+                        },
+                        dt: item.duration || item.dt,
+                        source: 'netease' as const,
+                        url: undefined
+                    }));
+                }
             }
         } catch (e) {
             console.warn("Netease Proxy playlist fetch failed, falling back to Meting...", e);
