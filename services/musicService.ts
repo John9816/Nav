@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 
 // API Configuration
 const TUNEHUB_API_URL = 'https://tunehub.sayqz.com/api/v1/meting'; // For Metadata (Lyrics, Playlist)
-const PARSE_API_URL = 'https://tunehub.sayqz.com/api/v1/parse';   // For Audio URLs
+const PARSE_API_URL = 'https://music.byebug.cn/api/parse';   // For Audio URLs
 const TUNEHUB_API_KEY = 'th_394966cb240cca0b4bb4f36f7d568418e66d8d26e8d43dd5'; 
 
 // Quality Priority Chain
@@ -274,8 +274,7 @@ export const fetchSongUrl = async (id: string | number, source: string = 'neteas
                 const response = await fetch(PARSE_API_URL, {
                     method: 'POST',
                     headers: { 
-                        'Content-Type': 'application/json', 
-                        'X-API-Key': TUNEHUB_API_KEY 
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ 
                         platform: getParsePlatform(source), 
