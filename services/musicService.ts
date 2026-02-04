@@ -353,7 +353,8 @@ export const fetchSongDetail = async (id: string | number, source: string = 'net
     return null;
 };
 
-export const fetchLyrics = async (id: string | number, source: string = 'netease'): Promise<LyricLine[]> => {
+// Modified to return both parsed lines and raw text for storage
+export const fetchLyrics = async (id: string | number, source: string = 'netease'): Promise<{ lines: LyricLine[], raw: string }> => {
     try {
         const response = await fetch(TUNEHUB_API_URL, {
             method: 'POST',
@@ -366,15 +367,18 @@ export const fetchLyrics = async (id: string | number, source: string = 'netease
         });
         const data = await response.json();
         if (data && data.lyric) {
-            return parseLyrics(data.lyric);
+            return {
+                lines: parseLyrics(data.lyric),
+                raw: data.lyric
+            };
         }
     } catch (e) {
         console.error("Fetch lyrics failed", e);
     }
-    return [];
+    return { lines: [], raw: '' };
 };
 
-const parseLyrics = (lrc: string): LyricLine[] => {
+export const parseLyrics = (lrc: string): LyricLine[] => {
     const lines = lrc.split('\n');
     const result: LyricLine[] = [];
     const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
@@ -520,7 +524,8 @@ export const checkGuestLimit = async (): Promise<{ allowed: boolean, count: numb
     return { allowed, count: allowed ? count + 1 : count };
 };
 
-export const addToHistory = async (userId: string, song: Song) => {
+// Updated to save lyric
+export const addToHistory = async (userId: string, song: Song, lyric?: string) => {
     try {
         const { data: existing } = await supabase
             .from('music_history')
@@ -529,24 +534,33 @@ export const addToHistory = async (userId: string, song: Song) => {
             .eq('song_id', String(song.id))
             .single();
 
+        const payload: any = { 
+            user_id: userId, 
+            song_id: String(song.id), 
+            name: song.name,
+            artist: song.ar.map(a => a.name).join(', '),
+            album: song.al.name,
+            cover_url: song.al.picUrl,
+            source: song.source || 'netease',
+            duration: song.dt,
+            played_at: new Date().toISOString()
+        };
+        
+        if (lyric) {
+            payload.lyric = lyric;
+        }
+
         if (existing) {
+             // Only update fields, preserve ID
+             const { user_id, song_id, ...updates } = payload;
              await supabase
                 .from('music_history')
-                .update({ played_at: new Date().toISOString() })
+                .update(updates)
                 .eq('id', existing.id);
         } else {
              await supabase
                 .from('music_history')
-                .insert({ 
-                    user_id: userId, 
-                    song_id: String(song.id), 
-                    name: song.name,
-                    artist: song.ar.map(a => a.name).join(', '),
-                    album: song.al.name,
-                    cover_url: song.al.picUrl,
-                    source: song.source || 'netease',
-                    duration: song.dt
-                });
+                .insert(payload);
         }
     } catch (e) {
         console.error("Add history failed", e);
@@ -568,7 +582,8 @@ export const getHistory = async (userId: string): Promise<Song[]> => {
         al: { id: 0, name: item.album || '', picUrl: item.cover_url || '' },
         dt: item.duration || 0,
         source: item.source || 'netease',
-        url: undefined
+        url: undefined,
+        lyric: item.lyric || undefined
     }));
 };
 
@@ -586,11 +601,13 @@ export const getLikedSongs = async (userId: string): Promise<Song[]> => {
         al: { id: 0, name: item.album || '', picUrl: item.cover_url || '' },
         dt: item.duration || 0,
         source: item.source || 'netease',
-        url: undefined
+        url: undefined,
+        lyric: item.lyric || undefined
     }));
 };
 
-export const toggleLike = async (userId: string, song: Song): Promise<boolean> => {
+// Updated to save lyric
+export const toggleLike = async (userId: string, song: Song, lyric?: string): Promise<boolean> => {
     const { data } = await supabase
         .from('liked_songs')
         .select('id')
@@ -610,7 +627,8 @@ export const toggleLike = async (userId: string, song: Song): Promise<boolean> =
             artist: song.ar.map(a => a.name).join(', '),
             album: song.al.name,
             cover_url: song.al.picUrl,
-            duration: song.dt
+            duration: song.dt,
+            lyric: lyric
         });
         return true;
     }

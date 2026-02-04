@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { 
   fetchSongUrl, fetchSongDetail, fetchLyrics, 
   fetchPlaylistDetails, checkGuestLimit, addToHistory, getHistory,
-  fetchTopLists, searchSongs, getLikedSongs, toggleLike, checkIsLiked
+  fetchTopLists, searchSongs, getLikedSongs, toggleLike, checkIsLiked, parseLyrics
 } from '../services/musicService';
 import { 
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
@@ -54,6 +54,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   
   // Lyrics State
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
+  const [rawLyric, setRawLyric] = useState<string>(''); // Store raw lyric text for DB saving
   const [showLyrics, setShowLyrics] = useState(false);
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
 
@@ -188,7 +189,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     setIsLiked(newStatus);
     
     try {
-        const result = await toggleLike(user.id, currentSong);
+        // Pass rawLyric to save it in DB if adding
+        const result = await toggleLike(user.id, currentSong, rawLyric);
         if (result !== newStatus) setIsLiked(result); 
         
         // If unliking while in favorites view, remove from list
@@ -249,44 +251,68 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     setIsPlaying(false); 
     setErrorCount(0);
     setProgress(0);
-    setLyrics([]); // Clear lyrics immediately on song change
+    setLyrics([]); // Clear lyrics immediately
+    setRawLyric('');
     restoreTimeRef.current = 0; 
     
     setCurrentSong(song);
 
-    fetchSongDetail(song.id, song.source).then(detail => {
-        if (detail) {
-            setCurrentSong(prev => {
-                if (!prev || String(prev.id) !== String(song.id)) return prev;
-                const newAl = {
-                    id: detail.al.id || prev.al.id,
-                    name: (detail.al.name && detail.al.name !== 'Unknown Album') ? detail.al.name : prev.al.name,
-                    picUrl: detail.al.picUrl || prev.al.picUrl
-                };
-                const newAr = (detail.ar && detail.ar.length > 0 && detail.ar[0].name !== 'Unknown Artist') ? detail.ar : prev.ar;
-                return {
-                    ...prev,
-                    name: (detail.name && detail.name !== 'Unknown Title') ? detail.name : prev.name,
-                    ar: newAr,
-                    al: newAl,
-                    dt: detail.dt || prev.dt,
-                    url: prev.url || detail.url 
-                };
-            });
-        }
-    });
+    // Metadata Fetching Optimization:
+    // Only fetch details if cover is missing or name is unknown.
+    // If song comes from DB (History/Likes), it usually has full metadata.
+    const needsMetadata = !song.al.picUrl || song.al.picUrl.includes('default') || song.name === 'Unknown Title';
+
+    if (needsMetadata) {
+        fetchSongDetail(song.id, song.source).then(detail => {
+            if (detail) {
+                setCurrentSong(prev => {
+                    if (!prev || String(prev.id) !== String(song.id)) return prev;
+                    const newAl = {
+                        id: detail.al.id || prev.al.id,
+                        name: (detail.al.name && detail.al.name !== 'Unknown Album') ? detail.al.name : prev.al.name,
+                        picUrl: detail.al.picUrl || prev.al.picUrl
+                    };
+                    const newAr = (detail.ar && detail.ar.length > 0 && detail.ar[0].name !== 'Unknown Artist') ? detail.ar : prev.ar;
+                    return {
+                        ...prev,
+                        name: (detail.name && detail.name !== 'Unknown Title') ? detail.name : prev.name,
+                        ar: newAr,
+                        al: newAl,
+                        dt: detail.dt || prev.dt,
+                        url: prev.url || detail.url 
+                    };
+                });
+            }
+        });
+    }
+
+    // Lyrics Fetching Logic:
+    // If lyric is already present (from DB), parse it directly.
+    // Otherwise fetch from API.
+    let lyricTextForSave = song.lyric || '';
+
+    if (song.lyric) {
+        setLyrics(parseLyrics(song.lyric));
+        setRawLyric(song.lyric);
+    } else {
+        fetchLyrics(song.id, song.source).then(({ lines, raw }) => {
+            setLyrics(lines);
+            setRawLyric(raw);
+            // Late save for lyrics if we fetched them
+            if (user && raw) {
+                 addToHistory(user.id, song, raw);
+            }
+        });
+    }
 
     if (user) {
-        addToHistory(user.id, song).then(() => {
+        // Save to history immediately with whatever lyric we have so far
+        addToHistory(user.id, song, lyricTextForSave).then(() => {
              if (view === 'history') {
                  loadHistory();
              }
         });
     }
-
-    fetchLyrics(song.id, song.source).then(lines => {
-        setLyrics(lines);
-    });
 
     let url = song.url;
     // Single resolve request "Parse One by One"

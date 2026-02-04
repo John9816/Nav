@@ -81,19 +81,7 @@ alter table public.messages enable row level security;
 create policy "Users can manage own messages" on public.messages for all using (auth.uid() = user_id);
 
 
--- 6. 灵感集表 (Sparks)
-create table public.sparks (
-  id uuid default gen_random_uuid() primary key,
-  user_id uuid references public.users(id) not null,
-  type text not null, -- 'text' or 'image'
-  content text not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-alter table public.sparks enable row level security;
-create policy "Users can manage own sparks" on public.sparks for all using (auth.uid() = user_id);
-
-
--- 7. 留言板表 (Guestbook Messages)
+-- 6. 留言板表 (Guestbook Messages)
 create table public.guestbook_messages (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references public.users(id) not null,
@@ -108,7 +96,7 @@ create policy "Users can insert guestbook messages" on public.guestbook_messages
 create policy "Users can delete own guestbook messages" on public.guestbook_messages for delete using (auth.uid() = user_id);
 
 
--- 8. 喜欢的音乐表 (Liked Songs)
+-- 7. 喜欢的音乐表 (Liked Songs)
 create table public.liked_songs (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references public.users(id) not null,
@@ -119,6 +107,7 @@ create table public.liked_songs (
   album text,
   cover_url text,
   duration integer,
+  lyric text, -- 新增：存储歌词
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   unique(user_id, song_id)
 );
@@ -126,7 +115,7 @@ alter table public.liked_songs enable row level security;
 create policy "Users can manage own likes" on public.liked_songs for all using (auth.uid() = user_id);
 
 
--- 9. 音乐播放历史表 (Music History)
+-- 8. 音乐播放历史表 (Music History)
 create table public.music_history (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references public.users(id) not null,
@@ -137,6 +126,7 @@ create table public.music_history (
   album text,
   cover_url text,
   duration integer,
+  lyric text, -- 新增：存储歌词
   played_at timestamp with time zone default timezone('utc'::text, now()) not null,
   unique(user_id, song_id)
 );
@@ -144,7 +134,7 @@ alter table public.music_history enable row level security;
 create policy "Users can manage own history" on public.music_history for all using (auth.uid() = user_id);
 
 
--- 10. 自动触发器：当 Auth 用户创建时，自动在 public.users 表中创建记录
+-- 9. 自动触发器：当 Auth 用户创建时，自动在 public.users 表中创建记录
 create or replace function public.handle_new_user() 
 returns trigger as $$
 begin
@@ -161,7 +151,7 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- 11. 游客 IP 限制表 (Guest Limits) - 新增
+-- 10. 游客 IP 限制表 (Guest Limits) - 新增
 -- 用于记录未登录用户的试听总数（基于IP）
 create table public.guest_limits (
   ip_address text primary key,

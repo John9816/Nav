@@ -10,7 +10,6 @@ import { ChatMessage } from '../types';
 import { sendMessageStream } from '../services/geminiService';
 import { generateImage } from '../services/imageService';
 import { useAuth } from '../contexts/AuthContext';
-import { saveSpark } from '../services/sparkService';
 import { createSession, getSessions, saveMessage, getMessages, ChatSession, deleteSession, deleteMessage } from '../services/chatService';
 
 interface AIStudioProps {
@@ -33,7 +32,6 @@ const MODELS = [
 
 const MessageItem: React.FC<{ msg: ChatMessage; mode: Mode; onDelete: (id: string) => void }> = ({ msg, mode, onDelete }) => {
   const [isCopied, setIsCopied] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
   const { user } = useAuth();
 
   const handleCopy = async () => {
@@ -58,23 +56,6 @@ const MessageItem: React.FC<{ msg: ChatMessage; mode: Mode; onDelete: (id: strin
            setTimeout(() => setIsCopied(false), 2000);
          } catch(e) { console.error("Fallback copy failed", e); }
       }
-    }
-  };
-
-  const handleSaveSpark = async () => {
-    if (!user) {
-        alert("请先登录后收藏灵感");
-        return;
-    }
-    try {
-        const type = msg.imageUrl ? 'image' : 'text';
-        const content = msg.imageUrl ? msg.imageUrl : (msg.text || '');
-        await saveSpark(user.id, type, content);
-        setIsSaved(true);
-        setTimeout(() => setIsSaved(false), 2000);
-    } catch (error) {
-        console.error("Failed to save spark", error);
-        alert("收藏失败，请重试");
     }
   };
 
@@ -161,16 +142,6 @@ const MessageItem: React.FC<{ msg: ChatMessage; mode: Mode; onDelete: (id: strin
                     {isCopied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                 </button>
                 
-                {isModel && (
-                    <button
-                        onClick={handleSaveSpark}
-                        className="p-1.5 rounded-lg bg-slate-100 hover:bg-white text-slate-500 hover:text-yellow-500 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-400 dark:hover:text-yellow-400 shadow-sm border border-slate-200 dark:border-slate-600 transition-colors"
-                        title="收藏灵感"
-                    >
-                        {isSaved ? <Check size={14} className="text-green-500" /> : <Zap size={14} />}
-                    </button>
-                )}
-
                 <button
                     onClick={() => onDelete(msg.id)}
                     className="p-1.5 rounded-lg bg-slate-100 hover:bg-white text-slate-500 hover:text-red-600 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-400 dark:hover:text-red-400 shadow-sm border border-slate-200 dark:border-slate-600 transition-colors"

@@ -49,15 +49,6 @@ export interface UserProfile {
   created_at?: string;
 }
 
-// Spark (Saved AI Content)
-export interface Spark {
-  id: string;
-  user_id: string;
-  type: 'text' | 'image';
-  content: string; // Text content or Image URL
-  created_at: string;
-}
-
 // Guestbook Message
 export interface GuestbookMessage {
   id: string;
@@ -65,6 +56,15 @@ export interface GuestbookMessage {
   content: string;
   nickname: string | null;
   avatar_url: string | null;
+  created_at: string;
+}
+
+// Spark (Inspiration)
+export interface Spark {
+  id: string;
+  user_id: string;
+  type: 'text' | 'image';
+  content: string;
   created_at: string;
 }
 
@@ -88,6 +88,7 @@ export interface Song {
   dt: number; // Duration in ms
   url?: string; // Populated after fetching
   source?: string; // 'netease', 'kuwo', 'qq', etc.
+  lyric?: string; // Raw lyric text
 }
 
 export interface Playlist {
