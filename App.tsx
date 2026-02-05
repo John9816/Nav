@@ -13,7 +13,7 @@ import BookmarkBar from './components/BookmarkBar'; // Import BookmarkBar
 import { CategoryModal, LinkModal } from './components/BookmarkModals';
 import { DEFAULT_CATEGORIES } from './constants';
 import { Category, LinkItem } from './types';
-import { ArrowUp, Sun, Moon, Sparkles, Music, Home, LogOut, LogIn, Heart, Settings, History, MessageSquareQuote } from 'lucide-react';
+import { ArrowUp, Sun, Moon, Sparkles, Music, Home, LogOut, LogIn, Heart, Settings, History, MessageSquareQuote, Menu } from 'lucide-react';
 import { ChatMessage } from './types';
 import { useAuth } from './contexts/AuthContext';
 import { 
@@ -28,6 +28,7 @@ function App() {
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [activeSection, setActiveSection] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   
   // Bookmarks State
@@ -310,7 +311,18 @@ function App() {
       {/* FIXED TOP NAVIGATION BAR */}
       <header className="shrink-0 z-50 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 transition-all duration-300">
         
-        <div className="w-8"></div>
+        {/* Left: Menu Toggle (Mobile Only) */}
+        <div className="flex items-center gap-2">
+            {view === 'dashboard' && (
+                <button 
+                    onClick={() => setIsMobileSidebarOpen(true)}
+                    className="md:hidden p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+                >
+                    <Menu size={20} />
+                </button>
+            )}
+            <div className="w-2 md:w-8"></div>
+        </div>
 
         {/* Center: Main Navigation Tabs */}
         <nav className="flex items-center gap-1 sm:gap-2 p-1 bg-slate-100/50 dark:bg-slate-800/50 rounded-full border border-slate-200/50 dark:border-slate-700/50 overflow-x-auto max-w-[60vw] scrollbar-hide">
@@ -509,10 +521,13 @@ function App() {
               activeSection={activeSection}
               isCollapsed={isSidebarCollapsed}
               toggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              isMobileOpen={isMobileSidebarOpen}
+              closeMobileSidebar={() => setIsMobileSidebarOpen(false)}
             />
             
             <main className={`relative z-10 flex flex-col flex-1 transition-all duration-300 ease-in-out
               ${isSidebarCollapsed ? 'md:pl-16' : 'md:pl-56'}
+              pl-0 
             `}>
               <div className="w-full mx-auto px-4 sm:px-8 md:px-12 py-10 space-y-12">
                 {/* Hero Section */}

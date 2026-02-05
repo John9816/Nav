@@ -287,7 +287,7 @@ const BookmarkManager: React.FC<BookmarkManagerProps> = ({
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
       
       {/* Header */}
-      <div className="shrink-0 h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between px-4 sm:px-6 gap-2 sm:gap-0 overflow-x-auto">
+      <div className="shrink-0 h-auto sm:h-16 py-3 sm:py-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 gap-3 sm:gap-0 overflow-x-auto">
          <div className="flex items-center gap-3 shrink-0">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
                <LayoutGrid size={20} />
@@ -295,19 +295,19 @@ const BookmarkManager: React.FC<BookmarkManagerProps> = ({
             <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">导航管理</h1>
          </div>
          
-         <div className="flex items-center gap-2 shrink-0">
+         <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 scrollbar-hide">
              <button 
                onClick={handleRestoreDefaults}
-               className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-lg text-sm font-medium transition-colors border border-yellow-200 dark:border-yellow-700/30"
+               className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 rounded-lg text-sm font-medium transition-colors border border-yellow-200 dark:border-yellow-700/30 whitespace-nowrap"
                title="重置为默认数据"
              >
                 <RotateCcw size={16} />
-                <span className="hidden sm:inline">重置默认</span>
+                <span className="hidden sm:inline">重置</span>
              </button>
 
              <button 
                onClick={handleClearAll}
-               className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium transition-colors border border-red-200 dark:border-red-700/30"
+               className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium transition-colors border border-red-200 dark:border-red-700/30 whitespace-nowrap"
                title="清空所有数据"
              >
                 <Trash2 size={16} />
@@ -326,14 +326,14 @@ const BookmarkManager: React.FC<BookmarkManagerProps> = ({
              <button 
                onClick={() => fileInputRef.current?.click()}
                disabled={isImporting}
-               className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+               className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
              >
                 <Upload size={16} />
-                <span className="hidden sm:inline">导入书签</span>
+                <span className="hidden sm:inline">导入</span>
              </button>
              <button 
                onClick={handleExport}
-               className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 rounded-lg text-sm font-medium transition-colors"
+               className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
              >
                 <Download size={16} />
                 <span className="hidden sm:inline">导出</span>
@@ -341,10 +341,10 @@ const BookmarkManager: React.FC<BookmarkManagerProps> = ({
          </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
          {/* Sidebar: Categories */}
-         <div className="w-64 md:w-80 bg-white dark:bg-slate-800/50 border-r border-slate-200 dark:border-slate-700 flex flex-col">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-700/50 flex items-center justify-between">
+         <div className="w-full md:w-80 bg-white dark:bg-slate-800/50 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-700 flex flex-col h-48 md:h-full shrink-0">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700/50 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-slate-800/95 backdrop-blur z-10">
                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">分类列表</span>
                <button 
                  onClick={onAddCategory}
@@ -367,7 +367,7 @@ const BookmarkManager: React.FC<BookmarkManagerProps> = ({
                     `}
                   >
                      <div className="flex items-center gap-3 truncate">
-                        <span className="opacity-70">
+                        <span className="opacity-70 shrink-0">
                             {cat.title.startsWith('书签栏') ? <Folder size={18} className="text-yellow-500" /> : cat.icon}
                         </span>
                         <div className="flex flex-col truncate">
@@ -380,7 +380,7 @@ const BookmarkManager: React.FC<BookmarkManagerProps> = ({
                             <span className="px-1.5 py-0.5 rounded text-[10px] bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 ml-auto shrink-0">置顶</span>
                         )}
                      </div>
-                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                     <div className="flex items-center gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity ml-2">
                         <button 
                           onClick={(e) => { e.stopPropagation(); onEditCategory(cat); }}
                           className="p-1 hover:text-blue-500 text-slate-400"
@@ -408,22 +408,22 @@ const BookmarkManager: React.FC<BookmarkManagerProps> = ({
          <div className="flex-1 flex flex-col bg-slate-50/50 dark:bg-slate-900/50 min-w-0">
              {activeCategory ? (
                <>
-                 <div className="p-6 border-b border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                       <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">{activeCategory.title}</h2>
-                       <span className="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                 <div className="p-4 md:p-6 border-b border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between sticky top-0 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur z-10">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                       <h2 className="text-lg md:text-xl font-bold text-slate-800 dark:text-slate-100 truncate">{activeCategory.title}</h2>
+                       <span className="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-xs text-slate-500 dark:text-slate-400 font-medium shrink-0">
                           {activeCategory.links.length}
                        </span>
                     </div>
                     <button 
                        onClick={() => onAddLink(activeCategory.id)}
-                       className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium shadow-sm transition-colors"
+                       className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium shadow-sm transition-colors shrink-0"
                     >
-                       <Plus size={16} /> 添加链接
+                       <Plus size={16} /> <span className="hidden sm:inline">添加链接</span><span className="sm:hidden">添加</span>
                     </button>
                  </div>
 
-                 <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                 <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
                     {activeCategory.links.length === 0 ? (
                        <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4">
                           <FileText size={48} className="opacity-20" />
@@ -442,7 +442,7 @@ const BookmarkManager: React.FC<BookmarkManagerProps> = ({
                                 <div className="flex-1 min-w-0">
                                    <div className="flex items-start justify-between">
                                       <h3 className="font-semibold text-slate-800 dark:text-slate-200 truncate pr-2">{link.title}</h3>
-                                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <div className="flex gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
                                          <button onClick={() => onEditLink(link)} className="p-1 text-slate-400 hover:text-blue-500"><Edit2 size={14} /></button>
                                          <button onClick={() => onDeleteLink(link.id)} className="p-1 text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>
                                       </div>
@@ -471,7 +471,7 @@ const BookmarkManager: React.FC<BookmarkManagerProps> = ({
              ) : (
                <div className="flex flex-col items-center justify-center h-full text-slate-400">
                   <List size={48} className="opacity-20 mb-4" />
-                  <p>请选择左侧分类进行管理</p>
+                  <p>请选择分类进行管理</p>
                </div>
              )}
          </div>

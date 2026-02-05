@@ -175,12 +175,12 @@ const BookmarkBar: React.FC<BookmarkBarProps> = ({ categories }) => {
 
   return (
     <div className="max-w-[1920px] mx-auto px-4 sm:px-6 min-h-[40px] flex items-center py-1">
-        {/* We use flex-wrap to prevent clipping of right-most items, allowing bar to expand vertically if needed */}
-        <div className="flex items-center gap-1 w-full h-full flex-wrap">
+        {/* We use horizontal scrolling on mobile to prevent layout breaking */}
+        <div className="flex items-center gap-1 w-full h-full overflow-x-auto flex-nowrap md:flex-wrap scrollbar-hide md:overflow-visible">
             {/* Label */}
             <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-bold text-slate-400 select-none shrink-0 mr-2 border-r border-slate-200 dark:border-slate-700 pr-3 h-6">
                <Folder size={14} />
-               <span>书签栏</span>
+               <span className="whitespace-nowrap">书签栏</span>
             </div>
 
             {/* Render Root Links first */}
