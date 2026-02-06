@@ -755,7 +755,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                         </form>
                    </div>
 
-                   <div className="p-4 md:p-8 lg:p-10 relative min-h-full pb-32">
+                   <div className="p-3 md:p-6 lg:p-8 relative min-h-full pb-32"> {/* Reduced padding for more space */}
                        {loading ? (
                            <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
                                <Loader2 className="animate-spin text-red-500" size={32} />
@@ -813,7 +813,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                            <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
                                                {(view === 'search' ? searchResults : playlistSongs).map((song, i) => (
                                                    <div 
-                                                     key={song.id} 
+                                                     key={`${song.source}-${song.id}`}
                                                      onClick={() => playSong(song, view === 'search' ? searchResults : playlistSongs)}
                                                      className={`group grid grid-cols-[40px_1fr_40px] md:grid-cols-[50px_1fr_120px_60px] gap-4 px-4 md:px-6 py-3.5 items-center hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer
                                                         ${currentSong?.id === song.id ? 'bg-red-50/50 dark:bg-red-900/10' : ''}
@@ -890,8 +890,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                )}
 
                                {view === 'home' && (
-                                   <div className="max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                       <div className="flex items-center gap-2 mb-6">
+                                   <div className="max-w-[1800px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                       <div className="flex items-center gap-2 mb-4">
                                            <div className="p-2 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
                                                <Radio size={20} />
                                            </div>
@@ -900,15 +900,15 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                            </h2>
                                        </div>
                                        
-                                       {/* Compact Layout Grid - Responsive columns */}
-                                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-4">
+                                       {/* Compact Layout Grid - Responsive columns, more density */}
+                                       <div className="grid grid-cols-3 min-[450px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12 gap-2 sm:gap-3">
                                           {displayedPlaylists.map(list => (
                                               <div 
-                                                key={list.id} 
+                                                key={`${list.source}-${list.id}`} 
                                                 onClick={() => openPlaylist(list)}
-                                                className="group cursor-pointer flex flex-col gap-2"
+                                                className="group cursor-pointer flex flex-col gap-1.5"
                                               >
-                                                  <div className="aspect-square rounded-xl overflow-hidden relative shadow-sm bg-slate-200 dark:bg-slate-800 group-hover:shadow-md group-hover:shadow-red-500/10 transition-all duration-300">
+                                                  <div className="aspect-square rounded-lg overflow-hidden relative shadow-sm bg-slate-200 dark:bg-slate-800 group-hover:shadow-md group-hover:shadow-red-500/10 transition-all duration-300">
                                                       <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" referrerPolicy="no-referrer" />
                                                       
                                                       {/* Overlay Play Button - Desktop Only */}
@@ -919,31 +919,31 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                       </div>
                                                       
                                                       {/* Count Badge */}
-                                                      <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-black/40 backdrop-blur-md rounded-md text-[9px] text-white font-medium flex items-center gap-0.5">
+                                                      <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-black/40 backdrop-blur-md rounded-md text-[9px] text-white font-medium flex items-center gap-0.5 pointer-events-none">
                                                           <Play size={8} fill="currentColor" />
                                                           {list.playCount > 10000 ? `${Math.floor(list.playCount / 10000)}万` : (list.playCount > 0 ? list.playCount : 'HOT')}
                                                       </div>
 
                                                       {/* Source Badge */}
                                                       {list.source === 'qq' && (
-                                                        <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-green-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm">
+                                                        <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-green-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm pointer-events-none">
                                                             QQ
                                                         </div>
                                                       )}
                                                       {list.source === 'netease' && (
-                                                        <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-red-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm">
+                                                        <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-red-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm pointer-events-none">
                                                             WY
                                                         </div>
                                                       )}
                                                       {list.source === 'kuwo' && (
-                                                        <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-yellow-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm">
+                                                        <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-yellow-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm pointer-events-none">
                                                             KW
                                                         </div>
                                                       )}
                                                   </div>
                                                   
                                                   <div>
-                                                      <h3 className="font-bold text-xs text-slate-700 dark:text-slate-200 line-clamp-1 leading-tight group-hover:text-red-500 transition-colors" title={list.name}>
+                                                      <h3 className="font-bold text-[11px] sm:text-xs text-slate-700 dark:text-slate-200 line-clamp-1 leading-tight group-hover:text-red-500 transition-colors" title={list.name}>
                                                           {list.name}
                                                       </h3>
                                                   </div>
