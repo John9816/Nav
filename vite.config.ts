@@ -59,6 +59,15 @@ export default defineConfig(({ mode }) => {
               'Origin': 'http://kuwo.cn/'
             }
           },
+          '/random-music-api': {
+            target: 'https://node.api.xfabe.com',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/random-music-api/, ''),
+            headers: {
+              'Referer': 'https://node.api.xfabe.com/',
+              'Origin': 'https://node.api.xfabe.com/'
+            }
+          },
           '/music-api': {
             target: 'https://music.byebug.cn',
             changeOrigin: true,

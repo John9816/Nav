@@ -151,6 +151,44 @@ const mapKuwoItemToSong = (item: any): Song => {
 };
 
 /**
+ * Fetch a Random Song
+ */
+export const fetchRandomMusic = async (): Promise<Song | null> => {
+    try {
+        // Use the new proxy for random music
+        const response = await fetch('/random-music-api/api/wangyi/randomMusic?type=json');
+        
+        if (!response.ok) {
+            throw new Error(`Random Music API Error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data && data.url) {
+            // Map the API response to our Song interface
+            return {
+                id: 'rand-' + Date.now(), // Random ephemeral ID
+                name: data.name || 'Unknown Title',
+                ar: [{ id: 0, name: data.artistsname || 'Unknown Artist' }],
+                al: { 
+                    id: 0, 
+                    name: 'Random Mix', 
+                    picUrl: toHttps(data.picurl) || 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop'
+                },
+                dt: 0, // Duration often not provided by simple random APIs
+                url: toHttps(data.url), // The API provides the direct URL
+                source: 'random',
+                lyric: undefined
+            };
+        }
+        return null;
+    } catch (e) {
+        console.warn("Fetch random music failed", e);
+        return null;
+    }
+};
+
+/**
  * Fetch Netease Top Lists
  */
 const fetchNeteaseTopLists = async (): Promise<Playlist[]> => {
@@ -494,6 +532,15 @@ export const fetchSongUrl = async (id: string | number, source: string = 'neteas
         qualitiesToTry = qualitiesToTry.filter(q => q !== 'flac' && q !== 'flac24bit');
         if (!qualitiesToTry.includes('320k')) qualitiesToTry.unshift('320k');
         if (!qualitiesToTry.includes('128k')) qualitiesToTry.push('128k');
+    }
+
+    // Special handling for random songs that already have a direct URL
+    if (source === 'random') {
+        // If it's a random song, the 'url' might not be retrievable by ID via the parse API
+        // But fetchSongUrl is usually called when 'url' is missing. 
+        // If we are here for 'random', it means we lost the URL or need to re-validate.
+        // We'll return null here because random songs are ephemeral and provided with URL upfront.
+        return null;
     }
 
     const fetchTask = async (): Promise<{ url: string, lyric?: string } | null> => {

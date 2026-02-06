@@ -21,6 +21,10 @@
       "destination": "http://www.kuwo.cn/$1"
     },
     {
+      "source": "/random-music-api/(.*)",
+      "destination": "https://node.api.xfabe.com/$1"
+    },
+    {
       "source": "/music-api/(.*)",
       "destination": "https://music.byebug.cn/api/$1"
     },

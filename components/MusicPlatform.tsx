@@ -4,13 +4,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { 
   fetchSongUrl, fetchSongDetail, fetchLyrics, 
   fetchPlaylistDetails, checkGuestLimit, addToHistory, getHistory,
-  fetchTopLists, searchSongs, getLikedSongs, toggleLike, checkIsLiked, parseLyrics
+  fetchTopLists, searchSongs, getLikedSongs, toggleLike, checkIsLiked, parseLyrics,
+  fetchRandomMusic
 } from '../services/musicService';
 import { 
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
   List, Download, Search, Loader2,
   Music, Disc, Radio, ArrowLeft, Clock, Mic2, LayoutGrid, Heart, Cloud,
-  ChevronDown, Repeat1, ArrowDown, Menu
+  ChevronDown, Repeat1, ArrowDown, Menu, Sparkles
 } from 'lucide-react';
 
 interface MusicPlatformProps {
@@ -159,6 +160,22 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       setView('favorites');
   };
 
+  const handleRandomPlay = async () => {
+      setToastMessage("正在获取随机音乐...");
+      const song = await fetchRandomMusic();
+      if (song) {
+          // Play the song immediately
+          // Add to queue or just replace current
+          // For random play, it's often nice to just add to current queue or make it the queue
+          const newQueue = [song, ...queue];
+          playSong(song, newQueue);
+          setToastMessage(null);
+      } else {
+          setToastMessage("获取随机音乐失败，请重试");
+          setTimeout(() => setToastMessage(null), 2000);
+      }
+  };
+
   const handleSearch = async (e?: React.FormEvent) => {
       if (e) e.preventDefault();
       if (!searchQuery.trim()) return;
@@ -297,7 +314,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     // Metadata Fetching Optimization:
     // Only fetch details if cover is missing or name is unknown.
     // If song comes from DB (History/Likes), it usually has full metadata.
-    const needsMetadata = !song.al.picUrl || song.al.picUrl.includes('default') || song.name === 'Unknown Title';
+    // For 'random' source, metadata usually comes fully populated from the specific fetchRandomMusic function
+    const needsMetadata = song.source !== 'random' && (!song.al.picUrl || song.al.picUrl.includes('default') || song.name === 'Unknown Title');
 
     if (needsMetadata) {
         fetchSongDetail(song.id, song.source).then(detail => {
@@ -333,17 +351,21 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
         setRawLyric(song.lyric);
     } else {
         // Kick off Meting lyric fetch in background
-        fetchLyrics(song.id, song.source).then(({ lines, raw }) => {
-            // Guard: Check if we are still playing the same song
-            if (currentSongIdRef.current !== song.id) return;
-            
-            // Only update if we don't have lyrics yet, or if this is the primary source
-            if (raw && (!lyricTextForSave || lyricTextForSave.length < 10)) {
-               setLyrics(lines);
-               setRawLyric(raw);
-               if (user) addToHistory(user.id, song, raw);
-            }
-        });
+        // Random source usually doesn't have lyric API easily mapped, but we can try generic Meting if user wants
+        // For now we skip lyrics for random source to prevent errors unless song.id is compatible
+        if (song.source !== 'random') {
+            fetchLyrics(song.id, song.source).then(({ lines, raw }) => {
+                // Guard: Check if we are still playing the same song
+                if (currentSongIdRef.current !== song.id) return;
+                
+                // Only update if we don't have lyrics yet, or if this is the primary source
+                if (raw && (!lyricTextForSave || lyricTextForSave.length < 10)) {
+                   setLyrics(lines);
+                   setRawLyric(raw);
+                   if (user) addToHistory(user.id, song, raw);
+                }
+            });
+        }
     }
 
     // URL Fetching Logic
@@ -537,6 +559,14 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                            >
                                <Clock size={18} /> 最近播放
                            </button>
+                           
+                           {/* Random Music Button */}
+                           <button 
+                             onClick={handleRandomPlay}
+                             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-slate-600 dark:text-slate-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400"
+                           >
+                               <Sparkles size={18} /> 随机一曲
+                           </button>
                        </div>
                    </div>
 
@@ -593,6 +623,12 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
            {/* Mobile Tab Navigation - Visible only on Mobile */}
            <div className="md:hidden shrink-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 overflow-x-auto scrollbar-hide">
                <div className="flex px-4 py-2 gap-3 min-w-max">
+                   <button 
+                     onClick={handleRandomPlay}
+                     className="px-3 py-1.5 rounded-full text-xs font-medium border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center gap-1"
+                   >
+                       <Sparkles size={12} /> 随机
+                   </button>
                    <button 
                      onClick={() => { setView('home'); setChartFilter('all'); }} 
                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${view === 'home' && chartFilter === 'all' ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50' : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}
