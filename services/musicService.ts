@@ -2,10 +2,8 @@ import { Song, Playlist, LyricLine } from '../types';
 import { supabase } from './supabaseClient';
 
 // API Configuration
-const TUNEHUB_API_URL = 'https://tunehub.sayqz.com/api/v1/meting'; // For Metadata (Lyrics, Playlist, Search)
 const PARSE_API_URL = '/music-api/parse';   // Proxy endpoint for audio URLs
 const CY_API_KEY = '62ccfd8be755cc5850046044c6348d6cac5ef31bd5874c1352287facc06f94c4';
-const TUNEHUB_API_KEY = 'th_394966cb240cca0b4bb4f36f7d568418e66d8d26e8d43dd5'; 
 
 // Quality Priority Chain
 const QUALITY_LEVELS = ['flac24bit', 'flac', '320k', '128k'];
@@ -17,15 +15,6 @@ export const urlPromiseCache = new Map<string, Promise<{ url: string, lyric?: st
 const toHttps = (url: string) => {
     if (!url) return '';
     return url.replace(/^http:\/\//i, 'https://');
-};
-
-// Helper to map internal source to Meting API server param (Metadata)
-// Meting API usually expects 'tencent' for QQ Music
-const getMetingServer = (source: string) => {
-    if (source === 'qq') return 'tencent';
-    if (source === 'netease') return 'netease';
-    if (source === 'kuwo') return 'kuwo';
-    return source;
 };
 
 // Helper to map internal source to Parse API platform param (Audio URL)
@@ -358,11 +347,9 @@ export const searchSongs = async (
             const data = await response.json();
             const songs = data.result?.songs || [];
             if (songs.length > 0) return songs.map(mapApiItemToSong);
-            // If empty, fall through to Meting? No, just return empty to be safe or maybe user really found nothing.
             return [];
         } catch (e) {
-            console.warn("Netease proxy search failed, trying Meting fallback...", e);
-            // Fallback to Meting logic below
+            console.warn("Netease proxy search failed", e);
         }
     }
 
@@ -401,8 +388,7 @@ export const searchSongs = async (
             }
             return [];
         } catch (e) {
-            console.warn("QQ direct search failed, falling back to Meting...", e);
-            // Fallback to Meting logic below
+            console.warn("QQ direct search failed", e);
         }
     }
 
@@ -451,35 +437,11 @@ export const searchSongs = async (
             }
             return [];
         } catch (e) {
-            console.warn("Kuwo direct search failed, falling back to Meting...", e);
+            console.warn("Kuwo direct search failed", e);
         }
     }
 
-    // Meting API (TuneHub) for Kuwo fallback, and others
-    const response = await fetch(TUNEHUB_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },
-        body: JSON.stringify({ 
-            server: getMetingServer(source), 
-            type: 'search', 
-            keyword: keywords,
-            page: page, 
-            limit: limit
-        })
-    });
-    
-    const data = await response.json();
-    const list = Array.isArray(data) ? data : (data.data || []);
-    
-    return list.map((item: any) => ({
-         id: item.id || item.songId,
-         name: item.name || item.title,
-         ar: item.artist ? item.artist.map((a: string) => ({ id: 0, name: a })) : [],
-         al: { id: 0, name: item.album || '', picUrl: toHttps(item.pic || item.cover) },
-         dt: item.dt || 0,
-         source: source,
-         url: undefined 
-    }));
+    return [];
 
   } catch (error) {
     console.error(`Search failed for ${source}:`, error);
@@ -656,59 +618,42 @@ export const fetchSongUrl = async (
 };
 
 export const fetchSongDetail = async (id: string | number, source: string = 'netease'): Promise<Song | null> => {
-    try {
-        const response = await fetch(TUNEHUB_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },
-            body: JSON.stringify({ 
-                server: getMetingServer(source), 
-                type: 'song', 
-                id 
-            })
-        });
-        const data = await response.json();
-        const list = Array.isArray(data) ? data : (data.data || []);
-        
-        if (list.length > 0) {
-             const item = list[0];
-             return {
-                 id: item.id,
-                 name: item.name,
-                 ar: item.artist ? item.artist.map((a: string) => ({ id: 0, name: a })) : [],
-                 al: { id: 0, name: item.album || '', picUrl: toHttps(item.pic) },
-                 dt: 0,
-                 source: item.source || source,
-                 url: toHttps(item.url)
-             };
+    // Direct Netease Proxy fallback since TuneHub is removed
+    if (source === 'netease') {
+        try {
+            const response = await fetch(`/netease-api/api/song/detail?ids=${id}`);
+            const data = await response.json();
+            if (data.songs && data.songs.length > 0) {
+                return mapApiItemToSong(data.songs[0]);
+            }
+        } catch (e) {
+            console.error("Netease detail fetch failed", e);
         }
-    } catch (e) {
-        console.error("Fetch detail failed", e);
     }
+    // For other sources, if detail is missing, we might return null.
+    // Usually lists already contain most info.
     return null;
 };
 
 // Modified to return both parsed lines and raw text for storage
 export const fetchLyrics = async (id: string | number, source: string = 'netease'): Promise<{ lines: LyricLine[], raw: string }> => {
-    try {
-        const response = await fetch(TUNEHUB_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },
-            body: JSON.stringify({ 
-                server: getMetingServer(source), 
-                type: 'lrc', 
-                id 
-            })
-        });
-        const data = await response.json();
-        if (data && data.lyric) {
-            return {
-                lines: parseLyrics(data.lyric),
-                raw: data.lyric
-            };
+    // Direct Netease Proxy fallback since TuneHub is removed
+    if (source === 'netease') {
+        try {
+            const response = await fetch(`/netease-api/api/song/lyric?id=${id}`);
+            const data = await response.json();
+            if (data.lrc && data.lrc.lyric) {
+                return {
+                    lines: parseLyrics(data.lrc.lyric),
+                    raw: data.lrc.lyric
+                };
+            }
+        } catch (e) {
+            console.error("Netease lyrics fetch failed", e);
         }
-    } catch (e) {
-        console.error("Fetch lyrics failed", e);
     }
+    
+    // QQ lyrics are often handled via fetchSongUrl (Parse/CY API)
     return { lines: [], raw: '' };
 };
 
@@ -747,7 +692,7 @@ export const parseLyrics = (lrc: string): LyricLine[] => {
 
 /**
  * Fetch Playlist Details with Fallback
- * Tries Meting first, then Netease Proxy if source is netease, then QQ Proxy if source is qq
+ * Tries Netease Proxy if source is netease, then QQ Proxy if source is qq
  */
 export const fetchPlaylistDetails = async (id: string | number, source: string = 'netease'): Promise<Song[]> => {
     console.log(`fetchPlaylistDetails: id=${id}, source=${source}`);
@@ -862,39 +807,8 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
                 }
             }
         } catch (e) {
-            console.warn("Netease Proxy playlist fetch failed, falling back to Meting...", e);
+            console.warn("Netease Proxy playlist fetch failed", e);
         }
-    }
-
-    // Priority 2: Meting API Fallback (Slower)
-    // Used for Kuwo as well
-    try {
-        console.log(`Fetching Playlist via Meting fallback for ${source}...`);
-        const response = await fetch(TUNEHUB_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },
-            body: JSON.stringify({ 
-                server: getMetingServer(source), 
-                type: 'playlist', 
-                id 
-            })
-        });
-        const data = await response.json();
-        const list = Array.isArray(data) ? data : (data.data || []);
-        
-        if (list.length > 0) {
-            return list.map((item: any) => ({
-                 id: item.id,
-                 name: item.name,
-                 ar: item.artist ? item.artist.map((a: string) => ({ id: 0, name: a })) : [],
-                 al: { id: 0, name: item.album || '', picUrl: toHttps(item.pic) },
-                 dt: 0,
-                 source: item.source || source,
-                 url: toHttps(item.url)
-            }));
-        }
-    } catch (e) {
-        console.warn("Meting playlist fetch failed", e);
     }
     
     return [];
