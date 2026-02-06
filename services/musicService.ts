@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient';
 // API Configuration
 const TUNEHUB_API_URL = 'https://tunehub.sayqz.com/api/v1/meting'; // For Metadata (Lyrics, Playlist, Search)
 const PARSE_API_URL = '/music-api/parse';   // Proxy endpoint for audio URLs
+const CY_API_KEY = '62ccfd8be755cc5850046044c6348d6cac5ef31bd5874c1352287facc06f94c4';
 const TUNEHUB_API_KEY = 'th_394966cb240cca0b4bb4f36f7d568418e66d8d26e8d43dd5'; 
 
 // Quality Priority Chain
@@ -498,7 +499,12 @@ export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'):
   
   const songPromises = songs.map(async (song) => {
       // Reuse existing fetchSongUrl which handles caching and retry logic
-      const result = await fetchSongUrl(song.id, song.source || 'netease', quality);
+      const result = await fetchSongUrl(
+          song.id, 
+          song.source || 'netease', 
+          quality,
+          { name: song.name, artist: song.ar?.[0]?.name }
+      );
       
       return {
           ...song,
@@ -517,7 +523,12 @@ export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'):
  * Fetch a single song URL with fallback logic using PARSE endpoint.
  * Returns object with URL and optional lyrics.
  */
-export const fetchSongUrl = async (id: string | number, source: string = 'netease', quality: string = '320k'): Promise<{ url: string, lyric?: string } | null> => {
+export const fetchSongUrl = async (
+    id: string | number, 
+    source: string = 'netease', 
+    quality: string = '320k',
+    metadata?: { name?: string, artist?: string }
+): Promise<{ url: string, lyric?: string } | null> => {
     const cacheKey = `${id}-${quality}`;
     if (urlPromiseCache.has(cacheKey)) {
         return urlPromiseCache.get(cacheKey)!;
@@ -538,6 +549,55 @@ export const fetchSongUrl = async (id: string | number, source: string = 'neteas
     // Special handling for random songs that already have a direct URL
     if (source === 'random') {
         return null;
+    }
+
+    // QQ Music: Use new Search-Based API (cyapi.top)
+    if (source === 'qq' && metadata?.name) {
+        const fetchQQTask = async (): Promise<{ url: string, lyric?: string } | null> => {
+            try {
+                // Use Name + Artist for better accuracy, or just Name
+                const searchQuery = metadata.artist ? `${metadata.name} ${metadata.artist}` : metadata.name;
+                const encodedMsg = encodeURIComponent(searchQuery || '');
+                
+                // Using new proxy /cy-api
+                const response = await fetch(`/cy-api/API/qq_music.php?apikey=${CY_API_KEY}&type=json&n=1&msg=${encodedMsg}`, {
+                    headers: { 'priority': 'u=1, i' }
+                });
+                
+                if (!response.ok) throw new Error(`CY API Error: ${response.status}`);
+                
+                const json = await response.json();
+                
+                // Expected format: { code: 200, data: { music_url: "...", lyric: "...", cover: "..." } } or similar
+                // Based on common structure for this API family
+                // If the response is just { url: "..." } or similar
+                // Let's assume standard wrapper "data"
+                
+                let data = json.data || json;
+                
+                // Sometimes it returns a list if n > 1, but n=1 here.
+                if (Array.isArray(data)) data = data[0];
+
+                // Possible field names: music_url, url, song_url, etc.
+                const musicUrl = data.music_url || data.url || data.song_url || data.mp3;
+                const lyric = data.lyric || data.lrc;
+
+                if (musicUrl) {
+                    return {
+                        url: toHttps(musicUrl),
+                        lyric: lyric
+                    };
+                }
+            } catch (e) {
+                console.error("QQ CY API fetch failed", e);
+            }
+            return null;
+        };
+        
+        const promise = fetchQQTask();
+        urlPromiseCache.set(cacheKey, promise);
+        promise.then(result => { if (!result) urlPromiseCache.delete(cacheKey); });
+        return promise;
     }
 
     const fetchTask = async (): Promise<{ url: string, lyric?: string } | null> => {

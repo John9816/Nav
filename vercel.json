@@ -29,6 +29,10 @@
       "destination": "https://music.byebug.cn/api/$1"
     },
     {
+      "source": "/cy-api/(.*)",
+      "destination": "https://cyapi.top/$1"
+    },
+    {
       "source": "/((?!assets/|.*\\..*).*)",
       "destination": "/index.html"
     }

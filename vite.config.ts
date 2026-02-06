@@ -84,6 +84,15 @@ export default defineConfig(({ mode }) => {
               'sec-fetch-mode': 'cors',
               'sec-fetch-site': 'same-origin'
             }
+          },
+          '/cy-api': {
+            target: 'https://cyapi.top',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/cy-api/, ''),
+            headers: {
+              'Referer': 'https://cyapi.top/',
+              'Origin': 'https://cyapi.top/'
+            }
           }
         }
       },

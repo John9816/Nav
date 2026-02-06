@@ -374,7 +374,14 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     // If URL is missing, fetch it. If present, use it directly (Database Source).
     if (!url) {
         // Fetch URL and possibly lyrics (for QQ especially)
-        const result = await fetchSongUrl(song.id, song.source, quality);
+        // Pass metadata (name/artist) for QQ Music new API support
+        const result = await fetchSongUrl(
+            song.id, 
+            song.source, 
+            quality,
+            { name: song.name, artist: song.ar?.[0]?.name }
+        );
+        
         if (result) {
             url = result.url;
             
@@ -422,7 +429,15 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     setQuality(q);
     const currentTime = audioRef.current?.currentTime || 0;
     restoreTimeRef.current = currentTime;
-    const result = await fetchSongUrl(currentSong.id, currentSong.source, q);
+    
+    // Pass metadata for QQ support
+    const result = await fetchSongUrl(
+        currentSong.id, 
+        currentSong.source, 
+        q,
+        { name: currentSong.name, artist: currentSong.ar?.[0]?.name }
+    );
+    
     if (result && result.url) {
         setCurrentSong(prev => prev ? { ...prev, url: result.url } : null);
     }
@@ -430,7 +445,14 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
   const handleDownload = async (e: React.MouseEvent, song: Song) => {
     e.stopPropagation();
-    const result = await fetchSongUrl(song.id, song.source, quality);
+    // Pass metadata for QQ support
+    const result = await fetchSongUrl(
+        song.id, 
+        song.source, 
+        quality,
+        { name: song.name, artist: song.ar?.[0]?.name }
+    );
+    
     if (result && result.url) {
       window.open(result.url, '_blank');
     } else {
