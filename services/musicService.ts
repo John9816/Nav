@@ -665,12 +665,15 @@ export const fetchLyrics = async (id: string | number, source: string = 'netease
     // Direct Netease Proxy fallback since TuneHub is removed
     if (source === 'netease') {
         try {
-            const response = await fetch(`/netease-api/api/song/lyric?id=${id}`);
+            // Using new API endpoint for Netease lyrics via proxy
+            const response = await fetch(`/random-music-api/api/wangyi/lyrics?id=${id}`);
             const data = await response.json();
-            if (data.lrc && data.lrc.lyric) {
+            
+            // Expected structure: { code: 200, data: { lyric: "..." } }
+            if (data.code === 200 && data.data && data.data.lyric) {
                 return {
-                    lines: parseLyrics(data.lrc.lyric),
-                    raw: data.lrc.lyric
+                    lines: parseLyrics(data.data.lyric),
+                    raw: data.data.lyric
                 };
             }
         } catch (e) {
