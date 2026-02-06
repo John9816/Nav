@@ -884,9 +884,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                    <div className="text-center text-sm font-medium text-slate-400 flex justify-center">
                                                       {currentSong?.id === song.id && isPlaying ? (
                                                           <div className="flex gap-0.5 items-end h-3">
-                                                              <div className="w-1 bg-red-500 animate-[bounce_1s_infinite] h-2"></div>
-                                                              <div className="w-1 bg-red-500 animate-[bounce_1.2s_infinite] h-3"></div>
-                                                              <div className="w-1 bg-red-500 animate-[bounce_0.8s_infinite] h-1.5"></div>
+                                                              <div className="w-1 bg-red-500 animate-music-wave-1 rounded-sm"></div>
+                                                              <div className="w-1 bg-red-500 animate-music-wave-2 rounded-sm"></div>
+                                                              <div className="w-1 bg-red-500 animate-music-wave-3 rounded-sm"></div>
                                                           </div>
                                                       ) : (
                                                           <span className="md:group-hover:hidden">{i + 1}</span>
@@ -1046,7 +1046,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
            <div className="flex-1 md:w-1/3 flex items-center gap-3 md:gap-4 overflow-hidden">
                {currentSong ? (
                    <>
-                       <div className={`relative w-12 h-12 md:w-14 md:h-14 rounded-lg shadow-md overflow-hidden shrink-0 ${isPlaying ? 'animate-spin-slow' : ''}`} style={{ animationDuration: '10s' }}>
+                       <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-lg shadow-md overflow-hidden shrink-0">
                            <img src={currentSong.al.picUrl} alt="Cover" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                            <div className="absolute inset-0 bg-black/10 ring-1 ring-inset ring-white/10"></div>
                        </div>
