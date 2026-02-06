@@ -585,7 +585,7 @@ export const fetchSongUrl = async (
                 if (musicUrl) {
                     return {
                         url: toHttps(musicUrl),
-                        lyric: lyric
+                        lyric: lyric && typeof lyric === 'object' ? lyric.text : lyric
                     };
                 }
             } catch (e) {
