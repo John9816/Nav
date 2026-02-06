@@ -439,7 +439,7 @@ const AIStudio: React.FC<AIStudioProps> = ({
       </div>
 
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex w-72 bg-white dark:bg-slate-950 border-r border-slate-200/60 dark:border-slate-800/60 flex-col p-6 z-20 shrink-0 h-full overflow-hidden">
+      <div className="hidden md:flex w-72 bg-white dark:bg-slate-950 border-r border-slate-200/60 dark:border-slate-800/60 flex-col p-6 z-20 shrink-0 h-full overflow-hidden pb-36">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6 shrink-0">
              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white">
@@ -543,8 +543,8 @@ const AIStudio: React.FC<AIStudioProps> = ({
         </div>
       </div>
 
-      {/* Main Content Area - Reduced padding */}
-      <div className="flex-1 flex flex-col relative min-w-0 bg-slate-50/50 dark:bg-slate-900/50">
+      {/* Main Content Area - Increased padding to avoid music player obstruction */}
+      <div className="flex-1 flex flex-col relative min-w-0 bg-slate-50/50 dark:bg-slate-900/50 pb-36">
         
         {/* Messages Scroll Area */}
         <div className="flex-1 overflow-y-auto px-4 md:px-8 lg:px-12 py-6 space-y-6 md:space-y-8 scroll-smooth custom-scrollbar">
