@@ -93,6 +93,15 @@ export default defineConfig(({ mode }) => {
               'Referer': 'https://cyapi.top/',
               'Origin': 'https://cyapi.top/'
             }
+          },
+          '/yunzhi-api': {
+            target: 'https://yunzhiapi.cn',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/yunzhi-api/, ''),
+            headers: {
+              'Referer': 'https://yunzhiapi.cn/',
+              'Origin': 'https://yunzhiapi.cn/'
+            }
           }
         }
       },

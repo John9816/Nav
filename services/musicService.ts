@@ -52,6 +52,31 @@ const mapApiItemToSong = (item: any): Song => {
   };
 };
 
+// New Mapper for the new Netease Search API structure
+const mapNewNeteaseSearchItemToSong = (item: any): Song => {
+    // Structure: { id: 108485, name: "Title", artistsname: "Artist", album: "Album", duration: 225044 }
+    // Note: This API does not return cover image (picUrl). 
+    // The player logic (fetchSongDetail) handles missing metadata when playing.
+    
+    const artists = item.artistsname 
+        ? item.artistsname.split(',').map((name: string) => ({ id: 0, name: name.trim() }))
+        : [{ id: 0, name: 'Unknown Artist' }];
+
+    return {
+        id: item.id,
+        name: item.name || 'Unknown Title',
+        ar: artists,
+        al: {
+            id: 0,
+            name: item.album || 'Unknown Album',
+            picUrl: '' // Missing in search result, will be fetched on play
+        },
+        dt: item.duration || 0,
+        source: 'netease',
+        url: undefined
+    };
+};
+
 const mapQQItemToSong = (item: any): Song => {
     // QQ often uses 'mid' (media id) for playback and 'id' for metadata. 
     // TuneHub generally prefers 'mid' for QQ if available.
@@ -336,20 +361,24 @@ export const searchSongs = async (
     limit: number = 20
 ): Promise<Song[]> => {
   try {
-    // Legacy Netease Direct Proxy (Preferred for Netease if still valid)
+    // New Netease Search API (via Proxy)
     if (source === 'netease') {
-        const offset = (page > 0 ? page - 1 : 0) * limit;
         try {
+            // Using new API endpoint for Netease search via proxy
+            // Note: Pagination isn't explicitly supported by the new API spec provided (only limit), 
+            // but we'll stick to limit for now.
             const response = await fetch(
-                `/netease-api/api/search/get/web?s=${encodeURIComponent(keywords)}&type=1&offset=${offset}&limit=${limit}`, 
-                { headers: { 'Accept': 'application/json' } }
+                `/random-music-api/api/wangyi/search?search=${encodeURIComponent(keywords)}&limit=${limit}`
             );
-            const data = await response.json();
-            const songs = data.result?.songs || [];
-            if (songs.length > 0) return songs.map(mapApiItemToSong);
+            const json = await response.json();
+            
+            // Response structure: { code: 200, msg: "...", data: { count: 285, songs: [...] } }
+            if (json.code === 200 && json.data && json.data.songs) {
+                return json.data.songs.map(mapNewNeteaseSearchItemToSong);
+            }
             return [];
         } catch (e) {
-            console.warn("Netease proxy search failed", e);
+            console.warn("Netease new search failed", e);
         }
     }
 
@@ -513,7 +542,7 @@ export const fetchSongUrl = async (
         return null;
     }
 
-    // --- ADDED NETEASE LOGIC ---
+    // --- NETEASE LOGIC ---
     if (source === 'netease') {
          const fetchNetease = async (): Promise<{ url: string, lyric?: string } | null> => {
             try {
@@ -555,17 +584,9 @@ export const fetchSongUrl = async (
                 
                 const json = await response.json();
                 
-                // Expected format: { code: 200, data: { music_url: "...", lyric: "...", cover: "..." } } or similar
-                // Based on common structure for this API family
-                // If the response is just { url: "..." } or similar
-                // Let's assume standard wrapper "data"
-                
                 let data = json.data || json;
-                
-                // Sometimes it returns a list if n > 1, but n=1 here.
                 if (Array.isArray(data)) data = data[0];
 
-                // Possible field names: music_url, url, song_url, etc.
                 const musicUrl = data.music_url || data.url || data.song_url || data.mp3;
                 const lyric = data.lyric || data.lrc;
 
@@ -582,6 +603,47 @@ export const fetchSongUrl = async (
         };
         
         const promise = fetchQQTask();
+        urlPromiseCache.set(cacheKey, promise);
+        promise.then(result => { if (!result) urlPromiseCache.delete(cacheKey); });
+        return promise;
+    }
+
+    // Kuwo Music: Use new API (yunzhiapi.cn)
+    if (source === 'kuwo' && metadata?.name) {
+        const fetchKuwoTask = async (): Promise<{ url: string, lyric?: string } | null> => {
+            try {
+                // Just use the name as per new API spec requirement
+                const searchQuery = metadata.name; 
+                const encodedMsg = encodeURIComponent(searchQuery || '');
+                
+                // Use proxy for Yunzhi API
+                const response = await fetch(`/yunzhi-api/API/kwyyjx.php?msg=${encodedMsg}&n=1`);
+                
+                if (!response.ok) throw new Error(`Yunzhi API Error: ${response.status}`);
+                
+                const json = await response.json();
+                
+                // Flexible parsing logic for typical JX APIs
+                // Often structure is: { code: 200, data: { url: ... } } or { url: ... }
+                const data = json.data || json;
+                
+                // Field names might vary
+                const musicUrl = data.url || data.music_url || data.mp3 || json.url;
+                const lyric = data.lyric || data.lrc || json.lyric; 
+
+                if (musicUrl) {
+                    return {
+                        url: toHttps(musicUrl),
+                        lyric: lyric
+                    };
+                }
+            } catch (e) {
+                console.error("Kuwo Yunzhi API fetch failed", e);
+            }
+            return null;
+        };
+        
+        const promise = fetchKuwoTask();
         urlPromiseCache.set(cacheKey, promise);
         promise.then(result => { if (!result) urlPromiseCache.delete(cacheKey); });
         return promise;

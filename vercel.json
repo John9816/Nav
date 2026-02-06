@@ -33,6 +33,10 @@
       "destination": "https://cyapi.top/$1"
     },
     {
+      "source": "/yunzhi-api/(.*)",
+      "destination": "https://yunzhiapi.cn/$1"
+    },
+    {
       "source": "/((?!assets/|.*\\..*).*)",
       "destination": "/index.html"
     }
