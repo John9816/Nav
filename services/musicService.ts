@@ -27,19 +27,6 @@ export const parseLyrics = (lrc: string): LyricLine[] => {
   return result;
 };
 
-const parseArtist = (track: any): Artist[] => {
-    if (Array.isArray(track.artist)) {
-        return track.artist.map((name: string) => ({ id: 0, name }));
-    }
-    if (typeof track.artist === 'string') {
-        return track.artist.split('/').map((name: string) => ({ id: 0, name: name.trim() }));
-    }
-    if (track.author) {
-         return [{ id: 0, name: track.author }];
-    }
-    return [{ id: 0, name: 'Unknown' }];
-};
-
 // ==========================================
 // CACHE
 // ==========================================
@@ -81,20 +68,12 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
 
         const res = await fetch(`${API_BASE}?type=playlist&id=${id}&server=${server}`);
         if (!res.ok) throw new Error('Network response was not ok');
-        const json = await res.json();
+        const data = await res.json();
         
-        // Handle different API response structures (sometimes array, sometimes object with data property)
-        const rawList = Array.isArray(json) ? json : (json.data || []);
-        
-        if (!Array.isArray(rawList)) {
-            console.warn("API returned unexpected format", json);
-            return [];
-        }
-
-        const songs = rawList.map((track: any) => ({
+        const songs = (data || []).map((track: any) => ({
             id: track.id || track.song_id,
-            name: track.name || track.title || 'Unknown Song',
-            ar: parseArtist(track),
+            name: track.name || track.title,
+            ar: track.artist ? track.artist.split('/').map((n: string) => ({ id: 0, name: n })) : [{ id: 0, name: track.author || 'Unknown' }],
             al: { id: 0, name: 'Unknown', picUrl: track.pic || track.cover || '' },
             dt: 0,
             source: source,
@@ -158,8 +137,8 @@ export const fetchSongDetail = async (id: string | number, source: string): Prom
         if (track) {
              const song = {
                 id: track.id || track.song_id,
-                name: track.name || track.title || 'Unknown',
-                ar: parseArtist(track),
+                name: track.name || track.title,
+                ar: track.artist ? track.artist.split('/').map((n: string) => ({ id: 0, name: n })) : [{ id: 0, name: track.author || 'Unknown' }],
                 al: { id: 0, name: 'Unknown', picUrl: track.pic || track.cover || '' },
                 dt: 0,
                 source: source,
@@ -207,18 +186,12 @@ export const searchSongs = async (query: string, source: string, page: number = 
         const server = serverMap[source] || 'netease';
         
         const res = await fetch(`${API_BASE}?type=search&name=${encodeURIComponent(query)}&page=${page}&server=${server}`);
-        const json = await res.json();
+        const data = await res.json();
         
-        const rawList = Array.isArray(json) ? json : (json.data || []);
-        
-        if (!Array.isArray(rawList)) {
-             return [];
-        }
-
-        return rawList.map((track: any) => ({
+        return (data || []).map((track: any) => ({
             id: track.id || track.song_id,
-            name: track.name || track.title || 'Unknown',
-            ar: parseArtist(track),
+            name: track.name || track.title,
+            ar: track.artist ? track.artist.split('/').map((n: string) => ({ id: 0, name: n })) : [{ id: 0, name: track.author || 'Unknown' }],
             al: { id: 0, name: 'Unknown', picUrl: track.pic || track.cover || '' },
             dt: 0, 
             source: source,
@@ -226,7 +199,6 @@ export const searchSongs = async (query: string, source: string, page: number = 
             lyric: track.lrc || undefined
         }));
     } catch(e) {
-        console.error("Search failed", e);
         return [];
     }
 };
