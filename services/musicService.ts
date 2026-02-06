@@ -162,22 +162,23 @@ export const fetchRandomMusic = async (): Promise<Song | null> => {
             throw new Error(`Random Music API Error: ${response.status}`);
         }
 
-        const data = await response.json();
+        const json = await response.json();
         
-        if (data && data.url) {
+        if (json.code === 200 && json.data) {
+            const data = json.data;
             // Map the API response to our Song interface
             return {
-                id: 'rand-' + Date.now(), // Random ephemeral ID
+                id: data.id || 'rand-' + Date.now(), 
                 name: data.name || 'Unknown Title',
                 ar: [{ id: 0, name: data.artistsname || 'Unknown Artist' }],
                 al: { 
                     id: 0, 
-                    name: 'Random Mix', 
+                    name: data.album || 'Random Mix', 
                     picUrl: toHttps(data.picurl) || 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop'
                 },
-                dt: 0, // Duration often not provided by simple random APIs
+                dt: data.duration || 0, 
                 url: toHttps(data.url), // The API provides the direct URL
-                source: 'random',
+                source: 'netease', // It comes from Wangyi API, so we use 'netease' to allow lyric fetching
                 lyric: undefined
             };
         }
@@ -536,10 +537,6 @@ export const fetchSongUrl = async (id: string | number, source: string = 'neteas
 
     // Special handling for random songs that already have a direct URL
     if (source === 'random') {
-        // If it's a random song, the 'url' might not be retrievable by ID via the parse API
-        // But fetchSongUrl is usually called when 'url' is missing. 
-        // If we are here for 'random', it means we lost the URL or need to re-validate.
-        // We'll return null here because random songs are ephemeral and provided with URL upfront.
         return null;
     }
 

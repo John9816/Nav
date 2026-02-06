@@ -164,9 +164,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       setToastMessage("正在获取随机音乐...");
       const song = await fetchRandomMusic();
       if (song) {
-          // Play the song immediately
-          // Add to queue or just replace current
-          // For random play, it's often nice to just add to current queue or make it the queue
+          // Play the song immediately. 
+          // We add it to the front of the queue so user can go back or forward if needed, 
+          // or just play it as a single instance.
           const newQueue = [song, ...queue];
           playSong(song, newQueue);
           setToastMessage(null);
