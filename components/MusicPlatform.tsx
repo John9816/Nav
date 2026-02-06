@@ -752,10 +752,10 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                )}
 
                {/* Scrollable Content Container */}
-               <div className="flex-1 overflow-y-auto relative z-10">
+               <div className="flex-1 overflow-y-auto relative z-10 scroll-smooth">
                    
                    {/* Internal Toolbar for Search and Navigation */}
-                   <div className="sticky top-0 z-20 px-4 md:px-6 py-4 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-slate-100 dark:border-slate-800/50 flex items-center gap-4">
+                   <div className="sticky top-0 z-20 px-4 md:px-6 py-4 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800/50 flex items-center gap-4">
                         {view !== 'home' && (
                             <button onClick={() => setView('home')} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
                                <ArrowLeft size={20} className="text-slate-600 dark:text-slate-300" />
@@ -813,7 +813,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                         </form>
                    </div>
 
-                   <div className="p-3 md:p-6 lg:p-8 relative min-h-full pb-32"> {/* Reduced padding for more space */}
+                   <div className={`relative min-h-full pb-36 ${view === 'home' ? 'p-4 md:p-8' : 'p-0'}`}>
                        {loading ? (
                            <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
                                <Loader2 className="animate-spin text-red-500" size={32} />
@@ -822,29 +822,30 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        ) : (
                            <>
                                {(view === 'playlist' || view === 'history' || view === 'search' || view === 'favorites') && (
-                                   <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                       <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-8 gap-4">
-                                            <div className="flex items-center gap-4">
+                                   <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                       {/* Header - Transparent/Modern Style */}
+                                       <div className="px-6 md:px-10 py-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-800/20 backdrop-blur-sm">
+                                            <div className="flex items-center gap-6">
                                                 {view === 'playlist' && selectedPlaylist ? (
-                                                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl shadow-lg overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-800">
+                                                    <div className="w-32 h-32 md:w-40 md:h-40 rounded-xl shadow-xl overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-800">
                                                         <img src={selectedPlaylist.coverImgUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                                     </div>
                                                 ) : (
-                                                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg shrink-0
+                                                    <div className={`w-24 h-24 md:w-32 md:h-32 rounded-xl flex items-center justify-center shadow-lg shrink-0
                                                         ${view === 'history' ? 'bg-blue-500 text-white' : view === 'favorites' ? 'bg-red-500 text-white' : 'bg-red-500 text-white'}
                                                     `}>
-                                                        {view === 'history' ? <Clock size={32} /> : view === 'favorites' ? <Heart size={32} /> : <Search size={32} />}
+                                                        {view === 'history' ? <Clock size={40} /> : view === 'favorites' ? <Heart size={40} /> : <Search size={40} />}
                                                     </div>
                                                 )}
-                                                <div>
-                                                    <h2 className="text-xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 mb-1 line-clamp-2">
+                                                <div className="flex flex-col gap-2">
+                                                    <h2 className="text-2xl md:text-4xl font-extrabold text-slate-800 dark:text-slate-100 line-clamp-2">
                                                         {view === 'history' ? '播放历史' : view === 'favorites' ? '我喜欢的音乐' : view === 'search' ? `搜索: "${searchQuery}"` : selectedPlaylist?.name}
                                                     </h2>
-                                                    <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                                                        {(view === 'search' ? searchResults : playlistSongs).length} 首歌曲
-                                                        {view === 'playlist' && selectedPlaylist?.source === 'qq' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">QQ音乐</span>}
-                                                        {view === 'playlist' && selectedPlaylist?.source === 'netease' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">网易云</span>}
-                                                        {view === 'playlist' && selectedPlaylist?.source === 'kuwo' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">酷我</span>}
+                                                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium flex items-center gap-3">
+                                                        <span>{(view === 'search' ? searchResults : playlistSongs).length} 首歌曲</span>
+                                                        {view === 'playlist' && selectedPlaylist?.source === 'qq' && <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">QQ音乐</span>}
+                                                        {view === 'playlist' && selectedPlaylist?.source === 'netease' && <span className="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">网易云</span>}
+                                                        {view === 'playlist' && selectedPlaylist?.source === 'kuwo' && <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">酷我</span>}
                                                     </p>
                                                 </div>
                                             </div>
@@ -852,89 +853,91 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                             <div className="flex gap-3 w-full md:w-auto">
                                                 <button 
                                                   onClick={() => playAll(view === 'search' ? searchResults : playlistSongs)}
-                                                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-full text-sm font-bold shadow-lg shadow-red-500/30 transition-all hover:scale-105 active:scale-95"
+                                                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-red-600 hover:bg-red-500 text-white rounded-full text-base font-bold shadow-lg shadow-red-500/30 transition-all hover:scale-105 active:scale-95"
                                                 >
-                                                    <Play size={18} fill="currentColor" /> 播放全部
+                                                    <Play size={20} fill="currentColor" /> 播放全部
                                                 </button>
                                             </div>
                                        </div>
 
-                                       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-                                           {/* Header hidden on small screens */}
-                                           <div className="grid grid-cols-[40px_1fr_40px] md:grid-cols-[50px_1fr_120px_60px] gap-4 px-4 md:px-6 py-3 border-b border-slate-100 dark:border-slate-700/50 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                               <div className="text-center">#</div>
-                                               <div>标题</div>
-                                               <div className="hidden md:block">专辑</div>
-                                               <div className="text-right hidden md:block">操作</div>
-                                               <div className="md:hidden text-right"></div>
-                                           </div>
-                                           <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                                               {(view === 'search' ? searchResults : playlistSongs).map((song, i) => (
-                                                   <div 
-                                                     key={`${song.source}-${song.id}`}
-                                                     onClick={() => playSong(song, view === 'search' ? searchResults : playlistSongs)}
-                                                     className={`group grid grid-cols-[40px_1fr_40px] md:grid-cols-[50px_1fr_120px_60px] gap-4 px-4 md:px-6 py-3.5 items-center hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors cursor-pointer
-                                                        ${currentSong?.id === song.id ? 'bg-red-50/50 dark:bg-red-900/10' : ''}
-                                                     `}
-                                                   >
-                                                       <div className="text-center text-sm font-medium text-slate-400 flex justify-center">
-                                                          {currentSong?.id === song.id && isPlaying ? (
-                                                              <div className="flex gap-0.5 items-end h-3">
-                                                                  <div className="w-1 bg-red-500 animate-[bounce_1s_infinite] h-2"></div>
-                                                                  <div className="w-1 bg-red-500 animate-[bounce_1.2s_infinite] h-3"></div>
-                                                                  <div className="w-1 bg-red-500 animate-[bounce_0.8s_infinite] h-1.5"></div>
-                                                              </div>
-                                                          ) : (
-                                                              <span className="md:group-hover:hidden">{i + 1}</span>
-                                                          )}
-                                                          <Play size={14} className="hidden md:group-hover:block text-slate-600 dark:text-slate-300" fill="currentColor" />
+                                       {/* List Header - Sticky */}
+                                       <div className="sticky top-[72px] z-10 grid grid-cols-[50px_1fr_40px] md:grid-cols-[60px_4fr_3fr_80px] gap-4 px-6 md:px-10 py-3 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-400 uppercase tracking-wider shadow-sm">
+                                           <div className="text-center">#</div>
+                                           <div>标题</div>
+                                           <div className="hidden md:block">专辑</div>
+                                           <div className="text-right hidden md:block">操作</div>
+                                           <div className="md:hidden text-right"></div>
+                                       </div>
+
+                                       <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                                           {(view === 'search' ? searchResults : playlistSongs).map((song, i) => (
+                                               <div 
+                                                 key={`${song.source}-${song.id}`}
+                                                 onClick={() => playSong(song, view === 'search' ? searchResults : playlistSongs)}
+                                                 className={`group grid grid-cols-[50px_1fr_40px] md:grid-cols-[60px_4fr_3fr_80px] gap-4 px-6 md:px-10 py-3.5 items-center transition-all cursor-pointer
+                                                    ${currentSong?.id === song.id 
+                                                        ? 'bg-red-50/50 dark:bg-red-900/10' 
+                                                        : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                                                    }
+                                                 `}
+                                               >
+                                                   <div className="text-center text-sm font-medium text-slate-400 flex justify-center">
+                                                      {currentSong?.id === song.id && isPlaying ? (
+                                                          <div className="flex gap-0.5 items-end h-3">
+                                                              <div className="w-1 bg-red-500 animate-[bounce_1s_infinite] h-2"></div>
+                                                              <div className="w-1 bg-red-500 animate-[bounce_1.2s_infinite] h-3"></div>
+                                                              <div className="w-1 bg-red-500 animate-[bounce_0.8s_infinite] h-1.5"></div>
+                                                          </div>
+                                                      ) : (
+                                                          <span className="md:group-hover:hidden">{i + 1}</span>
+                                                      )}
+                                                      <Play size={14} className="hidden md:group-hover:block text-slate-600 dark:text-slate-300" fill="currentColor" />
+                                                   </div>
+                                                   <div className="min-w-0 pr-0 md:pr-4 flex items-center gap-4">
+                                                       {/* Song Cover */}
+                                                       <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-700">
+                                                            <img src={song.al.picUrl} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
                                                        </div>
-                                                       <div className="min-w-0 pr-0 md:pr-4 flex items-center gap-3">
-                                                           {/* Song Cover */}
-                                                           <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-700">
-                                                                <img src={song.al.picUrl} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
+                                                       <div className="min-w-0 flex-1">
+                                                           <div className={`font-medium truncate text-sm mb-0.5 ${currentSong?.id === song.id ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>{song.name}</div>
+                                                           <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-2">
+                                                               {song.source === 'qq' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">QQ</span>}
+                                                               {song.source === 'netease' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">WY</span>}
+                                                               {song.source === 'kuwo' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">KW</span>}
+                                                               {song.ar.map(a => a.name).join(', ')}
                                                            </div>
-                                                           <div className="min-w-0 flex-1">
-                                                               <div className={`font-medium truncate text-sm mb-0.5 ${currentSong?.id === song.id ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>{song.name}</div>
-                                                               <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-2">
-                                                                   {song.source === 'qq' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">QQ</span>}
-                                                                   {song.source === 'netease' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">WY</span>}
-                                                                   {song.source === 'kuwo' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">KW</span>}
-                                                                   {song.ar.map(a => a.name).join(', ')}
-                                                               </div>
-                                                           </div>
-                                                       </div>
-                                                       <div className="text-xs text-slate-500 dark:text-slate-400 truncate hidden md:block">{song.al.name}</div>
-                                                       <div className="text-right hidden md:block">
-                                                           <button 
-                                                             onClick={(e) => handleDownload(e, song)} 
-                                                             className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                                                             title="下载"
-                                                           >
-                                                               <Download size={16} />
-                                                           </button>
-                                                       </div>
-                                                       <div className="text-right md:hidden">
-                                                           {/* Mobile action could go here if needed, keeping simple for now */}
                                                        </div>
                                                    </div>
-                                               ))}
-                                           </div>
-                                           
-                                           {/* Search Results Pagination (Load More) */}
-                                           {view === 'search' && searchResults.length > 0 && hasMoreResults && (
-                                               <div className="p-4 flex justify-center border-t border-slate-100 dark:border-slate-700/50">
-                                                   <button
-                                                      onClick={handleLoadMore}
-                                                      disabled={isLoadingMore}
-                                                      className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
-                                                   >
-                                                      {isLoadingMore ? <Loader2 size={16} className="animate-spin" /> : <ArrowDown size={16} />}
-                                                      {isLoadingMore ? '正在加载...' : '加载更多结果'}
-                                                   </button>
+                                                   <div className="text-xs text-slate-500 dark:text-slate-400 truncate hidden md:block">{song.al.name}</div>
+                                                   <div className="text-right hidden md:block">
+                                                       <button 
+                                                         onClick={(e) => handleDownload(e, song)} 
+                                                         className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                                                         title="下载"
+                                                       >
+                                                           <Download size={16} />
+                                                       </button>
+                                                   </div>
+                                                   <div className="text-right md:hidden">
+                                                       {/* Mobile action could go here if needed, keeping simple for now */}
+                                                   </div>
                                                </div>
-                                           )}
+                                           ))}
                                        </div>
+                                       
+                                       {/* Search Results Pagination (Load More) */}
+                                       {view === 'search' && searchResults.length > 0 && hasMoreResults && (
+                                           <div className="p-8 flex justify-center border-t border-slate-100 dark:border-slate-800/50">
+                                               <button
+                                                  onClick={handleLoadMore}
+                                                  disabled={isLoadingMore}
+                                                  className="flex items-center gap-2 px-8 py-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+                                               >
+                                                  {isLoadingMore ? <Loader2 size={16} className="animate-spin" /> : <ArrowDown size={16} />}
+                                                  {isLoadingMore ? '正在加载...' : '加载更多结果'}
+                                               </button>
+                                           </div>
+                                       )}
                                        
                                        {(view === 'search' ? searchResults : playlistSongs).length === 0 && (
                                            <div className="text-center py-20 text-slate-400">
