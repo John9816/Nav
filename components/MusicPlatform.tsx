@@ -513,16 +513,6 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   };
 
   const openPlaylist = async (list: Playlist) => {
-    // If selecting the same playlist that is already loaded, and view is playlist, do nothing
-    if (selectedPlaylist?.id === list.id && playlistSongs.length > 0 && view === 'playlist') {
-        return;
-    }
-    // If selecting the same playlist but view was different (e.g. history), switch view without reloading
-    if (selectedPlaylist?.id === list.id && playlistSongs.length > 0) {
-        setView('playlist');
-        return;
-    }
-
     setSelectedPlaylist(list);
     setView('playlist');
     setLoading(true);
@@ -772,57 +762,55 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                             </button>
                         )}
                         
-                        {/* Search Bar with Source Selector - Hidden on Favorites page */}
-                        {view !== 'favorites' && (
-                            <form onSubmit={handleSearch} className="flex-1 flex items-center bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm focus-within:ring-2 focus-within:ring-red-500/30 max-w-xl relative">
-                                {/* Source Selector Dropdown */}
-                                <div className="relative shrink-0">
-                                    <button 
-                                    type="button"
-                                    onClick={() => setShowSourceMenu(!showSourceMenu)}
-                                    className="flex items-center gap-1 pl-4 pr-3 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 border-r border-slate-200 dark:border-slate-700 transition-colors"
-                                    >
-                                    {getSourceLabel(searchSource)}
-                                    <ChevronDown size={12} className={`transition-transform duration-200 ${showSourceMenu ? 'rotate-180' : ''}`} />
-                                    </button>
-                                    
-                                    {showSourceMenu && (
-                                        <>
-                                            <div className="fixed inset-0 z-10" onClick={() => setShowSourceMenu(false)}></div>
-                                            <div className="absolute top-full left-0 mt-2 w-28 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 z-20">
-                                                {['netease', 'qq', 'kuwo'].map((s) => (
-                                                    <button
-                                                        key={s}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setSearchSource(s as any);
-                                                            setShowSourceMenu(false);
-                                                        }}
-                                                        className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-700
-                                                        ${searchSource === s ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-slate-600 dark:text-slate-300'}
-                                                        `}
-                                                    >
-                                                        {getSourceLabel(s)}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-
-                                {/* Search Input */}
-                                <input 
-                                    type="text" 
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder={`搜索${getSourceLabel(searchSource)}...`}
-                                    className="flex-1 bg-transparent border-none focus:ring-0 py-2.5 px-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 w-full"
-                                />
-                                <button type="submit" className="pr-4 pl-2 text-slate-400 hover:text-red-500 transition-colors">
-                                    <Search size={18} />
+                        {/* Search Bar with Source Selector */}
+                        <form onSubmit={handleSearch} className="flex-1 flex items-center bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm focus-within:ring-2 focus-within:ring-red-500/30 max-w-xl relative">
+                            {/* Source Selector Dropdown */}
+                            <div className="relative shrink-0">
+                                <button 
+                                   type="button"
+                                   onClick={() => setShowSourceMenu(!showSourceMenu)}
+                                   className="flex items-center gap-1 pl-4 pr-3 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 border-r border-slate-200 dark:border-slate-700 transition-colors"
+                                >
+                                   {getSourceLabel(searchSource)}
+                                   <ChevronDown size={12} className={`transition-transform duration-200 ${showSourceMenu ? 'rotate-180' : ''}`} />
                                 </button>
-                            </form>
-                        )}
+                                
+                                {showSourceMenu && (
+                                    <>
+                                        <div className="fixed inset-0 z-10" onClick={() => setShowSourceMenu(false)}></div>
+                                        <div className="absolute top-full left-0 mt-2 w-28 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 z-20">
+                                            {['netease', 'qq', 'kuwo'].map((s) => (
+                                                <button
+                                                    key={s}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSearchSource(s as any);
+                                                        setShowSourceMenu(false);
+                                                    }}
+                                                    className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-700
+                                                       ${searchSource === s ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-slate-600 dark:text-slate-300'}
+                                                    `}
+                                                >
+                                                    {getSourceLabel(s)}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Search Input */}
+                            <input 
+                                type="text" 
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder={`搜索${getSourceLabel(searchSource)}...`}
+                                className="flex-1 bg-transparent border-none focus:ring-0 py-2.5 px-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 w-full"
+                            />
+                            <button type="submit" className="pr-4 pl-2 text-slate-400 hover:text-red-500 transition-colors">
+                                <Search size={18} />
+                            </button>
+                        </form>
                    </div>
 
                    <div className={`relative min-h-full pb-36 ${view === 'home' ? 'p-4 md:p-8' : 'p-0'}`}>

@@ -28,14 +28,6 @@ export const parseLyrics = (lrc: string): LyricLine[] => {
 };
 
 // ==========================================
-// CACHE
-// ==========================================
-const playlistCache = new Map<string, { timestamp: number, data: Song[] }>();
-const lyricCache = new Map<string, { lines: LyricLine[], raw: string }>();
-const detailCache = new Map<string, Song>();
-const CACHE_TTL = 30 * 60 * 1000; // 30 Minutes
-
-// ==========================================
 // EXTERNAL API (via Proxy)
 // ==========================================
 
@@ -54,14 +46,6 @@ export const fetchTopLists = async (): Promise<Playlist[]> => {
 };
 
 export const fetchPlaylistDetails = async (id: string | number, source: string = 'netease'): Promise<Song[]> => {
-    const cacheKey = `${source}-${id}`;
-    if (playlistCache.has(cacheKey)) {
-        const cached = playlistCache.get(cacheKey)!;
-        if (Date.now() - cached.timestamp < CACHE_TTL) {
-            return cached.data;
-        }
-    }
-
     try {
         const serverMap: Record<string, string> = { 'netease': 'netease', 'qq': 'tencent', 'kuwo': 'kuwo' };
         const server = serverMap[source] || 'netease';
@@ -70,7 +54,7 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
         if (!res.ok) throw new Error('Network response was not ok');
         const data = await res.json();
         
-        const songs = (data || []).map((track: any) => ({
+        return (data || []).map((track: any) => ({
             id: track.id || track.song_id,
             name: track.name || track.title,
             ar: track.artist ? track.artist.split('/').map((n: string) => ({ id: 0, name: n })) : [{ id: 0, name: track.author || 'Unknown' }],
@@ -80,9 +64,6 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
             url: track.url || undefined,
             lyric: track.lrc || undefined
         }));
-
-        playlistCache.set(cacheKey, { timestamp: Date.now(), data: songs });
-        return songs;
     } catch (e) {
         console.error("Fetch playlist failed", e);
         return [];
@@ -109,11 +90,6 @@ export const fetchSongUrl = async (id: string | number, source: string, quality:
 };
 
 export const fetchSongDetail = async (id: string | number, source: string): Promise<Song | null> => {
-    const cacheKey = `${source}-${id}`;
-    if (detailCache.has(cacheKey)) {
-        return detailCache.get(cacheKey)!;
-    }
-
     try {
         const serverMap: Record<string, string> = { 'netease': 'netease', 'qq': 'tencent', 'kuwo': 'kuwo' };
         const server = serverMap[source] || 'netease';
@@ -124,7 +100,7 @@ export const fetchSongDetail = async (id: string | number, source: string): Prom
         const track = Array.isArray(data) ? data[0] : data;
         
         if (track) {
-             const song = {
+             return {
                 id: track.id || track.song_id,
                 name: track.name || track.title,
                 ar: track.artist ? track.artist.split('/').map((n: string) => ({ id: 0, name: n })) : [{ id: 0, name: track.author || 'Unknown' }],
@@ -134,8 +110,6 @@ export const fetchSongDetail = async (id: string | number, source: string): Prom
                 url: track.url,
                 lyric: track.lrc
             };
-            detailCache.set(cacheKey, song);
-            return song;
         }
         return null;
     } catch(e) {
@@ -144,11 +118,6 @@ export const fetchSongDetail = async (id: string | number, source: string): Prom
 };
 
 export const fetchLyrics = async (id: string | number, source: string): Promise<{ lines: LyricLine[], raw: string }> => {
-    const cacheKey = `${source}-${id}`;
-    if (lyricCache.has(cacheKey)) {
-        return lyricCache.get(cacheKey)!;
-    }
-
     try {
         const serverMap: Record<string, string> = { 'netease': 'netease', 'qq': 'tencent', 'kuwo': 'kuwo' };
         const server = serverMap[source] || 'netease';
@@ -158,12 +127,10 @@ export const fetchLyrics = async (id: string | number, source: string): Promise<
         
         const lrcText = typeof data === 'string' ? data : (data.lrc || data.lyric || '');
         
-        const result = {
+        return {
             lines: parseLyrics(lrcText),
             raw: lrcText
         };
-        lyricCache.set(cacheKey, result);
-        return result;
     } catch (e) {
         return { lines: [], raw: '' };
     }
