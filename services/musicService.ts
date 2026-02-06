@@ -91,17 +91,6 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
 
 export const fetchSongUrl = async (id: string | number, source: string, quality: string = '128k', metadata?: any): Promise<{ url: string, lyric?: string } | null> => {
      try {
-        // Special handling for Netease using new API
-        if (source === 'netease') {
-            const res = await fetch(`/random-music-api/api/wangyi/music?type=json&id=${id}`);
-            const data = await res.json();
-            
-            if (data.code === 200 && data.data && data.data.url) {
-                return { url: data.data.url };
-            }
-            return null;
-        }
-
         const serverMap: Record<string, string> = { 'netease': 'netease', 'qq': 'tencent', 'kuwo': 'kuwo' };
         const server = serverMap[source] || 'netease';
         
@@ -109,7 +98,7 @@ export const fetchSongUrl = async (id: string | number, source: string, quality:
         const data = await res.json();
         
         if (data && data.url) {
-            return { url: data.url, lyric: data.lrc || data.lyric };
+            return { url: data.url };
         }
         
         return null;
