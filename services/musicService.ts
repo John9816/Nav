@@ -235,17 +235,66 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
 };
 
 /**
+ * Fetch Kuwo Top Lists
+ */
+const fetchKuwoTopLists = async (): Promise<Playlist[]> => {
+    try {
+        const response = await fetch('/kuwo-data-api/q.k?op=query&cont=tree&node=2&pn=0&rn=1000&fmt=json&level=2');
+        if (!response.ok) throw new Error(`Kuwo API Error: ${response.status}`);
+        
+        const data = await response.json();
+        
+        // The response structure is usually { child: [ ... ] }
+        const rawList = data.child || [];
+        let lists: Playlist[] = [];
+
+        // Recursive helper to flatten the tree structure and extract actual lists
+        const extractLists = (items: any[]) => {
+            items.forEach(item => {
+                // If it has a sourceid, it's a playlist we can use
+                if (item.sourceid) { 
+                    lists.push({
+                        id: item.sourceid,
+                        name: item.name || item.disname || 'Unknown List',
+                        coverImgUrl: toHttps(item.pic || item.icon50), // icon50 might be too small
+                        description: item.intro || '',
+                        trackCount: 0, 
+                        playCount: 0, 
+                        source: 'kuwo' as const
+                    });
+                }
+                // Recursively check children
+                if (item.child && Array.isArray(item.child)) {
+                    extractLists(item.child);
+                }
+            });
+        };
+
+        extractLists(rawList);
+        
+        // Limit to reasonable amount
+        const result = lists.slice(0, 20);
+        console.log(`Parsed ${result.length} Kuwo charts.`);
+        return result;
+    } catch (e) {
+        console.warn("Fetch Kuwo toplists failed", e);
+        return [];
+    }
+};
+
+/**
  * Fetch Combined Top Lists
  */
 export const fetchTopLists = async (): Promise<Playlist[]> => {
   console.log("Fetching Top Lists...");
-  const [neteaseLists, qqLists] = await Promise.all([
+  const [neteaseLists, qqLists, kuwoLists] = await Promise.all([
       fetchNeteaseTopLists(),
-      fetchQQTopLists()
+      fetchQQTopLists(),
+      fetchKuwoTopLists()
   ]);
-  console.log(`Fetched: Netease(${neteaseLists.length}), QQ(${qqLists.length})`);
+  console.log(`Fetched: Netease(${neteaseLists.length}), QQ(${qqLists.length}), Kuwo(${kuwoLists.length})`);
 
-  return [...neteaseLists, ...qqLists];
+  return [...neteaseLists, ...qqLists, ...kuwoLists];
 };
 
 /**
@@ -722,8 +771,9 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
     }
 
     // Priority 2: Meting API Fallback (Slower)
+    // Used for Kuwo as well
     try {
-        console.log("Fetching Playlist via Meting fallback...");
+        console.log(`Fetching Playlist via Meting fallback for ${source}...`);
         const response = await fetch(TUNEHUB_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-API-Key': TUNEHUB_API_KEY },

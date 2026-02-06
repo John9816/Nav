@@ -98,7 +98,7 @@ export interface Playlist {
   description: string;
   trackCount: number;
   playCount: number;
-  source?: 'netease' | 'qq';
+  source?: 'netease' | 'qq' | 'kuwo';
 }
 
 export interface LyricLine {

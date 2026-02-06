@@ -46,7 +46,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   
   // UI State
   const [view, setView] = useState<'home' | 'playlist' | 'history' | 'search' | 'favorites'>('home');
-  const [chartFilter, setChartFilter] = useState<'all' | 'netease' | 'qq'>('all');
+  const [chartFilter, setChartFilter] = useState<'all' | 'netease' | 'qq' | 'kuwo'>('all');
   const [playlistSongs, setPlaylistSongs] = useState<Song[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -571,6 +571,20 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                </div>
                                <span>QQ 音乐</span>
                            </button>
+
+                           {/* Kuwo Music Button */}
+                           <button 
+                             onClick={() => { setView('home'); setChartFilter('kuwo'); }}
+                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors 
+                               ${view === 'home' && chartFilter === 'kuwo' 
+                                 ? 'bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400' 
+                                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                           >
+                               <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors border border-current opacity-80 ${view === 'home' && chartFilter === 'kuwo' ? 'text-yellow-600' : 'text-slate-400 border-slate-300'}`}>
+                                  <Disc size={14} fill="currentColor" />
+                               </div>
+                               <span>酷我榜单</span>
+                           </button>
                        </div>
                    </div>
                </div>
@@ -601,13 +615,19 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                      onClick={() => { setView('home'); setChartFilter('netease'); }} 
                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${view === 'home' && chartFilter === 'netease' ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50' : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}
                    >
-                       网易榜
+                       网易
                    </button>
                    <button 
                      onClick={() => { setView('home'); setChartFilter('qq'); }} 
                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${view === 'home' && chartFilter === 'qq' ? 'bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/50' : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}
                    >
-                       QQ榜
+                       QQ
+                   </button>
+                   <button 
+                     onClick={() => { setView('home'); setChartFilter('kuwo'); }} 
+                     className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${view === 'home' && chartFilter === 'kuwo' ? 'bg-yellow-50 text-yellow-600 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-900/50' : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}
+                   >
+                       酷我
                    </button>
                </div>
            </div>
@@ -766,6 +786,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                         {(view === 'search' ? searchResults : playlistSongs).length} 首歌曲
                                                         {view === 'playlist' && selectedPlaylist?.source === 'qq' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">QQ音乐</span>}
                                                         {view === 'playlist' && selectedPlaylist?.source === 'netease' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">网易云</span>}
+                                                        {view === 'playlist' && selectedPlaylist?.source === 'kuwo' && <span className="px-1.5 py-0.5 rounded text-[10px] bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">酷我</span>}
                                                     </p>
                                                 </div>
                                             </div>
@@ -875,7 +896,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                <Radio size={20} />
                                            </div>
                                            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                                              {chartFilter === 'all' ? '热门推荐' : (chartFilter === 'netease' ? '网易云榜单' : 'QQ音乐榜单')}
+                                              {chartFilter === 'all' ? '热门推荐' : (chartFilter === 'netease' ? '网易云榜单' : (chartFilter === 'qq' ? 'QQ音乐榜单' : '酷我榜单'))}
                                            </h2>
                                        </div>
                                        
@@ -900,7 +921,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                       {/* Count Badge */}
                                                       <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-black/40 backdrop-blur-md rounded-md text-[9px] text-white font-medium flex items-center gap-0.5">
                                                           <Play size={8} fill="currentColor" />
-                                                          {Math.floor(list.playCount / 10000)}万
+                                                          {list.playCount > 10000 ? `${Math.floor(list.playCount / 10000)}万` : (list.playCount > 0 ? list.playCount : 'HOT')}
                                                       </div>
 
                                                       {/* Source Badge */}
@@ -912,6 +933,11 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                       {list.source === 'netease' && (
                                                         <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-red-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm">
                                                             WY
+                                                        </div>
+                                                      )}
+                                                      {list.source === 'kuwo' && (
+                                                        <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-yellow-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm">
+                                                            KW
                                                         </div>
                                                       )}
                                                   </div>

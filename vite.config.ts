@@ -41,6 +41,15 @@ export default defineConfig(({ mode }) => {
               'Origin': 'http://kuwo.cn/'
             }
           },
+          '/kuwo-data-api': {
+            target: 'http://qukudata.kuwo.cn',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/kuwo-data-api/, ''),
+            headers: {
+              'Referer': 'http://kuwo.cn/',
+              'Origin': 'http://kuwo.cn/'
+            }
+          },
           '/music-api': {
             target: 'https://music.byebug.cn',
             changeOrigin: true,
