@@ -513,6 +513,31 @@ export const fetchSongUrl = async (
         return null;
     }
 
+    // --- ADDED NETEASE LOGIC ---
+    if (source === 'netease') {
+         const fetchNetease = async (): Promise<{ url: string, lyric?: string } | null> => {
+            try {
+                // Use the new API for Netease
+                const response = await fetch(`/random-music-api/api/wangyi/music?type=json&id=${id}`);
+                const data = await response.json();
+                if (data.code === 200 && data.data && data.data.url) {
+                    return {
+                        url: toHttps(data.data.url)
+                    };
+                }
+            } catch (e) {
+                console.error("Netease API fetch failed", e);
+            }
+            return null;
+        };
+        
+        const promise = fetchNetease();
+        urlPromiseCache.set(cacheKey, promise);
+        promise.then(result => { if (!result) urlPromiseCache.delete(cacheKey); });
+        return promise;
+    }
+    // ---------------------------
+
     // QQ Music: Use new Search-Based API (cyapi.top)
     if (source === 'qq' && metadata?.name) {
         const fetchQQTask = async (): Promise<{ url: string, lyric?: string } | null> => {
