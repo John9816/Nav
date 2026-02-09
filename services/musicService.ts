@@ -391,24 +391,19 @@ export const searchSongs = async (
     limit: number = 20
 ): Promise<Song[]> => {
   try {
-    // Netease Search API (Using new GDStudio API as requested)
+    // Netease Search API (Using new GDStudio API via GET request)
     if (source === 'netease') {
         try {
-            const params = new URLSearchParams();
-            params.append('types', 'search');
-            params.append('count', String(limit));
-            params.append('source', 'netease');
-            params.append('pages', String(page));
-            params.append('name', keywords);
-
-            const response = await fetch('/gdstudio-api/api.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
-                },
-                body: params.toString()
+            const queryParams = new URLSearchParams({
+                types: 'search',
+                count: String(limit),
+                source: 'netease',
+                pages: String(page),
+                name: keywords
             });
 
+            // Make a GET request matching the provided URL format
+            const response = await fetch(`/gdstudio-api/api.php?${queryParams.toString()}`);
             const data = await response.json();
             
             if (Array.isArray(data)) {
