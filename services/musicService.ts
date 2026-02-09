@@ -579,12 +579,14 @@ export const fetchSongUrl = async (
     if (source === 'netease') {
          const fetchNetease = async (): Promise<{ url: string, lyric?: string } | null> => {
             try {
-                // Use random-music-api for Netease URL fetching (Keeping original valid logic for URLs)
-                const response = await fetch(`/random-music-api/api/wangyi/music?type=json&id=${id}`);
+                // Use GDStudio API for Netease URL fetching
+                const response = await fetch(`/gdstudio-api/api.php?types=url&source=netease&id=${id}&br=999`);
                 const data = await response.json();
-                if (data.code === 200 && data.data && data.data.url) {
+                
+                // API typically returns { url: "...", ... }
+                if (data && data.url) {
                     return {
-                        url: toHttps(data.data.url)
+                        url: toHttps(data.url)
                     };
                 }
             } catch (e) {
