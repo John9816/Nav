@@ -101,12 +101,7 @@ const mapGDStudioItemToSong = async (item: any): Promise<Song> => {
     if (Array.isArray(item.artist)) {
         artists = item.artist.map((a: string) => ({ id: 0, name: a }));
     } else if (typeof item.artist === 'string') {
-        // Check if artist string contains separators (e.g. "Artist A/Artist B")
-        if (item.artist.includes('/')) {
-            artists = item.artist.split('/').map((a: string) => ({ id: 0, name: a.trim() }));
-        } else {
-            artists = [{ id: 0, name: item.artist }];
-        }
+        artists = [{ id: 0, name: item.artist }];
     } else {
         artists = [{ id: 0, name: 'Unknown Artist' }];
     }
@@ -378,28 +373,22 @@ export const searchSongs = async (
     limit: number = 20
 ): Promise<Song[]> => {
   try {
-    // Netease Search API (Using new FY-MusicBox API)
+    // Netease Search API
     if (source === 'netease') {
         try {
             const queryParams = new URLSearchParams({
-                keywords: keywords,
-                pn: String(page),
-                limit: String(limit)
+                types: 'search',
+                count: String(limit),
+                source: 'netease',
+                pages: String(page),
+                name: keywords
             });
 
-            // Make a GET request to the new proxy
-            const response = await fetch(`/fy-api/netease/search/song/?${queryParams.toString()}`);
-            
-            // Handle 403 Forbidden specifically
-            if (response.status === 403) {
-                console.error("FY API 403 Forbidden. Check Proxy Headers.");
-                return [];
-            }
-
+            const response = await fetch(`/gdstudio-api/api.php?${queryParams.toString()}`);
             const data = await response.json();
             
             if (Array.isArray(data)) {
-                // Map asynchronously to resolve covers (though simple mapping is usually enough here)
+                // Map asynchronously to resolve covers
                 return await Promise.all(data.map(mapGDStudioItemToSong));
             }
             return [];

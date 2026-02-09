@@ -41,10 +41,6 @@
       "destination": "https://music-api.gdstudio.xyz/$1"
     },
     {
-      "source": "/fy-api/(.*)",
-      "destination": "https://fy-musicbox-api.mu-jie.cc/$1"
-    },
-    {
       "source": "/((?!assets/|.*\\..*).*)",
       "destination": "/index.html"
     }
