@@ -268,6 +268,39 @@ export const fetchDailyRecommendSongs = async (): Promise<Song[]> => {
 };
 
 /**
+ * Fetch Album Details (Netease)
+ */
+export const fetchAlbumDetails = async (id: string | number): Promise<{ album: Playlist, songs: Song[] } | null> => {
+    try {
+        const timestamp = Date.now();
+        const response = await fetch(`/alger-api/api/album?id=${id}&timestamp=${timestamp}&device=mobile`);
+        const data = await response.json();
+
+        if (data.code === 200 && data.album) {
+             const albumData = data.album;
+             const songsData = data.songs || [];
+
+             const album: Playlist = {
+                 id: albumData.id,
+                 name: albumData.name,
+                 coverImgUrl: toHttps(albumData.picUrl),
+                 description: albumData.description || '',
+                 trackCount: albumData.size || songsData.length,
+                 playCount: 0, 
+                 source: 'netease'
+             };
+             
+             const songs = await Promise.all(songsData.map(mapApiItemToSong));
+             return { album, songs };
+        }
+        return null;
+    } catch (e) {
+        console.warn("Fetch album details failed", e);
+        return null;
+    }
+};
+
+/**
  * Fetch Netease Top Lists
  */
 const fetchNeteaseTopLists = async (): Promise<Playlist[]> => {

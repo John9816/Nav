@@ -5,7 +5,7 @@ import {
   fetchSongUrl, fetchSongDetail, fetchLyrics, 
   fetchPlaylistDetails, addToHistory, getHistory, deleteFromHistory,
   fetchTopLists, fetchDailyRecommendSongs, searchSongs, getLikedSongs, toggleLike, checkIsLiked, parseLyrics,
-  fetchRandomMusic
+  fetchRandomMusic, fetchAlbumDetails
 } from '../services/musicService';
 import { 
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
@@ -45,7 +45,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [isLiked, setIsLiked] = useState(false);
   
   // UI State
-  const [view, setView] = useState<'home' | 'playlist' | 'history' | 'search' | 'favorites' | 'charts'>('home');
+  const [view, setView] = useState<'home' | 'playlist' | 'history' | 'search' | 'favorites' | 'charts' | 'album'>('home');
   const [chartSource, setChartSource] = useState<'netease' | 'qq' | 'kuwo'>('netease');
   
   const [playlistSongs, setPlaylistSongs] = useState<Song[]>([]);
@@ -279,6 +279,34 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
               setPlaylistSongs(prev => prev.filter(s => String(s.id) !== String(song.id)));
               await deleteFromHistory(user.id, song.id);
           }
+      }
+  };
+
+  const handleAlbumClick = async (e: React.MouseEvent, albumId: string | number, source: string = 'netease') => {
+      e.stopPropagation();
+      if (source !== 'netease') {
+          setToastMessage("暂仅支持网易云音乐专辑查看");
+          setTimeout(() => setToastMessage(null), 2000);
+          return;
+      }
+      
+      setLoading(true);
+      try {
+          const data = await fetchAlbumDetails(albumId);
+          if (data) {
+              setSelectedPlaylist(data.album);
+              setPlaylistSongs(data.songs);
+              setView('playlist'); // Reuse playlist view for album
+          } else {
+              setToastMessage("获取专辑信息失败");
+              setTimeout(() => setToastMessage(null), 2000);
+          }
+      } catch(e) {
+          console.error(e);
+          setToastMessage("获取专辑信息失败");
+          setTimeout(() => setToastMessage(null), 2000);
+      } finally {
+          setLoading(false);
       }
   };
 
@@ -888,11 +916,21 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                                {song.source === 'qq' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">QQ</span>}
                                                                {song.source === 'netease' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">WY</span>}
                                                                {song.source === 'kuwo' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">KW</span>}
-                                                               {song.ar.map(a => a.name).join(', ')}
+                                                               <span className="truncate">
+                                                                  {song.ar.map(a => a.name).join(', ')}
+                                                                  <span className="md:hidden text-slate-400"> · <span className="hover:text-blue-500 hover:underline cursor-pointer" onClick={(e) => handleAlbumClick(e, song.al.id, song.source)}>{song.al.name}</span></span>
+                                                               </span>
                                                            </div>
                                                        </div>
                                                    </div>
-                                                   <div className="text-xs text-slate-500 dark:text-slate-400 truncate hidden md:block">{song.al.name}</div>
+                                                   <div className="text-xs text-slate-500 dark:text-slate-400 truncate hidden md:block">
+                                                       <span 
+                                                         className="hover:text-blue-500 hover:underline cursor-pointer transition-colors"
+                                                         onClick={(e) => handleAlbumClick(e, song.al.id, song.source)}
+                                                       >
+                                                           {song.al.name}
+                                                       </span>
+                                                   </div>
                                                    <div className="text-right hidden md:block">
                                                        <button 
                                                          onClick={(e) => handleDownload(e, song)} 
@@ -1070,7 +1108,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                            </div>
                                                            <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-1.5">
                                                                <span className="bg-slate-100 dark:bg-slate-700 px-1 rounded text-[9px] font-bold text-slate-400">WY</span>
-                                                               <span>{song.ar.map(a => a.name).join(', ')}</span>
+                                                               <span className="truncate">
+                                                                  {song.ar.map(a => a.name).join(', ')} · <span className="hover:text-blue-500 hover:underline cursor-pointer" onClick={(e) => handleAlbumClick(e, song.al.id, song.source)}>{song.al.name}</span>
+                                                               </span>
                                                            </div>
                                                        </div>
                                                    </div>
@@ -1124,7 +1164,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        </div>
                        <div className="min-w-0 flex flex-col justify-center overflow-hidden">
                            <div className="font-bold text-slate-800 dark:text-slate-100 truncate text-sm md:text-base mb-0.5">{currentSong.name}</div>
-                           <div className="text-xs text-slate-500 dark:text-slate-400 truncate font-medium">{currentSong.ar.map(a => a.name).join(', ')}</div>
+                           <div className="text-xs text-slate-500 dark:text-slate-400 truncate font-medium">
+                               {currentSong.ar.map(a => a.name).join(', ')} · <span className="hover:text-blue-500 hover:underline cursor-pointer" onClick={(e) => handleAlbumClick(e, currentSong.al.id, currentSong.source)}>{currentSong.al.name}</span>
+                           </div>
                        </div>
                        <button 
                          onClick={handleLikeToggle}
