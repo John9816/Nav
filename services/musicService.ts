@@ -17,6 +17,12 @@ const toHttps = (url: string) => {
     return url.replace(/^http:\/\//i, 'https://');
 };
 
+// Helper to generate Netease Cover URL via GDStudio Proxy
+const getNeteaseCoverUrl = (picId: string | number) => {
+    if (!picId) return '';
+    return `/gdstudio-api/api.php?types=pic&source=netease&id=${picId}&size=500`;
+};
+
 // Helper to map internal source to Parse API platform param (Audio URL)
 // Parse API usually expects 'qq' for QQ Music
 const getParsePlatform = (source: string) => {
@@ -35,10 +41,17 @@ const mapApiItemToSong = (item: any): Song => {
 
   // Album
   const al = item.al || item.album || {};
+  let picUrl = toHttps(al.picUrl || item.picUrl || item.img120 || '');
+  
+  // Prefer GDStudio API for cover if ID is available
+  if (al.picId) {
+      picUrl = getNeteaseCoverUrl(al.picId);
+  }
+
   const album = {
       id: al.id || 0,
       name: al.name || item.albumName || 'Unknown Album',
-      picUrl: toHttps(al.picUrl || item.picUrl || item.img120 || '')
+      picUrl: picUrl
   };
 
   return {
@@ -67,6 +80,11 @@ const mapGDStudioItemToSong = (item: any): Song => {
         artists = [{ id: 0, name: 'Unknown Artist' }];
     }
 
+    let picUrl = toHttps(item.pic) || '';
+    if (item.pic_id) {
+        picUrl = getNeteaseCoverUrl(item.pic_id);
+    }
+
     return {
         id: item.id,
         name: item.name,
@@ -74,7 +92,7 @@ const mapGDStudioItemToSong = (item: any): Song => {
         al: {
             id: 0,
             name: item.album || '',
-            picUrl: toHttps(item.pic) || '' 
+            picUrl: picUrl
         },
         dt: 0, // Often missing in search results, filled later
         source: 'netease',
@@ -90,6 +108,11 @@ const mapNeteaseSearchItem = (item: any): Song => {
         : [{ id: 0, name: 'Unknown Artist' }];
     
     const album = item.album || {};
+    let picUrl = album.picUrl ? toHttps(album.picUrl) : 'https://p2.music.126.net/tGHU62DTszbFQ37W9qPHcg==/2002210674180197.jpg';
+    
+    if (album.picId) {
+        picUrl = getNeteaseCoverUrl(album.picId);
+    }
     
     return {
         id: item.id,
@@ -99,7 +122,7 @@ const mapNeteaseSearchItem = (item: any): Song => {
             id: album.id || 0,
             name: album.name || 'Unknown Album',
             // Default Netease cover if missing
-            picUrl: album.picUrl ? toHttps(album.picUrl) : 'https://p2.music.126.net/tGHU62DTszbFQ37W9qPHcg==/2002210674180197.jpg' 
+            picUrl: picUrl
         },
         dt: item.duration || 0,
         source: 'netease',
@@ -916,19 +939,27 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
                 // Fallback: If trackIds logic fails, try the standard tracks array
                 if (resultObj.tracks && resultObj.tracks.length > 0) {
                     console.log(`Netease Proxy: Fallback to existing tracks array`);
-                    return resultObj.tracks.map((item: any) => ({
-                        id: item.id,
-                        name: item.name,
-                        ar: item.artists ? item.artists.map((a: any) => ({ id: a.id, name: a.name })) : (item.ar || []),
-                        al: { 
-                            id: item.album?.id || 0, 
-                            name: item.album?.name || '', 
-                            picUrl: toHttps(item.album?.picUrl || item.al?.picUrl) 
-                        },
-                        dt: item.duration || item.dt,
-                        source: 'netease' as const,
-                        url: undefined
-                    }));
+                    return resultObj.tracks.map((item: any) => {
+                        const al = item.album || item.al || {};
+                        let picUrl = toHttps(al.picUrl);
+                        if (al.picId) {
+                            picUrl = getNeteaseCoverUrl(al.picId);
+                        }
+                        
+                        return {
+                            id: item.id,
+                            name: item.name,
+                            ar: item.artists ? item.artists.map((a: any) => ({ id: a.id, name: a.name })) : (item.ar || []),
+                            al: { 
+                                id: al.id || 0, 
+                                name: al.name || '', 
+                                picUrl: picUrl 
+                            },
+                            dt: item.duration || item.dt,
+                            source: 'netease' as const,
+                            url: undefined
+                        };
+                    });
                 }
             }
         } catch (e) {
