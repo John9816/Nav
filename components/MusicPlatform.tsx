@@ -319,6 +319,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
     if (needsMetadata) {
         fetchSongDetail(song.id, song.source).then(detail => {
+            // Strict guard: ensure we are still targeting the same song
+            if (String(currentSongIdRef.current) !== String(song.id)) return;
+
             if (detail) {
                 setCurrentSong(prev => {
                     if (!prev || String(prev.id) !== String(song.id)) return prev;
@@ -355,8 +358,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
         // For now we skip lyrics for random source to prevent errors unless song.id is compatible
         if (song.source !== 'random') {
             fetchLyrics(song.id, song.source).then(({ lines, raw }) => {
-                // Guard: Check if we are still playing the same song
-                if (currentSongIdRef.current !== song.id) return;
+                // Strict Guard
+                if (String(currentSongIdRef.current) !== String(song.id)) return;
                 
                 // Only update if we don't have lyrics yet, or if this is the primary source
                 if (raw && (!lyricTextForSave || lyricTextForSave.length < 10)) {
@@ -382,6 +385,12 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
             { name: song.name, artist: song.ar?.[0]?.name }
         );
         
+        // CRITICAL GUARD: Before using async result, check if song changed
+        if (String(currentSongIdRef.current) !== String(song.id)) {
+            console.log(`Ignored stale URL result for ${song.name}`);
+            return;
+        }
+        
         if (result) {
             url = result.url;
             
@@ -399,9 +408,12 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     }
 
     if (url) {
+      // Final Guard Check
+      if (String(currentSongIdRef.current) !== String(song.id)) return;
+
       const finalUrl = url;
       // Update state with valid URL
-      setCurrentSong(prev => (prev && prev.id === song.id ? { ...prev, url: finalUrl } : prev));
+      setCurrentSong(prev => (prev && String(prev.id) === String(song.id) ? { ...prev, url: finalUrl } : prev));
       setIsPlaying(true);
       
       // Save history with URL now that we have it
@@ -416,7 +428,10 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
           });
       }
     } else {
-      handleAudioError("No URL found");
+      // Only report error if we are still on the same song
+      if (String(currentSongIdRef.current) === String(song.id)) {
+          handleAudioError("No URL found");
+      }
     }
   };
 
@@ -430,6 +445,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     const currentTime = audioRef.current?.currentTime || 0;
     restoreTimeRef.current = currentTime;
     
+    // Capture current ID to guard async call
+    const targetId = currentSong.id;
+
     // Pass metadata for QQ support
     const result = await fetchSongUrl(
         currentSong.id, 
@@ -438,7 +456,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
         { name: currentSong.name, artist: currentSong.ar?.[0]?.name }
     );
     
-    if (result && result.url) {
+    if (String(currentSongIdRef.current) === String(targetId) && result && result.url) {
         setCurrentSong(prev => prev ? { ...prev, url: result.url } : null);
     }
   };
@@ -473,7 +491,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
   const playNext = () => {
     if (!currentSong || queue.length === 0) return;
-    const currentIndex = queue.findIndex(s => s.id === currentSong.id);
+    const currentIndex = queue.findIndex(s => String(s.id) === String(currentSong.id));
     let nextIndex = 0;
 
     if (playMode === 'shuffle') {
@@ -491,7 +509,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
   const playPrev = () => {
     if (!currentSong || queue.length === 0) return;
-    const currentIndex = queue.findIndex(s => s.id === currentSong.id);
+    const currentIndex = queue.findIndex(s => String(s.id) === String(currentSong.id));
     let prevIndex = 0;
 
     if (currentIndex >= 0) {
@@ -875,14 +893,14 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                  key={`${song.source}-${song.id}`}
                                                  onClick={() => playSong(song, view === 'search' ? searchResults : playlistSongs)}
                                                  className={`group grid grid-cols-[50px_1fr_40px] md:grid-cols-[60px_4fr_3fr_80px] gap-4 px-6 md:px-10 py-3.5 items-center transition-all cursor-pointer
-                                                    ${currentSong?.id === song.id 
+                                                    ${String(currentSong?.id) === String(song.id) 
                                                         ? 'bg-red-50/50 dark:bg-red-900/10' 
                                                         : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'
                                                     }
                                                  `}
                                                >
                                                    <div className="text-center text-sm font-medium text-slate-400 flex justify-center">
-                                                      {currentSong?.id === song.id && isPlaying ? (
+                                                      {String(currentSong?.id) === String(song.id) && isPlaying ? (
                                                           <div className="flex gap-0.5 items-end h-3">
                                                               <div className="w-1 bg-red-500 animate-music-wave-1 rounded-sm"></div>
                                                               <div className="w-1 bg-red-500 animate-music-wave-2 rounded-sm"></div>
@@ -899,7 +917,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                             <img src={song.al.picUrl} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
                                                        </div>
                                                        <div className="min-w-0 flex-1">
-                                                           <div className={`font-medium truncate text-sm mb-0.5 ${currentSong?.id === song.id ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>{song.name}</div>
+                                                           <div className={`font-medium truncate text-sm mb-0.5 ${String(currentSong?.id) === String(song.id) ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>{song.name}</div>
                                                            <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-2">
                                                                {song.source === 'qq' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">QQ</span>}
                                                                {song.source === 'netease' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">WY</span>}
