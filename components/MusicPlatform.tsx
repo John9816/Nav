@@ -3,7 +3,7 @@ import { Song, Playlist, LyricLine } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   fetchSongUrl, fetchSongDetail, fetchLyrics, 
-  fetchPlaylistDetails, checkGuestLimit, addToHistory, getHistory, deleteFromHistory,
+  fetchPlaylistDetails, addToHistory, getHistory, deleteFromHistory,
   fetchTopLists, fetchDailyRecommendSongs, searchSongs, getLikedSongs, toggleLike, checkIsLiked, parseLyrics,
   fetchRandomMusic
 } from '../services/musicService';
@@ -21,8 +21,6 @@ interface MusicPlatformProps {
   onTabChangeHandled: () => void;
   onAuthRequest: () => void;
 }
-
-const GUEST_PLAY_LIMIT = 20;
 
 const MusicPlatform: React.FC<MusicPlatformProps> = ({ 
   activeView, onViewChange, requestedTab, onTabChangeHandled, onAuthRequest 
@@ -71,7 +69,6 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
 
   const [loading, setLoading] = useState(false);
-  const [checkingLimit, setCheckingLimit] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -303,27 +300,6 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
           }
       }
       return;
-    }
-
-    if (!user) {
-        setCheckingLimit(true);
-        setToastMessage("正在验证试听权限...");
-        try {
-            const { allowed, count } = await checkGuestLimit();
-            setCheckingLimit(false);
-
-            if (!allowed) {
-               setToastMessage(null);
-               if (confirm(`试听次数已用完（总共${GUEST_PLAY_LIMIT}首）。\n\n您的 IP 试听额度已达上限。\n登录账号即可解锁无限畅听。\n\n是否立即登录？`)) {
-                   if (onAuthRequest) onAuthRequest();
-               }
-               return;
-            }
-            setToastMessage(`试听模式：${count} / ${GUEST_PLAY_LIMIT} 首`);
-        } catch (e) {
-            console.error("Guest check failed", e);
-            setCheckingLimit(false);
-        }
     }
 
     setIsPlaying(false); 
