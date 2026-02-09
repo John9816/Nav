@@ -112,6 +112,16 @@ export default defineConfig(({ mode }) => {
               'Origin': 'https://music-api.gdstudio.xyz/',
               'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36'
             }
+          },
+          '/alger-api': {
+            target: 'http://mc.alger.fun',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/alger-api/, ''),
+            headers: {
+              'Referer': 'http://mc.alger.fun/',
+              'Origin': 'http://mc.alger.fun/',
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36'
+            }
           }
         }
       },

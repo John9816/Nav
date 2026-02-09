@@ -101,7 +101,12 @@ const mapGDStudioItemToSong = async (item: any): Promise<Song> => {
     if (Array.isArray(item.artist)) {
         artists = item.artist.map((a: string) => ({ id: 0, name: a }));
     } else if (typeof item.artist === 'string') {
-        artists = [{ id: 0, name: item.artist }];
+        // Check if artist string contains separators (e.g. "Artist A/Artist B")
+        if (item.artist.includes('/')) {
+            artists = item.artist.split('/').map((a: string) => ({ id: 0, name: a.trim() }));
+        } else {
+            artists = [{ id: 0, name: item.artist }];
+        }
     } else {
         artists = [{ id: 0, name: 'Unknown Artist' }];
     }
@@ -373,23 +378,28 @@ export const searchSongs = async (
     limit: number = 20
 ): Promise<Song[]> => {
   try {
-    // Netease Search API
+    // Netease Search API (Using mc.alger.fun)
     if (source === 'netease') {
         try {
             const queryParams = new URLSearchParams({
-                types: 'search',
-                count: String(limit),
-                source: 'netease',
-                pages: String(page),
-                name: keywords
+                keywords: keywords,
+                type: '1', // 1 for Song
+                limit: String(limit),
+                offset: String((page - 1) * limit)
             });
 
-            const response = await fetch(`/gdstudio-api/api.php?${queryParams.toString()}`);
+            // Make a GET request to the new proxy
+            const response = await fetch(`/alger-api/api/cloudsearch?${queryParams.toString()}`);
+            
             const data = await response.json();
             
-            if (Array.isArray(data)) {
+            // Standard Netease structure: data.result.songs
+            const songs = data.result?.songs || [];
+            
+            if (songs.length > 0) {
                 // Map asynchronously to resolve covers
-                return await Promise.all(data.map(mapGDStudioItemToSong));
+                // Using standard mapApiItemToSong for standard Netease structure
+                return await Promise.all(songs.map(mapApiItemToSong));
             }
             return [];
         } catch (e) {

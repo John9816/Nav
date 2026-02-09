@@ -41,6 +41,10 @@
       "destination": "https://music-api.gdstudio.xyz/$1"
     },
     {
+      "source": "/alger-api/(.*)",
+      "destination": "http://mc.alger.fun/$1"
+    },
+    {
       "source": "/((?!assets/|.*\\..*).*)",
       "destination": "/index.html"
     }
