@@ -245,29 +245,6 @@ export const fetchRandomMusic = async (): Promise<Song | null> => {
 };
 
 /**
- * Fetch Daily Recommended Songs (Netease)
- */
-export const fetchDailyRecommendSongs = async (): Promise<Song[]> => {
-  try {
-    const timestamp = Date.now();
-    const response = await fetch(`/alger-api/api/recommend/songs?timestamp=${timestamp}&device=mobile`);
-    const data = await response.json();
-    
-    // Netease usually returns { data: { dailySongs: [] } }
-    // The specific API 'http://mc.alger.fun/api/recommend/songs' likely matches standard Netease structure
-    const songs = data.data?.dailySongs || data.recommend || [];
-    
-    if (songs.length > 0) {
-        return await Promise.all(songs.map(mapApiItemToSong));
-    }
-    return [];
-  } catch (e) {
-    console.warn("Fetch daily recommend songs failed", e);
-    return [];
-  }
-};
-
-/**
  * Fetch Netease Top Lists
  */
 const fetchNeteaseTopLists = async (): Promise<Playlist[]> => {
