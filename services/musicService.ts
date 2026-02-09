@@ -385,7 +385,9 @@ export const searchSongs = async (
                 keywords: keywords,
                 type: '1', // 1 for Song
                 limit: String(limit),
-                offset: String((page - 1) * limit)
+                offset: String((page - 1) * limit),
+                timestamp: String(Date.now()), // Add timestamp
+                device: 'mobile' // Add device param from curl
             });
 
             // Make a GET request to the new proxy
