@@ -1,17 +1,17 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Song, LyricLine, Playlist } from '../types';
+import { Song, Playlist, LyricLine } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   fetchSongUrl, fetchSongDetail, fetchLyrics, 
-  checkGuestLimit, addToHistory, getHistory,
-  searchSongs, getLikedSongs, toggleLike, checkIsLiked, parseLyrics,
-  fetchRandomMusic, fetchTopLists, fetchPlaylistDetails
+  fetchPlaylistDetails, checkGuestLimit, addToHistory, getHistory,
+  fetchTopLists, searchSongs, getLikedSongs, toggleLike, checkIsLiked, parseLyrics,
+  fetchRandomMusic
 } from '../services/musicService';
 import { 
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
-  Download, Search, Loader2,
-  Music, ArrowLeft, Clock, Mic2, LayoutGrid, Heart,
-  ChevronDown, Repeat1, ArrowDown, Sparkles, Disc, ListMusic
+  List, Download, Search, Loader2,
+  Music, Disc, Radio, ArrowLeft, Clock, Mic2, LayoutGrid, Heart, Cloud,
+  ChevronDown, Repeat1, ArrowDown, Menu, Sparkles
 } from 'lucide-react';
 
 interface MusicPlatformProps {
@@ -29,6 +29,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 }) => {
   const { user } = useAuth();
   
+  // Data State
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  
   // Player State
   const [queue, setQueue] = useState<Song[]>([]);
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
@@ -43,8 +46,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [isLiked, setIsLiked] = useState(false);
   
   // UI State
-  const [view, setView] = useState<'home' | 'history' | 'search' | 'favorites' | 'playlist'>('home');
-  const [topLists, setTopLists] = useState<Playlist[]>([]);
+  const [view, setView] = useState<'home' | 'playlist' | 'history' | 'search' | 'favorites'>('home');
+  const [chartFilter, setChartFilter] = useState<'all' | 'netease' | 'qq' | 'kuwo'>('all');
   const [playlistSongs, setPlaylistSongs] = useState<Song[]>([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,17 +78,17 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   // Guard for async callbacks
   const currentSongIdRef = useRef<string | number | null>(null);
 
+  // Load Charts on Mount
+  useEffect(() => {
+    fetchTopLists().then(setPlaylists);
+  }, []);
+
   // Sync volume
   useEffect(() => {
     if (audioRef.current) {
         audioRef.current.volume = volume;
     }
   }, [volume]);
-
-  // Load Top Lists on Mount
-  useEffect(() => {
-      fetchTopLists().then(setTopLists).catch(err => console.error("Failed to load top lists", err));
-  }, []);
 
   // Handle Tab Requests
   useEffect(() => {
@@ -155,18 +158,6 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       setPlaylistSongs(songs);
       setLoading(false);
       setView('favorites');
-  };
-
-  const handlePlaylistClick = async (playlist: Playlist) => {
-      setLoading(true);
-      setSelectedPlaylist(playlist);
-      setView('playlist');
-      // Clear previous list to avoid confusion
-      setPlaylistSongs([]);
-      
-      const songs = await fetchPlaylistDetails(playlist.id, playlist.source || 'netease');
-      setPlaylistSongs(songs);
-      setLoading(false);
   };
 
   const handleRandomPlay = async () => {
@@ -539,6 +530,28 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     else setPlayMode('loop');
   };
 
+  const openPlaylist = async (list: Playlist) => {
+    setSelectedPlaylist(list);
+    setView('playlist');
+    setLoading(true);
+    setPlaylistSongs([]);
+    
+    // Pass source to fetchPlaylistDetails (netease or qq)
+    let songs = await fetchPlaylistDetails(list.id, list.source);
+    
+    // Removed batch resolving to support "parse one by one when playing"
+    // Songs will have undefined URLs initially, and will be resolved when playSong is called.
+    
+    setPlaylistSongs(songs);
+    setLoading(false);
+  };
+
+  // Filter playlists based on selected chart filter
+  const displayedPlaylists = playlists.filter(p => {
+    if (chartFilter === 'all') return true;
+    return p.source === chartFilter;
+  });
+
   const getSourceLabel = (s: string) => {
       switch(s) {
           case 'netease': return '网易';
@@ -569,8 +582,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        <div className="px-3 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">我的音乐</div>
                        <div className="space-y-1">
                            <button 
-                             onClick={() => { setView('home'); }} 
-                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === 'home' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                             onClick={() => { setView('home'); setChartFilter('all'); }} 
+                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === 'home' && chartFilter === 'all' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
                            >
                                <LayoutGrid size={18} /> 发现音乐
                            </button>
@@ -597,28 +610,51 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        </div>
                    </div>
 
-                   {/* Charts Section - Added back as requested */}
+                   {/* Charts Section */}
                    <div>
                        <div className="px-3 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">精选榜单</div>
                        <div className="space-y-1">
-                           {topLists.slice(0, 5).map(list => (
-                               <button 
-                                 key={list.id}
-                                 onClick={() => handlePlaylistClick(list)}
-                                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors truncate text-left
-                                    ${selectedPlaylist?.id === list.id && view === 'playlist'
-                                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' 
-                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                                    }
-                                 `}
-                               >
-                                   <Disc size={18} className="shrink-0" /> 
-                                   <span className="truncate">{list.name}</span>
-                               </button>
-                           ))}
-                           {topLists.length === 0 && (
-                               <div className="px-3 py-2 text-xs text-slate-400">加载中...</div>
-                           )}
+                           {/* Netease Button */}
+                           <button 
+                             onClick={() => { setView('home'); setChartFilter('netease'); }}
+                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors 
+                               ${view === 'home' && chartFilter === 'netease' 
+                                 ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' 
+                                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                           >
+                               <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors border border-current opacity-80 ${view === 'home' && chartFilter === 'netease' ? 'text-red-600' : 'text-slate-400 border-slate-300'}`}>
+                                  <Cloud size={14} fill="currentColor" />
+                               </div>
+                               <span>网易云音乐</span>
+                           </button>
+
+                           {/* QQ Music Button */}
+                           <button 
+                             onClick={() => { setView('home'); setChartFilter('qq'); }}
+                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors 
+                               ${view === 'home' && chartFilter === 'qq' 
+                                 ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' 
+                                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                           >
+                               <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors border border-current opacity-80 ${view === 'home' && chartFilter === 'qq' ? 'text-green-600' : 'text-slate-400 border-slate-300'}`}>
+                                  <Music size={14} fill="currentColor" />
+                               </div>
+                               <span>QQ 音乐</span>
+                           </button>
+
+                           {/* Kuwo Music Button */}
+                           <button 
+                             onClick={() => { setView('home'); setChartFilter('kuwo'); }}
+                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors 
+                               ${view === 'home' && chartFilter === 'kuwo' 
+                                 ? 'bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400' 
+                                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                           >
+                               <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors border border-current opacity-80 ${view === 'home' && chartFilter === 'kuwo' ? 'text-yellow-600' : 'text-slate-400 border-slate-300'}`}>
+                                  <Disc size={14} fill="currentColor" />
+                               </div>
+                               <span>酷我榜单</span>
+                           </button>
                        </div>
                    </div>
                </div>
@@ -634,8 +670,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        <Sparkles size={12} /> 随机
                    </button>
                    <button 
-                     onClick={() => { setView('home'); }} 
-                     className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${view === 'home' ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50' : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}
+                     onClick={() => { setView('home'); setChartFilter('all'); }} 
+                     className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${view === 'home' && chartFilter === 'all' ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50' : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}
                    >
                        发现
                    </button>
@@ -650,6 +686,24 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${view === 'history' ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50' : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}
                    >
                        历史
+                   </button>
+                   <button 
+                     onClick={() => { setView('home'); setChartFilter('netease'); }} 
+                     className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${view === 'home' && chartFilter === 'netease' ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50' : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}
+                   >
+                       网易
+                   </button>
+                   <button 
+                     onClick={() => { setView('home'); setChartFilter('qq'); }} 
+                     className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${view === 'home' && chartFilter === 'qq' ? 'bg-green-50 text-green-600 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/50' : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}
+                   >
+                       QQ
+                   </button>
+                   <button 
+                     onClick={() => { setView('home'); setChartFilter('kuwo'); }} 
+                     className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${view === 'home' && chartFilter === 'kuwo' ? 'bg-yellow-50 text-yellow-600 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-900/50' : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}
+                   >
+                       酷我
                    </button>
                </div>
            </div>
@@ -777,7 +831,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                         </form>
                    </div>
 
-                   <div className={`relative min-h-full pb-36 ${view === 'home' ? 'p-6' : 'p-0'}`}>
+                   <div className={`relative min-h-full pb-36 ${view === 'home' ? 'p-4 md:p-8' : 'p-0'}`}>
                        {loading ? (
                            <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
                                <Loader2 className="animate-spin text-red-500" size={32} />
@@ -785,15 +839,14 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                            </div>
                        ) : (
                            <>
-                               {(view === 'history' || view === 'search' || view === 'favorites' || view === 'playlist') && (
+                               {(view === 'playlist' || view === 'history' || view === 'search' || view === 'favorites') && (
                                    <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
                                        {/* Header - Transparent/Modern Style */}
                                        <div className="px-6 md:px-10 py-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-800/20 backdrop-blur-sm">
                                             <div className="flex items-center gap-6">
-                                                {/* Album Art / Icon */}
                                                 {view === 'playlist' && selectedPlaylist ? (
-                                                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl overflow-hidden shadow-lg shrink-0">
-                                                        <img src={selectedPlaylist.coverImgUrl} className="w-full h-full object-cover" />
+                                                    <div className="w-32 h-32 md:w-40 md:h-40 rounded-xl shadow-xl overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-800">
+                                                        <img src={selectedPlaylist.coverImgUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                                     </div>
                                                 ) : (
                                                     <div className={`w-24 h-24 md:w-32 md:h-32 rounded-xl flex items-center justify-center shadow-lg shrink-0
@@ -802,13 +855,15 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                         {view === 'history' ? <Clock size={40} /> : view === 'favorites' ? <Heart size={40} /> : <Search size={40} />}
                                                     </div>
                                                 )}
-                                                
                                                 <div className="flex flex-col gap-2">
                                                     <h2 className="text-2xl md:text-4xl font-extrabold text-slate-800 dark:text-slate-100 line-clamp-2">
-                                                        {view === 'history' ? '播放历史' : view === 'favorites' ? '我喜欢的音乐' : view === 'search' ? `搜索: "${searchQuery}"` : view === 'playlist' && selectedPlaylist ? selectedPlaylist.name : ''}
+                                                        {view === 'history' ? '播放历史' : view === 'favorites' ? '我喜欢的音乐' : view === 'search' ? `搜索: "${searchQuery}"` : selectedPlaylist?.name}
                                                     </h2>
                                                     <p className="text-sm text-slate-500 dark:text-slate-400 font-medium flex items-center gap-3">
                                                         <span>{(view === 'search' ? searchResults : playlistSongs).length} 首歌曲</span>
+                                                        {view === 'playlist' && selectedPlaylist?.source === 'qq' && <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">QQ音乐</span>}
+                                                        {view === 'playlist' && selectedPlaylist?.source === 'netease' && <span className="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">网易云</span>}
+                                                        {view === 'playlist' && selectedPlaylist?.source === 'kuwo' && <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">酷我</span>}
                                                     </p>
                                                 </div>
                                             </div>
@@ -905,7 +960,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                        {(view === 'search' ? searchResults : playlistSongs).length === 0 && (
                                            <div className="text-center py-20 text-slate-400">
                                                <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                                                   <Music size={32} className="opacity-20" />
+                                                   <Disc size={32} className="opacity-20" />
                                                </div>
                                                <p>暂无内容</p>
                                            </div>
@@ -914,37 +969,65 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                )}
 
                                {view === 'home' && (
-                                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                       <div className="mb-6 flex items-center justify-between">
-                                           <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                                              <ListMusic size={24} className="text-red-500" />
-                                              精选榜单
-                                           </h3>
+                                   <div className="max-w-[1800px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                       <div className="flex items-center gap-2 mb-4">
+                                           <div className="p-2 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
+                                               <Radio size={20} />
+                                           </div>
+                                           <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                                              {chartFilter === 'all' ? '热门推荐' : (chartFilter === 'netease' ? '网易云榜单' : (chartFilter === 'qq' ? 'QQ音乐榜单' : '酷我榜单'))}
+                                           </h2>
                                        </div>
                                        
-                                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                                           {topLists.map(list => (
-                                               <div 
-                                                 key={list.id}
-                                                 onClick={() => handlePlaylistClick(list)}
-                                                 className="group cursor-pointer"
-                                               >
-                                                   <div className="aspect-square rounded-xl overflow-hidden shadow-sm relative bg-slate-200 dark:bg-slate-800 mb-2">
-                                                       <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
-                                                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                                           <div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all shadow-lg">
-                                                               <Play size={20} fill="currentColor" className="ml-1" />
-                                                           </div>
-                                                       </div>
-                                                       <div className="absolute top-1 left-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-white font-bold backdrop-blur-sm uppercase">
-                                                           {list.source}
-                                                       </div>
-                                                   </div>
-                                                   <h4 className="font-medium text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">
-                                                       {list.name}
-                                                   </h4>
-                                               </div>
-                                           ))}
+                                       {/* Compact Layout Grid - Responsive columns, more density */}
+                                       <div className="grid grid-cols-3 min-[450px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12 gap-2 sm:gap-3">
+                                          {displayedPlaylists.map(list => (
+                                              <div 
+                                                key={`${list.source}-${list.id}`} 
+                                                onClick={() => openPlaylist(list)}
+                                                className="group cursor-pointer flex flex-col gap-1.5"
+                                              >
+                                                  <div className="aspect-square rounded-lg overflow-hidden relative shadow-sm bg-slate-200 dark:bg-slate-800 group-hover:shadow-md group-hover:shadow-red-500/10 transition-all duration-300">
+                                                      <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" referrerPolicy="no-referrer" />
+                                                      
+                                                      {/* Overlay Play Button - Desktop Only */}
+                                                      <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity hidden md:flex items-center justify-center backdrop-blur-[1px]">
+                                                          <div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center text-red-500 shadow-xl scale-75 group-hover:scale-100 transition-transform duration-300">
+                                                              <Play fill="currentColor" size={18} className="ml-0.5" />
+                                                          </div>
+                                                      </div>
+                                                      
+                                                      {/* Count Badge */}
+                                                      <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-black/40 backdrop-blur-md rounded-md text-[9px] text-white font-medium flex items-center gap-0.5 pointer-events-none">
+                                                          <Play size={8} fill="currentColor" />
+                                                          {list.playCount > 10000 ? `${Math.floor(list.playCount / 10000)}万` : (list.playCount > 0 ? list.playCount : 'HOT')}
+                                                      </div>
+
+                                                      {/* Source Badge */}
+                                                      {list.source === 'qq' && (
+                                                        <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-green-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm pointer-events-none">
+                                                            QQ
+                                                        </div>
+                                                      )}
+                                                      {list.source === 'netease' && (
+                                                        <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-red-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm pointer-events-none">
+                                                            WY
+                                                        </div>
+                                                      )}
+                                                      {list.source === 'kuwo' && (
+                                                        <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 bg-yellow-500/90 backdrop-blur-sm rounded text-[9px] text-white font-bold uppercase tracking-wider shadow-sm pointer-events-none">
+                                                            KW
+                                                        </div>
+                                                      )}
+                                                  </div>
+                                                  
+                                                  <div>
+                                                      <h3 className="font-bold text-[11px] sm:text-xs text-slate-700 dark:text-slate-200 line-clamp-1 leading-tight group-hover:text-red-500 transition-colors" title={list.name}>
+                                                          {list.name}
+                                                      </h3>
+                                                  </div>
+                                              </div>
+                                          ))}
                                        </div>
                                    </div>
                                )}
@@ -1089,7 +1172,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
        {toastMessage && (
            <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-slate-800/90 backdrop-blur text-white px-6 py-3 rounded-full text-sm shadow-xl animate-in fade-in slide-in-from-top-4 z-[100] flex items-center gap-2 w-max max-w-[90vw] truncate">
-               <Music size={16} className="animate-spin shrink-0" />
+               <Disc size={16} className="animate-spin shrink-0" />
                <span className="truncate">{toastMessage}</span>
            </div>
        )}
