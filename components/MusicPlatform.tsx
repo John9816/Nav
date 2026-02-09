@@ -11,7 +11,7 @@ import {
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
   List, Download, Search, Loader2,
   Music, Disc, Radio, ArrowLeft, Clock, Mic2, LayoutGrid, Heart, Cloud,
-  ChevronDown, Repeat1, ArrowDown, Menu, Sparkles, Calendar
+  ChevronDown, Repeat1, ArrowDown, Menu, Sparkles, Calendar, ListMusic
 } from 'lucide-react';
 
 interface MusicPlatformProps {
@@ -919,104 +919,110 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                    </div>
                                )}
 
-                               {/* Daily Recommendations View (Replacing Popular Recommendations) */}
                                {view === 'home' && (
-                                   <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                   <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
                                        
-                                       {/* Daily Recs Header */}
-                                       <div className="px-6 md:px-10 py-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-800/20 backdrop-blur-sm">
-                                            <div className="flex items-center gap-6">
-                                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl flex items-center justify-center shadow-lg shrink-0 bg-red-500 text-white relative overflow-hidden">
-                                                    <Calendar size={48} className="relative z-10" />
-                                                    <div className="absolute inset-0 bg-gradient-to-tr from-red-600 to-orange-500"></div>
-                                                    <div className="absolute bottom-2 font-bold text-lg">{new Date().getDate()}</div>
-                                                </div>
-                                                
-                                                <div className="flex flex-col gap-2">
-                                                    <h2 className="text-2xl md:text-4xl font-extrabold text-slate-800 dark:text-slate-100 line-clamp-2">
-                                                        每日推荐
-                                                    </h2>
-                                                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium flex items-center gap-3">
-                                                        <span>根据您的音乐口味生成 • {dailySongs.length} 首歌曲</span>
-                                                    </p>
-                                                </div>
+                                       {/* Charts Grid Section (Restored) */}
+                                       <div className="px-6 md:px-10 py-6">
+                                            <div className="mb-4 flex items-center justify-between">
+                                                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                                    <ListMusic size={24} className="text-red-500" />
+                                                    精选榜单
+                                                </h3>
                                             </div>
-                                            
-                                            <div className="flex gap-3 w-full md:w-auto">
-                                                <button 
-                                                  onClick={() => playAll(dailySongs)}
-                                                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-red-600 hover:bg-red-500 text-white rounded-full text-base font-bold shadow-lg shadow-red-500/30 transition-all hover:scale-105 active:scale-95"
-                                                >
-                                                    <Play size={20} fill="currentColor" /> 播放全部
-                                                </button>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                                {topLists.slice(0, 10).map(list => (
+                                                    <div 
+                                                        key={list.id}
+                                                        onClick={() => handlePlaylistClick(list)}
+                                                        className="group cursor-pointer"
+                                                    >
+                                                        <div className="aspect-square rounded-xl overflow-hidden shadow-sm relative bg-slate-200 dark:bg-slate-800 mb-2">
+                                                            <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                                                <div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all shadow-lg">
+                                                                    <Play size={20} fill="currentColor" className="ml-1" />
+                                                                </div>
+                                                            </div>
+                                                            <div className="absolute top-1 left-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-white font-bold backdrop-blur-sm uppercase">
+                                                                {list.source}
+                                                            </div>
+                                                        </div>
+                                                        <h4 className="font-medium text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">
+                                                            {list.name}
+                                                        </h4>
+                                                    </div>
+                                                ))}
+                                                {topLists.length === 0 && (
+                                                    <div className="col-span-full text-center py-10 text-slate-400 text-sm">
+                                                        {loading ? '榜单加载中...' : '暂无榜单数据'}
+                                                    </div>
+                                                )}
                                             </div>
                                        </div>
 
-                                       {/* List Header - Sticky */}
-                                       <div className="sticky top-[72px] z-10 grid grid-cols-[50px_1fr_40px] md:grid-cols-[60px_4fr_3fr_80px] gap-4 px-6 md:px-10 py-3 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-400 uppercase tracking-wider shadow-sm">
-                                           <div className="text-center">#</div>
-                                           <div>标题</div>
-                                           <div className="hidden md:block">专辑</div>
-                                           <div className="text-right hidden md:block">操作</div>
-                                           <div className="md:hidden text-right"></div>
-                                       </div>
-
-                                       <div className="divide-y divide-slate-100 dark:divide-slate-800/50 pb-8">
-                                           {dailySongs.map((song, i) => (
-                                               <div 
-                                                 key={`${song.source}-${song.id}`}
-                                                 onClick={() => playSong(song, dailySongs)}
-                                                 className={`group grid grid-cols-[50px_1fr_40px] md:grid-cols-[60px_4fr_3fr_80px] gap-4 px-6 md:px-10 py-3.5 items-center transition-all cursor-pointer
-                                                    ${String(currentSong?.id) === String(song.id) 
-                                                        ? 'bg-red-50/50 dark:bg-red-900/10' 
-                                                        : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'
-                                                    }
-                                                 `}
+                                       {/* Daily Recommendations Section */}
+                                       <div className="px-6 md:px-10 py-6 border-t border-slate-100 dark:border-slate-800">
+                                           <div className="flex items-center justify-between mb-4">
+                                               <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-lg bg-red-500 text-white flex items-center justify-center shadow-md">
+                                                        <Calendar size={20} />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">每日推荐</h3>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                            {dailySongs.length} 首个性化推荐
+                                                        </p>
+                                                    </div>
+                                               </div>
+                                               <button 
+                                                    onClick={() => playAll(dailySongs)}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-full text-sm font-bold transition-colors"
                                                >
-                                                   <div className="text-center text-sm font-medium text-slate-400 flex justify-center">
-                                                      {String(currentSong?.id) === String(song.id) && isPlaying ? (
-                                                          <div className="flex gap-0.5 items-end h-3">
-                                                              <div className="w-1 bg-red-500 animate-music-wave-1 rounded-sm"></div>
-                                                              <div className="w-1 bg-red-500 animate-music-wave-2 rounded-sm"></div>
-                                                              <div className="w-1 bg-red-500 animate-music-wave-3 rounded-sm"></div>
-                                                          </div>
-                                                      ) : (
-                                                          <span className="md:group-hover:hidden">{i + 1}</span>
-                                                      )}
-                                                      <Play size={14} className="hidden md:group-hover:block text-slate-600 dark:text-slate-300" fill="currentColor" />
-                                                   </div>
-                                                   <div className="min-w-0 pr-0 md:pr-4 flex items-center gap-4">
-                                                       {/* Song Cover */}
-                                                       <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-700">
-                                                            <img src={song.al.picUrl} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
+                                                    <Play size={16} fill="currentColor" /> 播放全部
+                                               </button>
+                                           </div>
+
+                                           {/* Song Grid instead of List for compactness */}
+                                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                               {dailySongs.map((song, i) => (
+                                                   <div 
+                                                       key={`${song.source}-${song.id}`}
+                                                       onClick={() => playSong(song, dailySongs)}
+                                                       className={`group flex items-center gap-3 p-2 rounded-xl transition-all cursor-pointer border border-transparent hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm
+                                                           ${String(currentSong?.id) === String(song.id) ? 'bg-white dark:bg-slate-800 shadow-sm border-red-100 dark:border-red-900/30' : ''}
+                                                       `}
+                                                   >
+                                                       <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-700">
+                                                           <img src={song.al.picUrl} className="w-full h-full object-cover" loading="lazy" />
+                                                           {String(currentSong?.id) === String(song.id) && isPlaying && (
+                                                               <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                                                   <div className="flex gap-0.5 items-end h-3">
+                                                                       <div className="w-1 bg-white animate-music-wave-1 rounded-sm"></div>
+                                                                       <div className="w-1 bg-white animate-music-wave-2 rounded-sm"></div>
+                                                                       <div className="w-1 bg-white animate-music-wave-3 rounded-sm"></div>
+                                                                   </div>
+                                                               </div>
+                                                           )}
                                                        </div>
-                                                       <div className="min-w-0 flex-1">
-                                                           <div className={`font-medium truncate text-sm mb-0.5 ${String(currentSong?.id) === String(song.id) ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>{song.name}</div>
-                                                           <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-2">
-                                                               <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">WY</span>
+                                                       <div className="flex-1 min-w-0">
+                                                           <div className={`font-bold truncate text-sm ${String(currentSong?.id) === String(song.id) ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                               {song.name}
+                                                           </div>
+                                                           <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
                                                                {song.ar.map(a => a.name).join(', ')}
                                                            </div>
                                                        </div>
                                                    </div>
-                                                   <div className="text-xs text-slate-500 dark:text-slate-400 truncate hidden md:block">{song.al.name}</div>
-                                                   <div className="text-right hidden md:block">
-                                                       <button 
-                                                         onClick={(e) => handleDownload(e, song)} 
-                                                         className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                                                         title="下载"
-                                                       >
-                                                           <Download size={16} />
-                                                       </button>
+                                               ))}
+                                               {dailySongs.length === 0 && (
+                                                   <div className="col-span-full text-center py-10 text-slate-400 text-sm">
+                                                       加载每日推荐中...
                                                    </div>
-                                                   <div className="text-right md:hidden"></div>
-                                               </div>
-                                           ))}
-                                           {dailySongs.length === 0 && (
-                                               <div className="text-center py-20 text-slate-400">
-                                                   <p>正在获取每日推荐...</p>
-                                               </div>
-                                           )}
+                                               )}
+                                           </div>
                                        </div>
+                                       
                                    </div>
                                )}
                            </>
