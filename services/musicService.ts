@@ -389,6 +389,13 @@ export const searchSongs = async (
 
             // Make a GET request to the new proxy
             const response = await fetch(`/fy-api/netease/search/song/?${queryParams.toString()}`);
+            
+            // Handle 403 Forbidden specifically
+            if (response.status === 403) {
+                console.error("FY API 403 Forbidden. Check Proxy Headers.");
+                return [];
+            }
+
             const data = await response.json();
             
             if (Array.isArray(data)) {
