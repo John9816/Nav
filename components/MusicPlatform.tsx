@@ -1,17 +1,17 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Song, LyricLine } from '../types';
+import { Song, LyricLine, Playlist } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   fetchSongUrl, fetchSongDetail, fetchLyrics, 
   checkGuestLimit, addToHistory, getHistory,
   searchSongs, getLikedSongs, toggleLike, checkIsLiked, parseLyrics,
-  fetchRandomMusic
+  fetchRandomMusic, fetchTopLists, fetchPlaylistDetails
 } from '../services/musicService';
 import { 
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
   Download, Search, Loader2,
   Music, ArrowLeft, Clock, Mic2, LayoutGrid, Heart,
-  ChevronDown, Repeat1, ArrowDown, Sparkles
+  ChevronDown, Repeat1, ArrowDown, Sparkles, Disc, ListMusic
 } from 'lucide-react';
 
 interface MusicPlatformProps {
@@ -43,8 +43,10 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [isLiked, setIsLiked] = useState(false);
   
   // UI State
-  const [view, setView] = useState<'home' | 'history' | 'search' | 'favorites'>('home');
+  const [view, setView] = useState<'home' | 'history' | 'search' | 'favorites' | 'playlist'>('home');
+  const [topLists, setTopLists] = useState<Playlist[]>([]);
   const [playlistSongs, setPlaylistSongs] = useState<Song[]>([]);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Song[]>([]);
   
@@ -79,6 +81,11 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
         audioRef.current.volume = volume;
     }
   }, [volume]);
+
+  // Load Top Lists on Mount
+  useEffect(() => {
+      fetchTopLists().then(setTopLists).catch(err => console.error("Failed to load top lists", err));
+  }, []);
 
   // Handle Tab Requests
   useEffect(() => {
@@ -148,6 +155,18 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       setPlaylistSongs(songs);
       setLoading(false);
       setView('favorites');
+  };
+
+  const handlePlaylistClick = async (playlist: Playlist) => {
+      setLoading(true);
+      setSelectedPlaylist(playlist);
+      setView('playlist');
+      // Clear previous list to avoid confusion
+      setPlaylistSongs([]);
+      
+      const songs = await fetchPlaylistDetails(playlist.id, playlist.source || 'netease');
+      setPlaylistSongs(songs);
+      setLoading(false);
   };
 
   const handleRandomPlay = async () => {
@@ -577,6 +596,31 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                            </button>
                        </div>
                    </div>
+
+                   {/* Charts Section - Added back as requested */}
+                   <div>
+                       <div className="px-3 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">精选榜单</div>
+                       <div className="space-y-1">
+                           {topLists.slice(0, 5).map(list => (
+                               <button 
+                                 key={list.id}
+                                 onClick={() => handlePlaylistClick(list)}
+                                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors truncate text-left
+                                    ${selectedPlaylist?.id === list.id && view === 'playlist'
+                                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' 
+                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                                    }
+                                 `}
+                               >
+                                   <Disc size={18} className="shrink-0" /> 
+                                   <span className="truncate">{list.name}</span>
+                               </button>
+                           ))}
+                           {topLists.length === 0 && (
+                               <div className="px-3 py-2 text-xs text-slate-400">加载中...</div>
+                           )}
+                       </div>
+                   </div>
                </div>
            </div>
 
@@ -733,7 +777,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                         </form>
                    </div>
 
-                   <div className={`relative min-h-full pb-36 ${view === 'home' ? 'p-0' : 'p-0'}`}>
+                   <div className={`relative min-h-full pb-36 ${view === 'home' ? 'p-6' : 'p-0'}`}>
                        {loading ? (
                            <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
                                <Loader2 className="animate-spin text-red-500" size={32} />
@@ -741,19 +785,27 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                            </div>
                        ) : (
                            <>
-                               {(view === 'history' || view === 'search' || view === 'favorites') && (
+                               {(view === 'history' || view === 'search' || view === 'favorites' || view === 'playlist') && (
                                    <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
                                        {/* Header - Transparent/Modern Style */}
                                        <div className="px-6 md:px-10 py-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-800/20 backdrop-blur-sm">
                                             <div className="flex items-center gap-6">
-                                                <div className={`w-24 h-24 md:w-32 md:h-32 rounded-xl flex items-center justify-center shadow-lg shrink-0
-                                                    ${view === 'history' ? 'bg-blue-500 text-white' : view === 'favorites' ? 'bg-red-500 text-white' : 'bg-red-500 text-white'}
-                                                `}>
-                                                    {view === 'history' ? <Clock size={40} /> : view === 'favorites' ? <Heart size={40} /> : <Search size={40} />}
-                                                </div>
+                                                {/* Album Art / Icon */}
+                                                {view === 'playlist' && selectedPlaylist ? (
+                                                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl overflow-hidden shadow-lg shrink-0">
+                                                        <img src={selectedPlaylist.coverImgUrl} className="w-full h-full object-cover" />
+                                                    </div>
+                                                ) : (
+                                                    <div className={`w-24 h-24 md:w-32 md:h-32 rounded-xl flex items-center justify-center shadow-lg shrink-0
+                                                        ${view === 'history' ? 'bg-blue-500 text-white' : view === 'favorites' ? 'bg-red-500 text-white' : 'bg-red-500 text-white'}
+                                                    `}>
+                                                        {view === 'history' ? <Clock size={40} /> : view === 'favorites' ? <Heart size={40} /> : <Search size={40} />}
+                                                    </div>
+                                                )}
+                                                
                                                 <div className="flex flex-col gap-2">
                                                     <h2 className="text-2xl md:text-4xl font-extrabold text-slate-800 dark:text-slate-100 line-clamp-2">
-                                                        {view === 'history' ? '播放历史' : view === 'favorites' ? '我喜欢的音乐' : view === 'search' ? `搜索: "${searchQuery}"` : ''}
+                                                        {view === 'history' ? '播放历史' : view === 'favorites' ? '我喜欢的音乐' : view === 'search' ? `搜索: "${searchQuery}"` : view === 'playlist' && selectedPlaylist ? selectedPlaylist.name : ''}
                                                     </h2>
                                                     <p className="text-sm text-slate-500 dark:text-slate-400 font-medium flex items-center gap-3">
                                                         <span>{(view === 'search' ? searchResults : playlistSongs).length} 首歌曲</span>
@@ -862,16 +914,38 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                )}
 
                                {view === 'home' && (
-                                   <div className="flex flex-col items-center justify-center pt-32 text-center px-4 animate-in fade-in zoom-in-95 duration-500 select-none">
-                                       <div className="w-20 h-20 bg-red-100 dark:bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mb-6 shadow-sm">
-                                           <Search size={40} />
+                                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                       <div className="mb-6 flex items-center justify-between">
+                                           <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                              <ListMusic size={24} className="text-red-500" />
+                                              精选榜单
+                                           </h3>
                                        </div>
-                                       <h3 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100 mb-2">
-                                           探索海量音乐
-                                       </h3>
-                                       <p className="text-slate-500 dark:text-slate-400 max-w-sm">
-                                           在上方搜索栏输入歌曲、歌手或专辑名称，开始您的音乐之旅。
-                                       </p>
+                                       
+                                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                           {topLists.map(list => (
+                                               <div 
+                                                 key={list.id}
+                                                 onClick={() => handlePlaylistClick(list)}
+                                                 className="group cursor-pointer"
+                                               >
+                                                   <div className="aspect-square rounded-xl overflow-hidden shadow-sm relative bg-slate-200 dark:bg-slate-800 mb-2">
+                                                       <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                                                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                                           <div className="w-10 h-10 bg-white/90 rounded-full flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all shadow-lg">
+                                                               <Play size={20} fill="currentColor" className="ml-1" />
+                                                           </div>
+                                                       </div>
+                                                       <div className="absolute top-1 left-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-white font-bold backdrop-blur-sm uppercase">
+                                                           {list.source}
+                                                       </div>
+                                                   </div>
+                                                   <h4 className="font-medium text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">
+                                                       {list.name}
+                                                   </h4>
+                                               </div>
+                                           ))}
+                                       </div>
                                    </div>
                                )}
                            </>
