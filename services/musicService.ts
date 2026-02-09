@@ -8,8 +8,11 @@ const CY_API_KEY = '62ccfd8be755cc5850046044c6348d6cac5ef31bd5874c1352287facc06f
 // Quality Priority Chain
 const QUALITY_LEVELS = ['flac24bit', 'flac', '320k', '128k'];
 
-// Cache now stores an object containing URL and optional lyric
+// Cache for audio URLs
 export const urlPromiseCache = new Map<string, Promise<{ url: string, lyric?: string } | null>>();
+
+// Cache for Cover URLs to avoid repeated API calls
+const coverCache = new Map<string, Promise<string | undefined>>();
 
 // Helper to enforce HTTPS
 const toHttps = (url: string) => {
@@ -17,13 +20,42 @@ const toHttps = (url: string) => {
     return url.replace(/^http:\/\//i, 'https://');
 };
 
+// Helper to resolve Netease Cover URL from GDStudio JSON API
+const resolveNeteaseCover = async (picId: string | number): Promise<string | undefined> => {
+    if (!picId) return undefined;
+    const key = String(picId);
+    
+    if (coverCache.has(key)) {
+        return coverCache.get(key);
+    }
+
+    const fetchTask = async () => {
+        try {
+            // Using the interface provided by user which returns JSON
+            const response = await fetch(`/gdstudio-api/api.php?types=pic&source=netease&id=${picId}&size=500`);
+            const data = await response.json();
+            if (data && data.url) {
+                return toHttps(data.url);
+            }
+        } catch (e) {
+            console.warn(`Failed to resolve cover for ${picId}`, e);
+        }
+        return undefined;
+    };
+
+    const promise = fetchTask();
+    coverCache.set(key, promise);
+    return promise;
+};
+
 // Helper to map internal source to Parse API platform param (Audio URL)
-// Parse API usually expects 'qq' for QQ Music
 const getParsePlatform = (source: string) => {
     return source; // 'netease' | 'qq' | 'kuwo'
 };
 
-const mapApiItemToSong = (item: any): Song => {
+// --- Mappers now return Promises to handle async cover fetching ---
+
+const mapApiItemToSong = async (item: any): Promise<Song> => {
   const id = item.id || item.rid;
   const name = item.name || item.songName || 'Unknown Title';
   
@@ -35,11 +67,16 @@ const mapApiItemToSong = (item: any): Song => {
 
   // Album
   const al = item.al || item.album || {};
+  let picUrl = toHttps(al.picUrl || item.picUrl || item.img120 || '');
   
-  // Use the direct URL provided by the upstream API.
-  // The API returns JSON for the cover endpoint, so we cannot use the endpoint string directly as an image source.
-  // Typically, Netease APIs return the 'picUrl' in the metadata, which corresponds to the same image.
-  const picUrl = toHttps(al.picUrl || item.picUrl || item.img120 || '');
+  // Try to resolve cover via API if picId exists
+  // We prioritize this if the original picUrl is suspicious or just to ensure we use the requested interface
+  if (al.picId) {
+      const resolvedUrl = await resolveNeteaseCover(al.picId);
+      if (resolvedUrl) {
+          picUrl = resolvedUrl;
+      }
+  }
 
   const album = {
       id: al.id || 0,
@@ -59,22 +96,25 @@ const mapApiItemToSong = (item: any): Song => {
 };
 
 // Mapper for GDStudio (MKOnlinePlayer style) response
-const mapGDStudioItemToSong = (item: any): Song => {
-    // Structure typically: 
-    // { id, name, artist: [], album, pic_id, url_id, lyric_id, source, pic, url }
-    
+const mapGDStudioItemToSong = async (item: any): Promise<Song> => {
     let artists: { id: number; name: string }[] = [];
     if (Array.isArray(item.artist)) {
         artists = item.artist.map((a: string) => ({ id: 0, name: a }));
     } else if (typeof item.artist === 'string') {
-        // Sometimes it's a comma separated string or just a name
         artists = [{ id: 0, name: item.artist }];
     } else {
         artists = [{ id: 0, name: 'Unknown Artist' }];
     }
 
-    // GDStudio Search usually returns the direct 'pic' URL. We use that.
-    const picUrl = toHttps(item.pic) || '';
+    let picUrl = toHttps(item.pic) || '';
+    
+    // Resolve via API if pic_id exists
+    if (item.pic_id) {
+        const resolvedUrl = await resolveNeteaseCover(item.pic_id);
+        if (resolvedUrl) {
+            picUrl = resolvedUrl;
+        }
+    }
 
     return {
         id: item.id,
@@ -85,46 +125,17 @@ const mapGDStudioItemToSong = (item: any): Song => {
             name: item.album || '',
             picUrl: picUrl
         },
-        dt: 0, // Often missing in search results, filled later
+        dt: 0, 
         source: 'netease',
         url: item.url || undefined
     };
 };
 
-// Mapper for Netease Search API (Official /api/search/get)
-// This endpoint often returns songs without cover images, so we provide a default
-const mapNeteaseSearchItem = (item: any): Song => {
-    const artists = item.artists 
-        ? item.artists.map((a: any) => ({ id: a.id, name: a.name })) 
-        : [{ id: 0, name: 'Unknown Artist' }];
-    
-    const album = item.album || {};
-    const picUrl = album.picUrl ? toHttps(album.picUrl) : 'https://p2.music.126.net/tGHU62DTszbFQ37W9qPHcg==/2002210674180197.jpg';
-    
-    return {
-        id: item.id,
-        name: item.name,
-        ar: artists,
-        al: {
-            id: album.id || 0,
-            name: album.name || 'Unknown Album',
-            // Default Netease cover if missing
-            picUrl: picUrl
-        },
-        dt: item.duration || 0,
-        source: 'netease',
-        url: undefined
-    };
-};
-
 const mapQQItemToSong = (item: any): Song => {
-    // QQ often uses 'mid' (media id) for playback and 'id' for metadata. 
-    // TuneHub generally prefers 'mid' for QQ if available.
-    // For search results from musicu.fcg, 'mid' is the string ID we want.
+    // QQ logic remains synchronous as we handle URLs differently
     const id = item.mid || item.file?.media_mid || item.id || item.songId; 
     const name = item.name || item.title || item.songname || 'Unknown Title';
     
-    // Artist
     let artists = [{ id: 0, name: 'Unknown Artist' }];
     if (Array.isArray(item.singer)) {
         artists = item.singer.map((s: any) => ({ id: s.mid || 0, name: s.name || 'Unknown' }));
@@ -136,24 +147,17 @@ const mapQQItemToSong = (item: any): Song => {
         artists = [{ id: 0, name: item.singer }];
     }
 
-    // Album
-    // Handle various casing and nesting for album MID found in different QQ APIs
     const albumObj = item.album || {};
     const albumMid = albumObj.mid || albumObj.kid || item.albummid || item.albumMid || item.album_mid;
-    const albumId = albumObj.id || item.albumid || item.albumId; // Integer ID as fallback
+    const albumId = albumObj.id || item.albumid || item.albumId; 
     const albumName = albumObj.name || item.albumname || item.albumName || 'Unknown Album';
     
-    // Cover
-    // 1. Try direct cover property (common in some endpoints)
-    // 2. Try constructing from album mid
-    // 3. Fallback to album id
     let picUrl = item.cover || item.albumpic || albumObj.cover || albumObj.pic;
     
     if (!picUrl) {
         if (albumMid) {
              picUrl = `https://y.gtimg.cn/music/photo_new/T002R300x300M000${albumMid}.jpg`;
         } else if (albumId) {
-             // Fallback using integer ID logic if MID is missing
              const albIdStr = String(albumId);
              picUrl = `https://imgcache.qq.com/music/photo/album_300/${albIdStr.length % 100}/300_albumpic_${albIdStr}_0.jpg`;
         }
@@ -171,13 +175,9 @@ const mapQQItemToSong = (item: any): Song => {
 };
 
 const mapKuwoItemToSong = (item: any): Song => {
-    // Kuwo IDs often look like "MUSIC_12345". 
-    // Most parse APIs expect just the numeric part, but some handle both.
-    // We strip "MUSIC_" to be safe for compatibility with generic Meting-style APIs.
     const rawId = item.MUSICRID || item.musicrid || '';
     const id = rawId.replace('MUSIC_', '');
     
-    // Decode HTML entities in names if necessary (Kuwo sometimes returns encoded strings)
     const decode = (str: string) => {
         if (!str) return '';
         return str.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
@@ -194,9 +194,6 @@ const mapKuwoItemToSong = (item: any): Song => {
         al: { 
             id: 0, 
             name: albumName, 
-            // Kuwo search often doesn't return album art. 
-            // We can try a heuristic or leave empty.
-            // Some results might have `albumpic` or `web_albumpic_short`.
             picUrl: item.albumpic || item.web_albumpic_short || '' 
         },
         dt: item.duration ? parseInt(item.duration) * 1000 : 0,
@@ -210,7 +207,6 @@ const mapKuwoItemToSong = (item: any): Song => {
  */
 export const fetchRandomMusic = async (): Promise<Song | null> => {
     try {
-        // Use the new proxy for random music
         const response = await fetch('/random-music-api/api/wangyi/randomMusic?type=json');
         
         if (!response.ok) {
@@ -221,7 +217,6 @@ export const fetchRandomMusic = async (): Promise<Song | null> => {
         
         if (json.code === 200 && json.data) {
             const data = json.data;
-            // Map the API response to our Song interface
             return {
                 id: data.id || 'rand-' + Date.now(), 
                 name: data.name || 'Unknown Title',
@@ -232,8 +227,8 @@ export const fetchRandomMusic = async (): Promise<Song | null> => {
                     picUrl: toHttps(data.picurl) || 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop'
                 },
                 dt: data.duration || 0, 
-                url: toHttps(data.url), // The API provides the direct URL
-                source: 'netease', // It comes from Wangyi API, so we use 'netease' to allow lyric fetching
+                url: toHttps(data.url), 
+                source: 'netease', 
                 lyric: undefined
             };
         }
@@ -283,14 +278,7 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                comm: {
-                    cv: 4747474,
-                    ct: 24,
-                    format: "json",
-                    inCharset: "utf-8",
-                    outCharset: "utf-8",
-                    uin: 0
-                },
+                comm: { cv: 4747474, ct: 24, format: "json", inCharset: "utf-8", outCharset: "utf-8", uin: 0 },
                 toplist: { module: "musicToplist.ToplistInfoServer", method: "GetAll", param: {} }
             })
         });
@@ -298,7 +286,6 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
         if (!response.ok) throw new Error(`QQ API Network Error: ${response.status}`);
 
         const data = await response.json();
-        
         const groups = data.toplist?.data?.group || [];
         let lists: Playlist[] = [];
 
@@ -318,10 +305,7 @@ const fetchQQTopLists = async (): Promise<Playlist[]> => {
             }
         });
 
-        // Filter valid ones and limit
-        const result = lists.filter(l => l.id).slice(0, 20);
-        console.log(`Parsed ${result.length} QQ charts.`);
-        return result;
+        return lists.filter(l => l.id).slice(0, 20);
     } catch (e) {
         console.warn("Fetch QQ toplists failed", e);
         return [];
@@ -337,27 +321,22 @@ const fetchKuwoTopLists = async (): Promise<Playlist[]> => {
         if (!response.ok) throw new Error(`Kuwo API Error: ${response.status}`);
         
         const data = await response.json();
-        
-        // The response structure is usually { child: [ ... ] }
         const rawList = data.child || [];
         let lists: Playlist[] = [];
 
-        // Recursive helper to flatten the tree structure and extract actual lists
         const extractLists = (items: any[]) => {
             items.forEach(item => {
-                // If it has a sourceid, it's a playlist we can use
                 if (item.sourceid) { 
                     lists.push({
                         id: item.sourceid,
                         name: item.name || item.disname || 'Unknown List',
-                        coverImgUrl: toHttps(item.pic || item.icon50), // icon50 might be too small
+                        coverImgUrl: toHttps(item.pic || item.icon50), 
                         description: item.intro || '',
                         trackCount: 0, 
                         playCount: 0, 
                         source: 'kuwo' as const
                     });
                 }
-                // Recursively check children
                 if (item.child && Array.isArray(item.child)) {
                     extractLists(item.child);
                 }
@@ -365,11 +344,7 @@ const fetchKuwoTopLists = async (): Promise<Playlist[]> => {
         };
 
         extractLists(rawList);
-        
-        // Limit to reasonable amount
-        const result = lists.slice(0, 20);
-        console.log(`Parsed ${result.length} Kuwo charts.`);
-        return result;
+        return lists.slice(0, 20);
     } catch (e) {
         console.warn("Fetch Kuwo toplists failed", e);
         return [];
@@ -380,14 +355,11 @@ const fetchKuwoTopLists = async (): Promise<Playlist[]> => {
  * Fetch Combined Top Lists
  */
 export const fetchTopLists = async (): Promise<Playlist[]> => {
-  console.log("Fetching Top Lists...");
   const [neteaseLists, qqLists, kuwoLists] = await Promise.all([
       fetchNeteaseTopLists(),
       fetchQQTopLists(),
       fetchKuwoTopLists()
   ]);
-  console.log(`Fetched: Netease(${neteaseLists.length}), QQ(${qqLists.length}), Kuwo(${kuwoLists.length})`);
-
   return [...neteaseLists, ...qqLists, ...kuwoLists];
 };
 
@@ -401,7 +373,7 @@ export const searchSongs = async (
     limit: number = 20
 ): Promise<Song[]> => {
   try {
-    // Netease Search API (Using new GDStudio API via GET request)
+    // Netease Search API
     if (source === 'netease') {
         try {
             const queryParams = new URLSearchParams({
@@ -412,12 +384,12 @@ export const searchSongs = async (
                 name: keywords
             });
 
-            // Make a GET request matching the provided URL format
             const response = await fetch(`/gdstudio-api/api.php?${queryParams.toString()}`);
             const data = await response.json();
             
             if (Array.isArray(data)) {
-                return data.map(mapGDStudioItemToSong);
+                // Map asynchronously to resolve covers
+                return await Promise.all(data.map(mapGDStudioItemToSong));
             }
             return [];
         } catch (e) {
@@ -425,30 +397,18 @@ export const searchSongs = async (
         }
     }
 
-    // QQ Direct Search via Proxy
+    // QQ Direct Search
     if (source === 'qq') {
         try {
             const response = await fetch('/qq-api/cgi-bin/musicu.fcg', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    comm: {
-                        ct: "19",
-                        cv: "1873",
-                        uin: "0"
-                    },
+                    comm: { ct: "19", cv: "1873", uin: "0" },
                     "music.search.SearchCgiService": {
                         method: "DoSearchForQQMusicDesktop",
                         module: "music.search.SearchCgiService",
-                        param: {
-                            grp: 1,
-                            num_per_page: limit,
-                            page_num: page,
-                            query: keywords,
-                            search_type: 0
-                        }
+                        param: { grp: 1, num_per_page: limit, page_num: page, query: keywords, search_type: 0 }
                     }
                 })
             });
@@ -464,43 +424,19 @@ export const searchSongs = async (
         }
     }
 
-    // Kuwo Direct Search via Proxy (New Endpoint)
+    // Kuwo Direct Search
     if (source === 'kuwo') {
         try {
             const params = new URLSearchParams({
-                vipver: '1',
-                client: 'kt',
-                ft: 'music',
-                cluster: '0',
-                strategy: '2012',
-                encoding: 'utf8',
-                rformat: 'json',
-                mobi: '1',
-                issubtitle: '1',
-                show_copyright_off: '1',
-                pn: String(page - 1), // 0-indexed
-                rn: String(limit),
-                all: keywords
+                vipver: '1', client: 'kt', ft: 'music', cluster: '0', strategy: '2012', encoding: 'utf8', rformat: 'json',
+                mobi: '1', issubtitle: '1', show_copyright_off: '1', pn: String(page - 1), rn: String(limit), all: keywords
             });
 
-            // Use the new www.kuwo.cn proxy
             const response = await fetch(`/kuwo-www-api/search/searchMusicBykeyWord?${params.toString()}`);
-            
             const text = await response.text();
             let data: any = {};
-            
-            try {
-                // The response is usually JSON, but sometimes might need cleaning
-                data = JSON.parse(text);
-            } catch (e) {
-                console.warn("Kuwo search returned non-standard JSON, trying to parse safely...", e);
-                try {
-                    // Fallback cleanup if needed (though searchMusicBykeyWord is usually standard JSON)
-                    const fixedJson = text.replace(/([a-zA-Z0-9_]+?):/g, '"$1":').replace(/'/g, '"');
-                    data = JSON.parse(fixedJson);
-                } catch (e2) {
-                    console.error("Failed to fix Kuwo JSON", e2);
-                }
+            try { data = JSON.parse(text); } catch (e) { 
+                try { data = JSON.parse(text.replace(/([a-zA-Z0-9_]+?):/g, '"$1":').replace(/'/g, '"')); } catch (e2) {}
             }
 
             const abslist = data.abslist || [];
@@ -522,40 +458,30 @@ export const searchSongs = async (
 };
 
 /**
- * Batch resolve URLs (Converted to Single Requests Concurrently)
+ * Batch resolve URLs
  */
 export const resolveBatchUrls = async (songs: Song[], quality: string = '320k'): Promise<Song[]> => {
   if (songs.length === 0) return [];
-
-  // Instead of grouping IDs and sending a batch request, 
-  // we concurrently call fetchSongUrl for each song.
-  // This reuses the single-parse logic which includes quality fallback.
   
   const songPromises = songs.map(async (song) => {
-      // Reuse existing fetchSongUrl which handles caching and retry logic
       const result = await fetchSongUrl(
           song.id, 
           song.source || 'netease', 
           quality,
           { name: song.name, artist: song.ar?.[0]?.name }
       );
-      
       return {
           ...song,
-          url: result?.url || song.url, // Update if we found a URL, otherwise keep existing
-          lyric: result?.lyric || song.lyric // Opportunistically update lyric if found in parse response
+          url: result?.url || song.url, 
+          lyric: result?.lyric || song.lyric 
       };
   });
 
-  // Wait for all single requests to complete
-  const resolvedSongs = await Promise.all(songPromises);
-  
-  return resolvedSongs;
+  return await Promise.all(songPromises);
 };
 
 /**
- * Fetch a single song URL with fallback logic using PARSE endpoint.
- * Returns object with URL and optional lyrics.
+ * Fetch a single song URL
  */
 export const fetchSongUrl = async (
     id: string | number, 
@@ -571,64 +497,46 @@ export const fetchSongUrl = async (
     const startIdx = QUALITY_LEVELS.indexOf(quality);
     let qualitiesToTry = startIdx === -1 ? ['320k', '128k'] : QUALITY_LEVELS.slice(startIdx);
 
-    // FIX: Kuwo FLAC is often OGG container which fails on Safari/iOS. 
-    // Prefer 320k (MP3) for Kuwo to ensure playback compatibility unless 320k is not available then fallback.
-    // We remove flac/flac24bit from priority list for Kuwo.
     if (source === 'kuwo') {
         qualitiesToTry = qualitiesToTry.filter(q => q !== 'flac' && q !== 'flac24bit');
         if (!qualitiesToTry.includes('320k')) qualitiesToTry.unshift('320k');
         if (!qualitiesToTry.includes('128k')) qualitiesToTry.push('128k');
     }
 
-    // Special handling for random songs that already have a direct URL
-    if (source === 'random') {
-        return null;
-    }
+    if (source === 'random') return null;
 
-    // --- NETEASE LOGIC ---
+    // Netease (GDStudio URL)
     if (source === 'netease') {
          const fetchNetease = async (): Promise<{ url: string, lyric?: string } | null> => {
             try {
-                // Use GDStudio API for Netease URL fetching
                 const response = await fetch(`/gdstudio-api/api.php?types=url&source=netease&id=${id}&br=999`);
                 const data = await response.json();
-                
-                // API typically returns { url: "...", ... }
                 if (data && data.url) {
-                    return {
-                        url: toHttps(data.url)
-                    };
+                    return { url: toHttps(data.url) };
                 }
             } catch (e) {
                 console.error("Netease API fetch failed", e);
             }
             return null;
         };
-        
         const promise = fetchNetease();
         urlPromiseCache.set(cacheKey, promise);
         promise.then(result => { if (!result) urlPromiseCache.delete(cacheKey); });
         return promise;
     }
-    // ---------------------------
 
-    // QQ Music: Use new Search-Based API (cyapi.top)
+    // QQ Music (CY API)
     if (source === 'qq' && metadata?.name) {
         const fetchQQTask = async (): Promise<{ url: string, lyric?: string } | null> => {
             try {
-                // Use Name + Artist for better accuracy, or just Name
                 const searchQuery = metadata.artist ? `${metadata.name} ${metadata.artist}` : metadata.name;
                 const encodedMsg = encodeURIComponent(searchQuery || '');
-                
-                // Using new proxy /cy-api
                 const response = await fetch(`/cy-api/API/qq_music.php?apikey=${CY_API_KEY}&type=json&n=1&msg=${encodedMsg}`, {
                     headers: { 'priority': 'u=1, i' }
                 });
                 
                 if (!response.ok) throw new Error(`CY API Error: ${response.status}`);
-                
                 const json = await response.json();
-                
                 let data = json.data || json;
                 if (Array.isArray(data)) data = data[0];
 
@@ -646,91 +554,59 @@ export const fetchSongUrl = async (
             }
             return null;
         };
-        
         const promise = fetchQQTask();
         urlPromiseCache.set(cacheKey, promise);
         promise.then(result => { if (!result) urlPromiseCache.delete(cacheKey); });
         return promise;
     }
 
-    // Kuwo Music: Use new API (yunzhiapi.cn)
+    // Kuwo Music (Yunzhi API)
     if (source === 'kuwo' && metadata?.name) {
         const fetchKuwoTask = async (): Promise<{ url: string, lyric?: string } | null> => {
             try {
-                // Just use the name as per new API spec requirement
                 const searchQuery = metadata.name; 
                 const encodedMsg = encodeURIComponent(searchQuery || '');
-                
-                // Use proxy for Yunzhi API
                 const response = await fetch(`/yunzhi-api/API/kwyyjx.php?msg=${encodedMsg}&n=1`);
                 
                 if (!response.ok) throw new Error(`Yunzhi API Error: ${response.status}`);
-                
                 const json = await response.json();
-                
-                // Flexible parsing logic for typical JX APIs
-                // Often structure is: { code: 200, data: { url: ... } } or { url: ... }
                 const data = json.data || json;
-                
-                // Field names might vary
                 const musicUrl = data.url || data.music_url || data.mp3 || json.url;
                 const lyric = data.lyric || data.lrc || json.lyric; 
 
                 if (musicUrl) {
-                    return {
-                        url: toHttps(musicUrl),
-                        lyric: lyric
-                    };
+                    return { url: toHttps(musicUrl), lyric: lyric };
                 }
             } catch (e) {
                 console.error("Kuwo Yunzhi API fetch failed", e);
             }
             return null;
         };
-        
         const promise = fetchKuwoTask();
         urlPromiseCache.set(cacheKey, promise);
         promise.then(result => { if (!result) urlPromiseCache.delete(cacheKey); });
         return promise;
     }
 
+    // Default Parse API
     const fetchTask = async (): Promise<{ url: string, lyric?: string } | null> => {
         for (const q of qualitiesToTry) {
             try {
                 const response = await fetch(PARSE_API_URL, {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        platform: getParsePlatform(source), 
-                        ids: String(id), // Parsing single ID
-                        quality: q 
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ platform: getParsePlatform(source), ids: String(id), quality: q })
                 });
                 const data = await response.json();
-                
-                // Robust response parsing to handle different nesting levels
-                // Structure can be: 
-                // 1. Array directly: [...]
-                // 2. Standard wrapper: { data: [...] }
-                // 3. Nested wrapper (QQ): { data: { data: [...] } }
                 let list: any[] = [];
-                if (Array.isArray(data)) {
-                    list = data;
-                } else if (data.data) {
-                    if (Array.isArray(data.data)) {
-                        list = data.data;
-                    } else if (typeof data.data === 'object' && data.data.data && Array.isArray(data.data.data)) {
-                        list = data.data.data;
-                    }
+                if (Array.isArray(data)) list = data;
+                else if (data.data) {
+                    if (Array.isArray(data.data)) list = data.data;
+                    else if (typeof data.data === 'object' && data.data.data && Array.isArray(data.data.data)) list = data.data.data;
                 }
                 
                 if (list.length > 0 && list[0].url) {
-                    return {
-                        url: toHttps(list[0].url),
-                        lyric: list[0].lyrics || undefined 
-                    };
+                    return { url: toHttps(list[0].url), lyric: list[0].lyrics || undefined };
                 }
             } catch (e) {
                 console.error(`Fetch URL failed for ${q}`, e);
@@ -741,54 +617,38 @@ export const fetchSongUrl = async (
 
     const promise = fetchTask();
     urlPromiseCache.set(cacheKey, promise);
-    
-    promise.then(result => {
-        if (!result) urlPromiseCache.delete(cacheKey);
-    });
-
+    promise.then(result => { if (!result) urlPromiseCache.delete(cacheKey); });
     return promise;
 };
 
 export const fetchSongDetail = async (id: string | number, source: string = 'netease'): Promise<Song | null> => {
-    // Direct Netease Proxy fallback since TuneHub is removed
     if (source === 'netease') {
         try {
             const response = await fetch(`/netease-api/api/song/detail?ids=${id}`);
             const data = await response.json();
             if (data.songs && data.songs.length > 0) {
-                return mapApiItemToSong(data.songs[0]);
+                return await mapApiItemToSong(data.songs[0]);
             }
         } catch (e) {
             console.error("Netease detail fetch failed", e);
         }
     }
-    // For other sources, if detail is missing, we might return null.
-    // Usually lists already contain most info.
     return null;
 };
 
-// Modified to return both parsed lines and raw text for storage
+// Lyrics
 export const fetchLyrics = async (id: string | number, source: string = 'netease'): Promise<{ lines: LyricLine[], raw: string }> => {
-    // Direct Netease Proxy fallback since TuneHub is removed
     if (source === 'netease') {
         try {
-            // Using random-music-api for Netease lyrics via proxy (Keeping original valid logic for Lyrics)
             const response = await fetch(`/random-music-api/api/wangyi/lyrics?id=${id}`);
             const data = await response.json();
-            
-            // Expected structure: { code: 200, data: { lyric: "..." } }
             if (data.code === 200 && data.data && data.data.lyric) {
-                return {
-                    lines: parseLyrics(data.data.lyric),
-                    raw: data.data.lyric
-                };
+                return { lines: parseLyrics(data.data.lyric), raw: data.data.lyric };
             }
         } catch (e) {
             console.error("Netease lyrics fetch failed", e);
         }
     }
-    
-    // QQ lyrics are often handled via fetchSongUrl (Parse/CY API)
     return { lines: [], raw: '' };
 };
 
@@ -796,10 +656,6 @@ export const parseLyrics = (lrc: string): LyricLine[] => {
     if (!lrc) return [];
     const lines = lrc.split('\n');
     const result: LyricLine[] = [];
-    // Relaxed regex: 
-    // Group 1: Min (1-2 digits)
-    // Group 2: Sec (1-2 digits)
-    // Group 3: Optional MS (1-3 digits), allowing . or : as separator
     const timeRegex = /\[(\d{1,2}):(\d{1,2})(?:[\.:](\d{1,3}))?\]/;
     
     for (const line of lines) {
@@ -809,14 +665,12 @@ export const parseLyrics = (lrc: string): LyricLine[] => {
             const sec = parseInt(match[2]);
             const msStr = match[3];
             let msInSeconds = 0;
-            
             if (msStr) {
                 const ms = parseInt(msStr);
                 if (msStr.length === 2) msInSeconds = ms / 100;
                 else if (msStr.length === 3) msInSeconds = ms / 1000;
                 else msInSeconds = ms / 10;
             }
-            
             const time = min * 60 + sec + msInSeconds;
             const text = line.replace(timeRegex, '').trim();
             if (text) result.push({ time, text });
@@ -827,48 +681,22 @@ export const parseLyrics = (lrc: string): LyricLine[] => {
 
 /**
  * Fetch Playlist Details with Fallback
- * Tries Netease Proxy if source is netease, then QQ Proxy if source is qq
  */
 export const fetchPlaylistDetails = async (id: string | number, source: string = 'netease'): Promise<Song[]> => {
     console.log(`fetchPlaylistDetails: id=${id}, source=${source}`);
     
-    // QQ Music Handling (Keep as is, uses Proxy)
     if (source === 'qq') {
         try {
             const response = await fetch('/qq-api/cgi-bin/musicu.fcg', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    comm: {
-                        cv: 4747474,
-                        ct: 24,
-                        format: "json",
-                        inCharset: "utf-8",
-                        outCharset: "utf-8",
-                        uin: 0
-                    },
-                    toplist: {
-                        module: "musicToplist.ToplistInfoServer",
-                        method: "GetDetail",
-                        param: {
-                            topId: Number(id),
-                            offset: 0,
-                            num: 100,
-                            period: ""
-                        }
-                    }
+                    comm: { cv: 4747474, ct: 24, format: "json", inCharset: "utf-8", outCharset: "utf-8", uin: 0 },
+                    toplist: { module: "musicToplist.ToplistInfoServer", method: "GetDetail", param: { topId: Number(id), offset: 0, num: 100, period: "" } }
                 })
             });
             const data = await response.json();
-            // Typically songInfoList is at data.toplist.data.songInfoList
-            // Fallback to data.detail or just data.songInfoList if structure varies
-            const songList = data.toplist?.data?.songInfoList || 
-                             data.detail?.data?.songInfoList || 
-                             data.songInfoList || 
-                             [];
-            console.log(`QQ Playlist fetched: ${songList.length} songs`);
+            const songList = data.toplist?.data?.songInfoList || data.detail?.data?.songInfoList || data.songInfoList || [];
             return songList.map(mapQQItemToSong);
         } catch (e) {
             console.error("QQ Playlist detail fetch failed", e);
@@ -876,8 +704,6 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
         }
     }
 
-    // Netease Handling
-    // Priority 1: Direct Proxy (Optimized for Large Lists)
     if (source === 'netease') {
         try {
             console.log("Fetching Netease playlist via Proxy...");
@@ -887,20 +713,11 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
             const resultObj = data.result || data.playlist;
             
             if (data.code === 200 && resultObj) {
-                // OPTIMIZATION:
-                // Official Top Lists or large playlists often return incomplete 'tracks' array
-                // or throttle the response if we rely on it.
-                // However, 'trackIds' is always complete.
-                // We use trackIds to fetch details via /song/detail which is much faster and reliable.
-                
                 const trackIds = resultObj.trackIds || [];
                 
                 if (trackIds.length > 0) {
                      console.log(`Netease Proxy: Found ${trackIds.length} IDs, fetching details...`);
                      const ids = trackIds.map((t: any) => t.id);
-                     
-                     // Fetch in chunks of 500 to be safe (URL length limits)
-                     // Netease supports many IDs, but 500 is a safe upper bound for GET requests
                      const chunkSize = 500;
                      const chunks = [];
                      for (let i = 0; i < ids.length; i += chunkSize) {
@@ -918,32 +735,16 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
                      });
 
                      if (allSongs.length > 0) {
-                        console.log(`Netease Proxy: Fetched ${allSongs.length} song details successfully.`);
-                        return allSongs.map(mapApiItemToSong);
+                        // Map all songs asynchronously to resolve covers
+                        // We use Promise.all to fetch covers in parallel where needed
+                        return await Promise.all(allSongs.map(mapApiItemToSong));
                      }
                 }
                 
-                // Fallback: If trackIds logic fails, try the standard tracks array
                 if (resultObj.tracks && resultObj.tracks.length > 0) {
-                    console.log(`Netease Proxy: Fallback to existing tracks array`);
-                    return resultObj.tracks.map((item: any) => {
-                        const al = item.album || item.al || {};
-                        const picUrl = toHttps(al.picUrl);
-                        
-                        return {
-                            id: item.id,
-                            name: item.name,
-                            ar: item.artists ? item.artists.map((a: any) => ({ id: a.id, name: a.name })) : (item.ar || []),
-                            al: { 
-                                id: al.id || 0, 
-                                name: al.name || '', 
-                                picUrl: picUrl 
-                            },
-                            dt: item.duration || item.dt,
-                            source: 'netease' as const,
-                            url: undefined
-                        };
-                    });
+                    // Fallback to tracks array
+                    // Since this item structure mimics the detail structure, we can reuse mapApiItemToSong
+                    return await Promise.all(resultObj.tracks.map(mapApiItemToSong));
                 }
             }
         } catch (e) {
@@ -957,15 +758,12 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
 export const checkGuestLimit = async (): Promise<{ allowed: boolean, count: number }> => {
     const count = parseInt(localStorage.getItem('guest_play_count') || '0');
     const allowed = count < 20; 
-    
     if (allowed) {
         localStorage.setItem('guest_play_count', (count + 1).toString());
     }
-    
     return { allowed, count: allowed ? count + 1 : count };
 };
 
-// Updated to save lyric AND url
 export const addToHistory = async (userId: string, song: Song, lyric?: string) => {
     try {
         const { data: existing } = await supabase
@@ -987,24 +785,14 @@ export const addToHistory = async (userId: string, song: Song, lyric?: string) =
             played_at: new Date().toISOString()
         };
         
-        if (lyric) {
-            payload.lyric = lyric;
-        }
-        if (song.url) {
-            payload.url = song.url;
-        }
+        if (lyric) payload.lyric = lyric;
+        if (song.url) payload.url = song.url;
 
         if (existing) {
-             // Only update fields, preserve ID
              const { user_id, song_id, ...updates } = payload;
-             await supabase
-                .from('music_history')
-                .update(updates)
-                .eq('id', existing.id);
+             await supabase.from('music_history').update(updates).eq('id', existing.id);
         } else {
-             await supabase
-                .from('music_history')
-                .insert(payload);
+             await supabase.from('music_history').insert(payload);
         }
     } catch (e) {
         console.error("Add history failed", e);
@@ -1050,7 +838,6 @@ export const getLikedSongs = async (userId: string): Promise<Song[]> => {
     }));
 };
 
-// Updated to save lyric AND url
 export const toggleLike = async (userId: string, song: Song, lyric?: string): Promise<boolean> => {
     const { data } = await supabase
         .from('liked_songs')
