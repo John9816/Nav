@@ -17,12 +17,6 @@ const toHttps = (url: string) => {
     return url.replace(/^http:\/\//i, 'https://');
 };
 
-// Helper to generate Netease Cover URL via GDStudio Proxy
-const getNeteaseCoverUrl = (picId: string | number) => {
-    if (!picId) return '';
-    return `/gdstudio-api/api.php?types=pic&source=netease&id=${picId}&size=500`;
-};
-
 // Helper to map internal source to Parse API platform param (Audio URL)
 // Parse API usually expects 'qq' for QQ Music
 const getParsePlatform = (source: string) => {
@@ -41,12 +35,11 @@ const mapApiItemToSong = (item: any): Song => {
 
   // Album
   const al = item.al || item.album || {};
-  let picUrl = toHttps(al.picUrl || item.picUrl || item.img120 || '');
   
-  // Prefer GDStudio API for cover if ID is available
-  if (al.picId) {
-      picUrl = getNeteaseCoverUrl(al.picId);
-  }
+  // Use the direct URL provided by the upstream API.
+  // The API returns JSON for the cover endpoint, so we cannot use the endpoint string directly as an image source.
+  // Typically, Netease APIs return the 'picUrl' in the metadata, which corresponds to the same image.
+  const picUrl = toHttps(al.picUrl || item.picUrl || item.img120 || '');
 
   const album = {
       id: al.id || 0,
@@ -80,10 +73,8 @@ const mapGDStudioItemToSong = (item: any): Song => {
         artists = [{ id: 0, name: 'Unknown Artist' }];
     }
 
-    let picUrl = toHttps(item.pic) || '';
-    if (item.pic_id) {
-        picUrl = getNeteaseCoverUrl(item.pic_id);
-    }
+    // GDStudio Search usually returns the direct 'pic' URL. We use that.
+    const picUrl = toHttps(item.pic) || '';
 
     return {
         id: item.id,
@@ -108,11 +99,7 @@ const mapNeteaseSearchItem = (item: any): Song => {
         : [{ id: 0, name: 'Unknown Artist' }];
     
     const album = item.album || {};
-    let picUrl = album.picUrl ? toHttps(album.picUrl) : 'https://p2.music.126.net/tGHU62DTszbFQ37W9qPHcg==/2002210674180197.jpg';
-    
-    if (album.picId) {
-        picUrl = getNeteaseCoverUrl(album.picId);
-    }
+    const picUrl = album.picUrl ? toHttps(album.picUrl) : 'https://p2.music.126.net/tGHU62DTszbFQ37W9qPHcg==/2002210674180197.jpg';
     
     return {
         id: item.id,
@@ -941,10 +928,7 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
                     console.log(`Netease Proxy: Fallback to existing tracks array`);
                     return resultObj.tracks.map((item: any) => {
                         const al = item.album || item.al || {};
-                        let picUrl = toHttps(al.picUrl);
-                        if (al.picId) {
-                            picUrl = getNeteaseCoverUrl(al.picId);
-                        }
+                        const picUrl = toHttps(al.picUrl);
                         
                         return {
                             id: item.id,
