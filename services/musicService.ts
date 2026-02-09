@@ -280,6 +280,13 @@ export const fetchAlbumDetails = async (id: string | number): Promise<{ album: P
              const albumData = data.album;
              const songsData = data.songs || [];
 
+             // Parse publish time
+             let publishDate = '';
+             if (albumData.publishTime) {
+                 const d = new Date(albumData.publishTime);
+                 publishDate = d.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+             }
+
              const album: Playlist = {
                  id: albumData.id,
                  name: albumData.name,
@@ -287,7 +294,10 @@ export const fetchAlbumDetails = async (id: string | number): Promise<{ album: P
                  description: albumData.description || '',
                  trackCount: albumData.size || songsData.length,
                  playCount: 0, 
-                 source: 'netease'
+                 source: 'netease',
+                 artist: albumData.artist?.name,
+                 company: albumData.company,
+                 publishTime: publishDate
              };
              
              const songs = await Promise.all(songsData.map(mapApiItemToSong));

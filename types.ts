@@ -99,6 +99,10 @@ export interface Playlist {
   trackCount: number;
   playCount: number;
   source?: 'netease' | 'qq' | 'kuwo';
+  // Extended info for Album details
+  artist?: string;
+  publishTime?: string;
+  company?: string;
 }
 
 export interface LyricLine {

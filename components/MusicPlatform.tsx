@@ -11,7 +11,7 @@ import {
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
   List, Download, Search, Loader2,
   Music, Disc, Radio, ArrowLeft, Clock, Mic2, LayoutGrid, Heart, Cloud,
-  ChevronDown, Repeat1, ArrowDown, Menu, Sparkles, Calendar, ListMusic, Trash2, Globe, Server
+  ChevronDown, Repeat1, ArrowDown, Menu, Sparkles, Calendar, ListMusic, Trash2, Globe, Server, Info
 } from 'lucide-react';
 
 interface MusicPlatformProps {
@@ -68,6 +68,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [showLyrics, setShowLyrics] = useState(false);
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
 
+  // Album Description Expanded State
+  const [showFullDesc, setShowFullDesc] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -113,6 +116,11 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
         setIsLiked(false);
     }
   }, [currentSong?.id, user]);
+
+  // Reset expanded description when changing playlist
+  useEffect(() => {
+      setShowFullDesc(false);
+  }, [selectedPlaylist?.id]);
 
   // Determine active lyric index
   const activeLyricIndex = useMemo(() => {
@@ -856,7 +864,19 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                     <h2 className="text-2xl md:text-4xl font-extrabold text-slate-800 dark:text-slate-100 line-clamp-2">
                                                         {view === 'history' ? '播放历史' : view === 'favorites' ? '我喜欢的音乐' : view === 'search' ? `搜索: "${searchQuery}"` : view === 'playlist' && selectedPlaylist ? selectedPlaylist.name : ''}
                                                     </h2>
-                                                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium flex items-center gap-3">
+                                                    
+                                                    {/* Album Details Metadata */}
+                                                    {view === 'playlist' && selectedPlaylist && selectedPlaylist.source === 'netease' && (
+                                                        <div className="text-xs md:text-sm text-slate-500 dark:text-slate-400 space-y-1 mt-1">
+                                                            {selectedPlaylist.artist && <p>歌手：{selectedPlaylist.artist}</p>}
+                                                            <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                                                {selectedPlaylist.publishTime && <p>发行时间：{selectedPlaylist.publishTime}</p>}
+                                                                {selectedPlaylist.company && <p>发行公司：{selectedPlaylist.company}</p>}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium flex items-center gap-3 mt-1">
                                                         <span>{(view === 'search' ? searchResults : playlistSongs).length} 首歌曲</span>
                                                     </p>
                                                 </div>
@@ -871,6 +891,26 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                 </button>
                                             </div>
                                        </div>
+
+                                       {/* Description Section (Expandable) */}
+                                       {view === 'playlist' && selectedPlaylist && selectedPlaylist.description && (
+                                           <div className="px-6 md:px-10 py-4 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200/50 dark:border-slate-800/50">
+                                               <div className={`text-sm text-slate-500 dark:text-slate-400 leading-relaxed whitespace-pre-wrap transition-all duration-300 relative ${showFullDesc ? '' : 'max-h-20 overflow-hidden'}`}>
+                                                   <span className="font-bold text-slate-700 dark:text-slate-300 block mb-1">专辑介绍：</span>
+                                                   {selectedPlaylist.description}
+                                                   {!showFullDesc && (
+                                                       <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-slate-50 dark:from-slate-900 to-transparent"></div>
+                                                   )}
+                                               </div>
+                                               <button 
+                                                   onClick={() => setShowFullDesc(!showFullDesc)}
+                                                   className="mt-2 text-xs font-bold text-blue-500 hover:text-blue-600 flex items-center gap-1"
+                                               >
+                                                   {showFullDesc ? '收起介绍' : '展开全部'}
+                                                   <ChevronDown size={12} className={`transition-transform ${showFullDesc ? 'rotate-180' : ''}`} />
+                                               </button>
+                                           </div>
+                                       )}
 
                                        {/* List Header - Sticky */}
                                        <div className="sticky top-[72px] z-10 grid grid-cols-[50px_1fr_40px] md:grid-cols-[60px_4fr_3fr_80px] gap-4 px-6 md:px-10 py-3 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-400 uppercase tracking-wider shadow-sm">
