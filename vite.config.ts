@@ -112,6 +112,16 @@ export default defineConfig(({ mode }) => {
               'Origin': 'https://music-api.gdstudio.xyz/',
               'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36'
             }
+          },
+          '/fy-api': {
+            target: 'https://fy-musicbox-api.mu-jie.cc',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/fy-api/, ''),
+            headers: {
+              'Referer': 'https://mu-jie.cc/',
+              'Origin': 'https://mu-jie.cc',
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36'
+            }
           }
         }
       },
