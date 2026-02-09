@@ -300,7 +300,17 @@ export const fetchAlbumDetails = async (id: string | number): Promise<{ album: P
                  publishTime: publishDate
              };
              
-             const songs = await Promise.all(songsData.map(mapApiItemToSong));
+             // Map songs and force album cover
+             const songs = await Promise.all(songsData.map(async (item: any) => {
+                 const song = await mapApiItemToSong(item);
+                 // Force the album cover for consistency within the album view
+                 // The API often returns songs with missing or different cover fields in this endpoint
+                 if (album.coverImgUrl) {
+                     song.al.picUrl = album.coverImgUrl;
+                 }
+                 return song;
+             }));
+
              return { album, songs };
         }
         return null;
