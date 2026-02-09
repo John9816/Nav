@@ -52,28 +52,33 @@ const mapApiItemToSong = (item: any): Song => {
   };
 };
 
-// New Mapper for the new Netease Search API structure
-const mapNewNeteaseSearchItemToSong = (item: any): Song => {
-    // Structure: { id: 108485, name: "Title", artistsname: "Artist", album: "Album", duration: 225044 }
-    // Note: This API does not return cover image (picUrl). 
-    // The player logic (fetchSongDetail) handles missing metadata when playing.
+// Mapper for GDStudio (MKOnlinePlayer style) response
+const mapGDStudioItemToSong = (item: any): Song => {
+    // Structure typically: 
+    // { id, name, artist: [], album, pic_id, url_id, lyric_id, source, pic, url }
     
-    const artists = item.artistsname 
-        ? item.artistsname.split(',').map((name: string) => ({ id: 0, name: name.trim() }))
-        : [{ id: 0, name: 'Unknown Artist' }];
+    let artists: { id: number; name: string }[] = [];
+    if (Array.isArray(item.artist)) {
+        artists = item.artist.map((a: string) => ({ id: 0, name: a }));
+    } else if (typeof item.artist === 'string') {
+        // Sometimes it's a comma separated string or just a name
+        artists = [{ id: 0, name: item.artist }];
+    } else {
+        artists = [{ id: 0, name: 'Unknown Artist' }];
+    }
 
     return {
         id: item.id,
-        name: item.name || 'Unknown Title',
+        name: item.name,
         ar: artists,
         al: {
             id: 0,
-            name: item.album || 'Unknown Album',
-            picUrl: '' // Missing in search result, will be fetched on play
+            name: item.album || '',
+            picUrl: toHttps(item.pic) || '' 
         },
-        dt: item.duration || 0,
+        dt: 0, // Often missing in search results, filled later
         source: 'netease',
-        url: undefined
+        url: item.url || undefined
     };
 };
 
@@ -361,20 +366,31 @@ export const searchSongs = async (
     limit: number = 20
 ): Promise<Song[]> => {
   try {
-    // New Netease Search API (via Proxy)
+    // Netease Search API (via GDStudio Proxy)
     if (source === 'netease') {
         try {
-            // Using new API endpoint for Netease search via proxy
-            // Note: Pagination isn't explicitly supported by the new API spec provided (only limit), 
-            // but we'll stick to limit for now.
-            const response = await fetch(
-                `/random-music-api/api/wangyi/search?search=${encodeURIComponent(keywords)}&limit=${limit}`
-            );
-            const json = await response.json();
+            const params = new URLSearchParams();
+            params.append('types', 'search');
+            params.append('count', String(limit));
+            params.append('source', 'netease');
+            params.append('pages', String(page));
+            params.append('name', keywords);
+            params.append('s', '58C2854B'); // Included signature as requested
+
+            const response = await fetch('/gdstudio-api/api.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+                },
+                body: params.toString()
+            });
+
+            // The API might return JSON directly or JSONP if callback is in params (we omitted it)
+            const data = await response.json();
             
-            // Response structure: { code: 200, msg: "...", data: { count: 285, songs: [...] } }
-            if (json.code === 200 && json.data && json.data.songs) {
-                return json.data.songs.map(mapNewNeteaseSearchItemToSong);
+            // Expected data: Array of song objects
+            if (Array.isArray(data)) {
+                return data.map(mapGDStudioItemToSong);
             }
             return [];
         } catch (e) {
@@ -546,7 +562,7 @@ export const fetchSongUrl = async (
     if (source === 'netease') {
          const fetchNetease = async (): Promise<{ url: string, lyric?: string } | null> => {
             try {
-                // Use the new API for Netease
+                // Use random-music-api for Netease URL fetching
                 const response = await fetch(`/random-music-api/api/wangyi/music?type=json&id=${id}`);
                 const data = await response.json();
                 if (data.code === 200 && data.data && data.data.url) {
@@ -727,7 +743,7 @@ export const fetchLyrics = async (id: string | number, source: string = 'netease
     // Direct Netease Proxy fallback since TuneHub is removed
     if (source === 'netease') {
         try {
-            // Using new API endpoint for Netease lyrics via proxy
+            // Using random-music-api for Netease lyrics via proxy
             const response = await fetch(`/random-music-api/api/wangyi/lyrics?id=${id}`);
             const data = await response.json();
             

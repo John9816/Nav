@@ -102,6 +102,16 @@ export default defineConfig(({ mode }) => {
               'Referer': 'https://yunzhiapi.cn/',
               'Origin': 'https://yunzhiapi.cn/'
             }
+          },
+          '/gdstudio-api': {
+            target: 'https://music.gdstudio.org',
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/gdstudio-api/, ''),
+            headers: {
+              'Referer': 'https://music.gdstudio.org/',
+              'Origin': 'https://music.gdstudio.org/',
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36'
+            }
           }
         }
       },
