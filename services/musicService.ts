@@ -82,6 +82,31 @@ const mapGDStudioItemToSong = (item: any): Song => {
     };
 };
 
+// Mapper for Netease Search API (Official /api/search/get)
+// This endpoint often returns songs without cover images, so we provide a default
+const mapNeteaseSearchItem = (item: any): Song => {
+    const artists = item.artists 
+        ? item.artists.map((a: any) => ({ id: a.id, name: a.name })) 
+        : [{ id: 0, name: 'Unknown Artist' }];
+    
+    const album = item.album || {};
+    
+    return {
+        id: item.id,
+        name: item.name,
+        ar: artists,
+        al: {
+            id: album.id || 0,
+            name: album.name || 'Unknown Album',
+            // Default Netease cover if missing
+            picUrl: album.picUrl ? toHttps(album.picUrl) : 'https://p2.music.126.net/tGHU62DTszbFQ37W9qPHcg==/2002210674180197.jpg' 
+        },
+        dt: item.duration || 0,
+        source: 'netease',
+        url: undefined
+    };
+};
+
 const mapQQItemToSong = (item: any): Song => {
     // QQ often uses 'mid' (media id) for playback and 'id' for metadata. 
     // TuneHub generally prefers 'mid' for QQ if available.
@@ -366,7 +391,7 @@ export const searchSongs = async (
     limit: number = 20
 ): Promise<Song[]> => {
   try {
-    // Netease Search API (via GDStudio Proxy)
+    // Netease Search API (Using new GDStudio API as requested)
     if (source === 'netease') {
         try {
             const params = new URLSearchParams();
@@ -375,7 +400,6 @@ export const searchSongs = async (
             params.append('source', 'netease');
             params.append('pages', String(page));
             params.append('name', keywords);
-            params.append('s', '58C2854B'); // Included signature as requested
 
             const response = await fetch('/gdstudio-api/api.php', {
                 method: 'POST',
@@ -385,16 +409,14 @@ export const searchSongs = async (
                 body: params.toString()
             });
 
-            // The API might return JSON directly or JSONP if callback is in params (we omitted it)
             const data = await response.json();
             
-            // Expected data: Array of song objects
             if (Array.isArray(data)) {
                 return data.map(mapGDStudioItemToSong);
             }
             return [];
         } catch (e) {
-            console.warn("Netease new search failed", e);
+            console.warn("Netease search failed", e);
         }
     }
 
@@ -562,7 +584,7 @@ export const fetchSongUrl = async (
     if (source === 'netease') {
          const fetchNetease = async (): Promise<{ url: string, lyric?: string } | null> => {
             try {
-                // Use random-music-api for Netease URL fetching
+                // Use random-music-api for Netease URL fetching (Keeping original valid logic for URLs)
                 const response = await fetch(`/random-music-api/api/wangyi/music?type=json&id=${id}`);
                 const data = await response.json();
                 if (data.code === 200 && data.data && data.data.url) {
@@ -743,7 +765,7 @@ export const fetchLyrics = async (id: string | number, source: string = 'netease
     // Direct Netease Proxy fallback since TuneHub is removed
     if (source === 'netease') {
         try {
-            // Using random-music-api for Netease lyrics via proxy
+            // Using random-music-api for Netease lyrics via proxy (Keeping original valid logic for Lyrics)
             const response = await fetch(`/random-music-api/api/wangyi/lyrics?id=${id}`);
             const data = await response.json();
             

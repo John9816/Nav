@@ -38,7 +38,7 @@
     },
     {
       "source": "/gdstudio-api/(.*)",
-      "destination": "https://music.gdstudio.org/$1"
+      "destination": "https://music-api.gdstudio.xyz/$1"
     },
     {
       "source": "/((?!assets/|.*\\..*).*)",

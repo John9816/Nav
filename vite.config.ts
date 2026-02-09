@@ -104,12 +104,12 @@ export default defineConfig(({ mode }) => {
             }
           },
           '/gdstudio-api': {
-            target: 'https://music.gdstudio.org',
+            target: 'https://music-api.gdstudio.xyz',
             changeOrigin: true,
             rewrite: (path) => path.replace(/^\/gdstudio-api/, ''),
             headers: {
-              'Referer': 'https://music.gdstudio.org/',
-              'Origin': 'https://music.gdstudio.org/',
+              'Referer': 'https://music-api.gdstudio.xyz/',
+              'Origin': 'https://music-api.gdstudio.xyz/',
               'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36'
             }
           }
