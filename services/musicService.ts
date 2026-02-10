@@ -325,7 +325,8 @@ export const fetchAlbumDetails = async (id: string | number): Promise<{ album: P
  */
 const fetchNeteaseTopLists = async (): Promise<Playlist[]> => {
   try {
-    const response = await fetch('/netease-api/api/toplist');
+    // SWITCHED from /netease-api/api/toplist (direct) to /alger-api/api/toplist (wrapper)
+    const response = await fetch('/alger-api/api/toplist');
     const data = await response.json();
     const list = data.list || [];
     
@@ -712,7 +713,8 @@ export const fetchSongUrl = async (
 export const fetchSongDetail = async (id: string | number, source: string = 'netease'): Promise<Song | null> => {
     if (source === 'netease') {
         try {
-            const response = await fetch(`/netease-api/api/song/detail?ids=${id}`);
+            // SWITCHED to alger-api (Wrapper)
+            const response = await fetch(`/alger-api/api/song/detail?ids=${id}`);
             const data = await response.json();
             if (data.songs && data.songs.length > 0) {
                 return await mapApiItemToSong(data.songs[0]);
@@ -794,8 +796,9 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
 
     if (source === 'netease') {
         try {
-            console.log("Fetching Netease playlist via Proxy...");
-            const response = await fetch(`/netease-api/api/playlist/detail?id=${id}`);
+            console.log("Fetching Netease playlist via Proxy (alger-api)...");
+            // SWITCHED from /netease-api/api/playlist/detail to /alger-api/api/playlist/detail (Wrapper)
+            const response = await fetch(`/alger-api/api/playlist/detail?id=${id}`);
             const data = await response.json();
             
             const resultObj = data.result || data.playlist;
@@ -814,7 +817,8 @@ export const fetchPlaylistDetails = async (id: string | number, source: string =
                      }
 
                      const responses = await Promise.all(chunks.map(chunkIds => 
-                         fetch(`/netease-api/api/song/detail?ids=${chunkIds}`).then(res => res.json())
+                         // SWITCHED from /netease-api/api/song/detail to /alger-api/api/song/detail
+                         fetch(`/alger-api/api/song/detail?ids=${chunkIds}`).then(res => res.json())
                      ));
                      
                      let allSongs: any[] = [];
@@ -916,7 +920,7 @@ export const getHistory = async (userId: string): Promise<Song[]> => {
         al: { id: 0, name: item.album || '', picUrl: item.cover_url || '' },
         dt: item.duration || 0,
         source: item.source || 'netease',
-        url: item.url || undefined,
+        url: undefined, // Force refresh to handle expired URLs
         lyric: item.lyric || undefined
     }));
 };
@@ -935,7 +939,7 @@ export const getLikedSongs = async (userId: string): Promise<Song[]> => {
         al: { id: 0, name: item.album || '', picUrl: item.cover_url || '' },
         dt: item.duration || 0,
         source: item.source || 'netease',
-        url: item.url || undefined,
+        url: undefined, // Force refresh to handle expired URLs
         lyric: item.lyric || undefined
     }));
 };
