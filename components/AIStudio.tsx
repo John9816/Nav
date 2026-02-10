@@ -3,7 +3,7 @@ import {
   Send, Image as ImageIcon, MessageSquare, 
   Trash2, Bot, Sparkles, StopCircle, Copy, Check, 
   Eraser, Sparkle, Zap, Plus, Clock, MessageCircle,
-  ChevronDown, Cpu, Box
+  ChevronDown, Cpu, Box, Settings2, MoreHorizontal
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { ChatMessage } from '../types';
@@ -63,11 +63,11 @@ const MessageItem: React.FC<{ msg: ChatMessage; mode: Mode; onDelete: (id: strin
   const isModel = msg.role === 'model';
 
   return (
-    <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} animate-slide-up group/item`}>
-      <div className={`flex max-w-[95%] md:max-w-[85%] lg:max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start gap-3 md:gap-4`}>
+    <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'} animate-slide-up group/item my-2`}>
+      <div className={`flex max-w-[95%] md:max-w-[85%] lg:max-w-[80%] ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start gap-3`}>
         
         {/* Avatar */}
-        <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm mt-1 transition-transform hover:scale-105
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm mt-1
           ${isUser 
             ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-blue-500/20' 
             : mode === 'image' 
@@ -78,15 +78,15 @@ const MessageItem: React.FC<{ msg: ChatMessage; mode: Mode; onDelete: (id: strin
           {isUser ? (
              <div className="text-[10px] font-bold tracking-tighter">ME</div>
           ) : (
-             mode === 'image' ? <Sparkles size={18} /> : <Bot size={20} />
+             mode === 'image' ? <Sparkles size={16} /> : <Bot size={18} />
           )}
         </div>
 
         {/* Bubble */}
-        <div className={`relative group/bubble p-4 md:p-5 rounded-2xl shadow-sm text-[15px] leading-relaxed overflow-hidden transition-all duration-300
+        <div className={`relative group/bubble p-3.5 md:p-4 rounded-2xl shadow-sm text-[15px] leading-relaxed overflow-hidden transition-all duration-300
           ${isUser 
-            ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-tr-sm shadow-blue-500/10' 
-            : 'bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 rounded-tl-sm hover:shadow-md dark:hover:shadow-slate-900/20'
+            ? 'bg-blue-600 text-white rounded-tr-sm shadow-blue-500/10' 
+            : 'bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 rounded-tl-sm'
           }
         `}>
           
@@ -133,21 +133,21 @@ const MessageItem: React.FC<{ msg: ChatMessage; mode: Mode; onDelete: (id: strin
 
           {/* Action Buttons */}
           {!msg.isLoading && (
-            <div className={`absolute bottom-2 right-2 flex gap-1.5 transition-all duration-300 transform translate-y-2 opacity-0 group-hover/bubble:translate-y-0 group-hover/bubble:opacity-100`}>
+            <div className={`absolute bottom-1 right-1 flex gap-1 transition-all duration-300 transform translate-y-2 opacity-0 group-hover/bubble:translate-y-0 group-hover/bubble:opacity-100`}>
                 <button
                     onClick={handleCopy}
-                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-white text-slate-500 hover:text-blue-600 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-400 dark:hover:text-blue-300 shadow-sm border border-slate-200 dark:border-slate-600 transition-colors"
+                    className="p-1.5 rounded-lg bg-white/90 dark:bg-slate-700/90 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 shadow-sm border border-slate-200 dark:border-slate-600 transition-colors backdrop-blur-sm"
                     title="复制"
                 >
-                    {isCopied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                    {isCopied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
                 </button>
                 
                 <button
                     onClick={() => onDelete(msg.id)}
-                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-white text-slate-500 hover:text-red-600 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-400 dark:hover:text-red-400 shadow-sm border border-slate-200 dark:border-slate-600 transition-colors"
+                    className="p-1.5 rounded-lg bg-white/90 dark:bg-slate-700/90 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 shadow-sm border border-slate-200 dark:border-slate-600 transition-colors backdrop-blur-sm"
                     title="删除此消息"
                 >
-                    <Trash2 size={14} />
+                    <Trash2 size={12} />
                 </button>
             </div>
           )}
@@ -283,7 +283,6 @@ const AIStudio: React.FC<AIStudioProps> = ({
     }
 
     // If logged in, delete from DB
-    // Only attempt DB delete if it's NOT a temporary/init message
     if (user && currentSessionId && msgId !== 'empty' && !msgId.startsWith('init-') && !msgId.startsWith('temp-')) {
          try {
              await deleteMessage(msgId);
@@ -325,7 +324,7 @@ const AIStudio: React.FC<AIStudioProps> = ({
             }
         }
         if (activeSessionId) {
-            // Save user message with user.id for RLS and update local ID with DB ID
+            // Save user message
             saveMessage(activeSessionId, user.id, 'user', userText)
                 .then((savedMsg) => {
                     if (savedMsg) {
@@ -362,7 +361,6 @@ const AIStudio: React.FC<AIStudioProps> = ({
             // Persist Model Message
             if (currentMode === 'chat' && user && activeSessionId && fullText) {
                 try {
-                    // Save model message with user.id for RLS
                     const savedMsg = await saveMessage(activeSessionId, user.id, 'model', fullText);
                     if (savedMsg) {
                          setChatHistory(prev => prev.map(m => m.id === botMessageId ? { ...m, id: savedMsg.id } : m));
@@ -405,7 +403,7 @@ const AIStudio: React.FC<AIStudioProps> = ({
   };
 
   return (
-    <div className="w-full h-full flex flex-col md:flex-row bg-slate-50/50 dark:bg-slate-900/50 text-slate-800 dark:text-slate-100 font-sans animate-fade-in overflow-hidden">
+    <div className="w-full h-full flex flex-col md:flex-row bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans animate-fade-in overflow-hidden">
       
       {/* Mobile Top Navigation */}
       <div className="md:hidden shrink-0 px-4 py-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50 z-20">
@@ -439,52 +437,52 @@ const AIStudio: React.FC<AIStudioProps> = ({
       </div>
 
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex w-72 bg-white dark:bg-slate-950 border-r border-slate-200/60 dark:border-slate-800/60 flex-col p-6 z-20 shrink-0 h-full overflow-hidden pb-36">
+      <div className="hidden md:flex w-72 bg-white/50 dark:bg-slate-900/50 border-r border-slate-200/60 dark:border-slate-800/60 flex-col p-4 z-20 shrink-0 h-full overflow-hidden pb-36 backdrop-blur-md">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6 shrink-0">
-             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white">
-                <Sparkle size={24} fill="currentColor" className="opacity-90" />
+        <div className="flex items-center gap-3 mb-6 px-2 pt-2">
+             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white">
+                <Sparkle size={20} fill="currentColor" className="opacity-90" />
              </div>
              <div>
-                <h3 className="font-bold text-lg leading-tight text-slate-800 dark:text-slate-100">AI Studio</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">智能创作中心</p>
+                <h3 className="font-bold text-base leading-tight text-slate-800 dark:text-slate-100">AI Studio</h3>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-wide">CREATIVE SUITE</p>
              </div>
         </div>
 
         {/* New Chat Button */}
         <button 
              onClick={handleNewChat}
-             className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-95 mb-6 shrink-0 font-medium"
+             className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-95 mb-6 shrink-0 font-medium text-sm group"
         >
-             <Plus size={18} />
+             <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
              <span>开启新对话</span>
         </button>
            
         {/* Mode Selection */}
-        <div className="space-y-2 mb-6 shrink-0">
-             <div className="px-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">模式选择</div>
+        <div className="space-y-1 mb-6 shrink-0">
+             <div className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">模式选择</div>
              
              <button 
                onClick={() => setMode('chat')}
-               className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 text-sm font-medium
+               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium
                  ${mode === 'chat' 
-                   ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white' 
-                   : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900/50'
+                   ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200 dark:border-slate-700' 
+                   : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50'
                  }`}
              >
-                <MessageSquare size={18} className={mode === 'chat' ? 'text-blue-500' : ''} />
+                <MessageSquare size={16} />
                 <span>智能对话</span>
              </button>
 
              <button 
                onClick={() => setMode('image')}
-               className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 text-sm font-medium
+               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium
                  ${mode === 'image' 
-                   ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white' 
-                   : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900/50'
+                   ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm border border-slate-200 dark:border-slate-700' 
+                   : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50'
                  }`}
              >
-                <ImageIcon size={18} className={mode === 'image' ? 'text-purple-500' : ''} />
+                <ImageIcon size={16} />
                 <span>AI 绘画</span>
              </button>
         </div>
@@ -492,21 +490,21 @@ const AIStudio: React.FC<AIStudioProps> = ({
         {/* Chat History List */}
         {mode === 'chat' && user && (
             <div className="flex-1 flex flex-col min-h-0">
-                <div className="px-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 shrink-0">历史对话</div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar -mx-2 px-2 space-y-1">
+                <div className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 shrink-0">历史对话</div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar px-1 space-y-0.5">
                     {sessions.map(session => (
                         <div 
                             key={session.id}
                             onClick={() => handleLoadSession(session)}
-                            className={`group flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-colors text-sm
+                            className={`group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm
                                 ${currentSessionId === session.id 
-                                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' 
+                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium' 
                                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                                 }
                             `}
                         >
-                            <div className="flex items-center gap-2 truncate">
-                                <MessageCircle size={14} className="shrink-0 opacity-70" />
+                            <div className="flex items-center gap-2.5 truncate">
+                                <MessageCircle size={14} className={`shrink-0 ${currentSessionId === session.id ? 'text-blue-500' : 'opacity-50'}`} />
                                 <span className="truncate">{session.title || '新对话'}</span>
                             </div>
                             <button 
@@ -518,7 +516,7 @@ const AIStudio: React.FC<AIStudioProps> = ({
                         </div>
                     ))}
                     {sessions.length === 0 && (
-                        <div className="text-center py-4 text-xs text-slate-400">
+                        <div className="text-center py-4 text-xs text-slate-400 italic">
                             暂无历史记录
                         </div>
                     )}
@@ -527,7 +525,7 @@ const AIStudio: React.FC<AIStudioProps> = ({
         )}
 
         {/* Footer Actions */}
-        <div className="mt-auto pt-4 shrink-0 border-t border-slate-100 dark:border-slate-800">
+        <div className="mt-auto pt-4 shrink-0 border-t border-slate-200/50 dark:border-slate-800/50">
            {!user && (
                <div className="text-xs text-center text-slate-400 mb-2">
                    登录后可保存对话记录
@@ -535,7 +533,7 @@ const AIStudio: React.FC<AIStudioProps> = ({
            )}
            <button 
             onClick={clearHistory}
-            className="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-xs"
+            className="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-xs font-medium"
           >
             <Eraser size={14} />
             <span>清空当前屏幕</span>
@@ -543,27 +541,101 @@ const AIStudio: React.FC<AIStudioProps> = ({
         </div>
       </div>
 
-      {/* Main Content Area - Increased padding to avoid music player obstruction */}
-      <div className="flex-1 flex flex-col relative min-w-0 bg-slate-50/50 dark:bg-slate-900/50 pb-36">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col relative min-w-0 bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm pb-0 md:pb-6">
         
+        {/* Top Header (Desktop Only) */}
+        <div className="hidden md:flex h-16 border-b border-slate-200/50 dark:border-slate-800/50 items-center justify-between px-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm shrink-0 sticky top-0 z-10">
+            <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${mode === 'chat' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'}`}>
+                    {mode === 'chat' ? <MessageSquare size={18} /> : <ImageIcon size={18} />}
+                </div>
+                <h2 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
+                    {mode === 'chat' ? (currentSessionId ? sessions.find(s => s.id === currentSessionId)?.title || '对话详情' : '新对话') : 'AI 绘画创作'}
+                </h2>
+            </div>
+
+            {/* Top Model Selector (Chat Mode) */}
+            {mode === 'chat' && (
+                <div className="relative" ref={modelMenuRef}>
+                    <button 
+                        onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    >
+                        {activeModel.icon}
+                        <span>{activeModel.name}</span>
+                        <ChevronDown size={12} className={`transition-transform duration-200 ${isModelMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {isModelMenuOpen && (
+                        <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50">
+                            <div className="p-1">
+                                <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">选择模型</div>
+                                {MODELS.map((model) => (
+                                    <button
+                                        key={model.id}
+                                        onClick={() => {
+                                            setCurrentModel(model.id);
+                                            setIsModelMenuOpen(false);
+                                        }}
+                                        className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-3
+                                            ${currentModel === model.id 
+                                                ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' 
+                                                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                            }
+                                        `}
+                                    >
+                                        <div className="shrink-0">{model.icon}</div>
+                                        <span>{model.name}</span>
+                                        {currentModel === model.id && <Check size={14} className="ml-auto" />}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+            
+            {mode === 'image' && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/30 text-xs font-medium text-purple-600 dark:text-purple-400">
+                    <Sparkles size={12} />
+                    <span>Z-Image Turbo</span>
+                </div>
+            )}
+        </div>
+
         {/* Messages Scroll Area */}
-        <div className="flex-1 overflow-y-auto px-4 md:px-8 lg:px-12 py-6 space-y-6 md:space-y-8 scroll-smooth custom-scrollbar">
-          {messages.map((msg) => (
-            <MessageItem key={msg.id} msg={msg} mode={mode} onDelete={handleDeleteMessage} />
-          ))}
-          {messages.length === 0 && (
-             <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4 opacity-50 animate-fade-in">
-                {mode === 'chat' ? <Bot size={48} /> : <Sparkles size={48} />}
-                <p>开始你的 {mode === 'chat' ? '对话' : '创作'} 吧...</p>
-             </div>
-          )}
-          <div ref={messagesEndRef} className="h-2" />
+        <div className="flex-1 overflow-y-auto px-4 md:px-0 py-6 scroll-smooth custom-scrollbar">
+          <div className="max-w-4xl mx-auto md:px-6 space-y-6">
+              {messages.map((msg) => (
+                <MessageItem key={msg.id} msg={msg} mode={mode} onDelete={handleDeleteMessage} />
+              ))}
+              {messages.length === 0 && (
+                 <div className="flex flex-col items-center justify-center py-20 text-slate-400 space-y-6 opacity-60 animate-fade-in">
+                    <div className={`p-6 rounded-3xl ${mode === 'chat' ? 'bg-blue-100 dark:bg-blue-900/20' : 'bg-purple-100 dark:bg-purple-900/20'}`}>
+                        {mode === 'chat' 
+                            ? <Bot size={48} className="text-blue-500 dark:text-blue-400" /> 
+                            : <Sparkles size={48} className="text-purple-500 dark:text-purple-400" />
+                        }
+                    </div>
+                    <div className="text-center space-y-2">
+                        <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-200">
+                            {mode === 'chat' ? '开始新的对话' : '开始艺术创作'}
+                        </h3>
+                        <p className="text-sm">
+                            {mode === 'chat' ? '我可以回答问题、协助写作或提供建议。' : '描述你想象中的画面，我来为你绘制。'}
+                        </p>
+                    </div>
+                 </div>
+              )}
+              <div ref={messagesEndRef} className="h-2" />
+          </div>
         </div>
 
         {/* Input Area (Docked at Bottom) */}
-        <div className="shrink-0 p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-slate-200/50 dark:border-slate-800/50 z-10 transition-all duration-300">
-          <div className="max-w-6xl mx-auto">
-            <div className={`relative bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col p-2 transition-all duration-300
+        <div className="shrink-0 p-4 md:p-6 z-10 transition-all duration-300 md:mb-0 mb-36">
+          <div className="max-w-4xl mx-auto">
+            <div className={`relative bg-white dark:bg-slate-800 rounded-3xl shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col transition-all duration-300
                ${isTyping ? 'ring-2 ring-blue-500/10 border-blue-500/30 dark:border-blue-500/30' : 'hover:border-slate-300 dark:hover:border-slate-600'}
             `}>
               
@@ -572,79 +644,37 @@ const AIStudio: React.FC<AIStudioProps> = ({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={mode === 'chat' ? "有什么可以帮你的吗..." : "描述你想要生成的画面..."}
-                className="w-full max-h-[160px] bg-transparent border-none focus:ring-0 resize-none py-3 px-3 text-slate-700 dark:text-slate-100 placeholder-slate-400 text-[15px] leading-relaxed mb-2"
+                placeholder={mode === 'chat' ? "发送消息..." : "描述画面内容..."}
+                className="w-full max-h-[160px] bg-transparent border-none focus:ring-0 resize-none py-4 px-5 text-slate-700 dark:text-slate-100 placeholder-slate-400 text-[15px] leading-relaxed rounded-3xl"
                 rows={1}
               />
 
-              <div className="flex items-center justify-between pl-1 pr-1">
-                 {/* Left: Model Switcher (Chat Mode Only) */}
-                 <div className="relative">
-                    {mode === 'chat' && (
-                        <div ref={modelMenuRef}>
-                            <button 
-                                onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                                className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                            >
-                                {activeModel.icon}
-                                <span>{activeModel.name}</span>
-                                <ChevronDown size={12} className={`transition-transform duration-200 ${isModelMenuOpen ? 'rotate-180' : ''}`} />
-                            </button>
-                            
-                            {isModelMenuOpen && (
-                                <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50">
-                                    <div className="p-1">
-                                        <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">选择模型</div>
-                                        {MODELS.map((model) => (
-                                            <button
-                                                key={model.id}
-                                                onClick={() => {
-                                                    setCurrentModel(model.id);
-                                                    setIsModelMenuOpen(false);
-                                                }}
-                                                className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-2
-                                                    ${currentModel === model.id 
-                                                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' 
-                                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-                                                    }
-                                                `}
-                                            >
-                                                {model.icon}
-                                                <span>{model.name}</span>
-                                                {currentModel === model.id && <Check size={12} className="ml-auto" />}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                    {mode === 'image' && (
-                        <div className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-slate-400">
-                             <ImageIcon size={12} />
-                             <span>Z-Image Turbo</span>
-                        </div>
-                    )}
+              <div className="flex items-center justify-between px-2 pb-2 pl-4">
+                 <div className="flex items-center gap-2 text-xs text-slate-400">
+                    {mode === 'image' && <span className="flex items-center gap-1"><Zap size={10} /> 快速生成</span>}
                  </div>
 
                  {/* Right: Actions */}
                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] text-slate-300 dark:text-slate-600 hidden sm:inline-block select-none">
+                    <span className="text-[10px] text-slate-300 dark:text-slate-600 hidden sm:inline-block select-none font-medium">
                         Enter 发送
                     </span>
                     <button
                         onClick={handleSend}
                         disabled={!input.trim() || isTyping}
-                        className={`p-2 rounded-lg text-white transition-all duration-300 flex items-center justify-center transform active:scale-95
+                        className={`p-2.5 rounded-xl text-white transition-all duration-300 flex items-center justify-center transform active:scale-95
                             ${!input.trim() || isTyping ? 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed' : ''}
                             ${mode === 'chat' && input.trim() && !isTyping ? 'bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-500/20' : ''}
                             ${mode === 'image' && input.trim() && !isTyping ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-md hover:shadow-purple-500/20' : ''}
                         `}
                     >
-                        {isTyping ? <StopCircle size={16} className="animate-pulse" /> : <Send size={16} />}
+                        {isTyping ? <StopCircle size={18} className="animate-pulse" /> : <Send size={18} />}
                     </button>
                  </div>
               </div>
+            </div>
+            <div className="text-center mt-2 text-[10px] text-slate-400 dark:text-slate-600 select-none">
+                AI 内容由模型生成，请仔细甄别。
             </div>
           </div>
         </div>
