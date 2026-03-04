@@ -45,8 +45,14 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [isLiked, setIsLiked] = useState(false);
   
   // UI State
-  const [view, setView] = useState<'home' | 'playlist' | 'history' | 'search' | 'favorites' | 'charts' | 'album'>('home');
-  const [previousView, setPreviousView] = useState<typeof view>('home');
+  type NavState = {
+    view: 'home' | 'playlist' | 'history' | 'search' | 'favorites' | 'charts' | 'album';
+    selectedPlaylist?: Playlist | null;
+    playlistSongs?: Song[];
+    chartSource?: 'netease' | 'qq' | 'kuwo';
+  };
+  const [view, setView] = useState<NavState['view']>('home');
+  const [navStack, setNavStack] = useState<NavState[]>([]);
   const [chartSource, setChartSource] = useState<'netease' | 'qq' | 'kuwo'>('netease');
   
   const [playlistSongs, setPlaylistSongs] = useState<Song[]>([]);
@@ -154,6 +160,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const loadHistory = async () => {
       if (!user) return;
       setShowLyrics(false);
+      setNavStack([]);
       setLoading(true);
       const songs = await getHistory(user.id);
       setPlaylistSongs(songs);
@@ -167,6 +174,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
           return;
       }
       setShowLyrics(false);
+      setNavStack([]);
       setLoading(true);
       const songs = await getLikedSongs(user.id);
       setPlaylistSongs(songs);
@@ -301,7 +309,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
           return;
       }
 
-      setPreviousView(view);
+      setNavStack(prev => [...prev, { view, selectedPlaylist, playlistSongs, chartSource }]);
       setLoading(true);
       try {
           const data = await fetchAlbumDetails(albumId);
@@ -572,7 +580,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   };
 
   const handlePlaylistClick = async (playlist: Playlist) => {
-      setPreviousView(view);
+      setNavStack(prev => [...prev, { view, selectedPlaylist, playlistSongs, chartSource }]);
       setLoading(true);
       setSelectedPlaylist(playlist);
       setView('playlist');
@@ -621,7 +629,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        <div className="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">我的音乐</div>
                        <div className="space-y-0.5">
                            <button
-                             onClick={() => { setView('home'); setShowLyrics(false); }}
+                             onClick={() => { setView('home'); setShowLyrics(false); setNavStack([]); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${view === 'home' ? 'bg-red-500 text-white shadow-md shadow-red-500/25' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'}`}
                            >
                                <LayoutGrid size={16} className="shrink-0" /> 发现音乐
@@ -652,7 +660,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        <div className="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">精选榜单</div>
                        <div className="space-y-0.5">
                            <button
-                             onClick={() => { setView('charts'); setChartSource('netease'); setShowLyrics(false); }}
+                             onClick={() => { setView('charts'); setChartSource('netease'); setShowLyrics(false); setNavStack([]); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-left
                                 ${view === 'charts' && chartSource === 'netease'
                                     ? 'bg-red-500 text-white shadow-md shadow-red-500/25'
@@ -664,7 +672,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                <span>网易云</span>
                            </button>
                            <button
-                             onClick={() => { setView('charts'); setChartSource('qq'); setShowLyrics(false); }}
+                             onClick={() => { setView('charts'); setChartSource('qq'); setShowLyrics(false); setNavStack([]); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-left
                                 ${view === 'charts' && chartSource === 'qq'
                                     ? 'bg-green-500 text-white shadow-md shadow-green-500/25'
@@ -676,7 +684,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                <span>QQ音乐</span>
                            </button>
                            <button
-                             onClick={() => { setView('charts'); setChartSource('kuwo'); setShowLyrics(false); }}
+                             onClick={() => { setView('charts'); setChartSource('kuwo'); setShowLyrics(false); setNavStack([]); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-left
                                 ${view === 'charts' && chartSource === 'kuwo'
                                     ? 'bg-yellow-500 text-white shadow-md shadow-yellow-500/25'
@@ -803,7 +811,20 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                    {/* Internal Toolbar for Search and Navigation */}
                    <div className="sticky top-0 z-20 px-4 md:px-6 py-4 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800/50 flex items-center gap-4">
                         {view !== 'home' && view !== 'charts' && (
-                            <button onClick={() => setView(previousView)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
+                            <button onClick={() => {
+                                const prev = navStack[navStack.length - 1];
+                                if (prev) {
+                                    setNavStack(s => s.slice(0, -1));
+                                    setView(prev.view);
+                                    if (prev.view === 'playlist' || prev.view === 'history' || prev.view === 'favorites' || prev.view === 'search') {
+                                        setSelectedPlaylist(prev.selectedPlaylist ?? null);
+                                        setPlaylistSongs(prev.playlistSongs ?? []);
+                                    }
+                                    if (prev.chartSource) setChartSource(prev.chartSource);
+                                } else {
+                                    setView('home');
+                                }
+                            }} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
                                <ArrowLeft size={20} className="text-slate-600 dark:text-slate-300" />
                             </button>
                         )}
@@ -869,73 +890,106 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                            <>
                                {(view === 'history' || view === 'search' || view === 'favorites' || view === 'playlist') && (
                                    <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                       {/* Header - Transparent/Modern Style */}
-                                       <div className="px-6 md:px-10 py-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 border-b border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-800/20 backdrop-blur-sm">
-                                            <div className="flex items-center gap-6">
-                                                {/* Album Art / Icon */}
-                                                {view === 'playlist' && selectedPlaylist ? (
-                                                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl overflow-hidden shadow-lg shrink-0">
-                                                        <img src={selectedPlaylist.coverImgUrl} className="w-full h-full object-cover" />
-                                                    </div>
-                                                ) : (
-                                                    <div className={`w-24 h-24 md:w-32 md:h-32 rounded-xl flex items-center justify-center shadow-lg shrink-0
-                                                        ${view === 'history' ? 'bg-blue-500 text-white' : view === 'favorites' ? 'bg-red-500 text-white' : 'bg-red-500 text-white'}
-                                                    `}>
-                                                        {view === 'history' ? <Clock size={40} /> : view === 'favorites' ? <Heart size={40} /> : <Search size={40} />}
-                                                    </div>
-                                                )}
-                                                
-                                                <div className="flex flex-col gap-2">
-                                                    <h2 className="text-2xl md:text-4xl font-extrabold text-slate-800 dark:text-slate-100 line-clamp-2">
-                                                        {view === 'history' ? '播放历史' : view === 'favorites' ? '我喜欢的音乐' : view === 'search' ? `搜索: "${searchQuery}"` : view === 'playlist' && selectedPlaylist ? selectedPlaylist.name : ''}
-                                                    </h2>
-                                                    
-                                                    {/* Album Details Metadata */}
-                                                    {view === 'playlist' && selectedPlaylist && selectedPlaylist.source === 'netease' && (
-                                                        <div className="text-xs md:text-sm text-slate-500 dark:text-slate-400 space-y-1 mt-1">
-                                                            {selectedPlaylist.artist && <p>歌手：{selectedPlaylist.artist}</p>}
-                                                            <div className="flex flex-wrap gap-x-4 gap-y-1">
-                                                                {selectedPlaylist.publishTime && <p>发行时间：{selectedPlaylist.publishTime}</p>}
-                                                                {selectedPlaylist.company && <p>发行公司：{selectedPlaylist.company}</p>}
-                                                            </div>
-                                                        </div>
-                                                    )}
 
-                                                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium flex items-center gap-3 mt-1">
-                                                        <span>{(view === 'search' ? searchResults : playlistSongs).length} 首歌曲</span>
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="flex gap-3 w-full md:w-auto">
-                                                <button 
-                                                  onClick={() => playAll(view === 'search' ? searchResults : playlistSongs)}
-                                                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-red-600 hover:bg-red-500 text-white rounded-full text-base font-bold shadow-lg shadow-red-500/30 transition-all hover:scale-105 active:scale-95"
-                                                >
-                                                    <Play size={20} fill="currentColor" /> 播放全部
-                                                </button>
-                                            </div>
-                                       </div>
-
-                                       {/* Description Section (Expandable) */}
-                                       {view === 'playlist' && selectedPlaylist && selectedPlaylist.description && (
-                                           <div className="px-6 md:px-10 py-4 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200/50 dark:border-slate-800/50">
-                                               <div className={`text-sm text-slate-500 dark:text-slate-400 leading-relaxed whitespace-pre-wrap transition-all duration-300 relative ${showFullDesc ? '' : 'max-h-20 overflow-hidden'}`}>
-                                                   <span className="font-bold text-slate-700 dark:text-slate-300 block mb-1">专辑介绍：</span>
-                                                   {selectedPlaylist.description}
-                                                   {!showFullDesc && (
-                                                       <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-slate-50 dark:from-slate-900 to-transparent"></div>
-                                                   )}
+                                       {/* Hero Header */}
+                                       <div className="relative overflow-hidden">
+                                           {/* Blurred background from album art */}
+                                           {view === 'playlist' && selectedPlaylist ? (
+                                               <div className="absolute inset-0">
+                                                   <img src={selectedPlaylist.coverImgUrl} className="w-full h-full object-cover scale-110 blur-2xl opacity-30 dark:opacity-20" />
+                                                   <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/80 to-white dark:from-slate-900/60 dark:via-slate-900/80 dark:to-slate-900"></div>
                                                </div>
-                                               <button 
-                                                   onClick={() => setShowFullDesc(!showFullDesc)}
-                                                   className="mt-2 text-xs font-bold text-blue-500 hover:text-blue-600 flex items-center gap-1"
-                                               >
-                                                   {showFullDesc ? '收起介绍' : '展开全部'}
-                                                   <ChevronDown size={12} className={`transition-transform ${showFullDesc ? 'rotate-180' : ''}`} />
-                                               </button>
+                                           ) : (
+                                               <div className={`absolute inset-0 opacity-10 ${view === 'history' ? 'bg-blue-500' : view === 'favorites' ? 'bg-red-500' : 'bg-slate-500'}`}></div>
+                                           )}
+
+                                           <div className="relative px-6 md:px-10 pt-8 pb-6 flex flex-col md:flex-row items-start md:items-end gap-6">
+                                               {/* Album Art / Icon */}
+                                               {view === 'playlist' && selectedPlaylist ? (
+                                                   <div className="w-36 h-36 md:w-48 md:h-48 rounded-2xl overflow-hidden shadow-2xl shrink-0 ring-1 ring-black/10">
+                                                       <img src={selectedPlaylist.coverImgUrl} className="w-full h-full object-cover" />
+                                                   </div>
+                                               ) : (
+                                                   <div className={`w-36 h-36 md:w-48 md:h-48 rounded-2xl flex items-center justify-center shadow-2xl shrink-0
+                                                       ${view === 'history' ? 'bg-gradient-to-br from-blue-400 to-blue-600' : view === 'favorites' ? 'bg-gradient-to-br from-red-400 to-pink-600' : 'bg-gradient-to-br from-slate-400 to-slate-600'}
+                                                       text-white
+                                                   `}>
+                                                       {view === 'history' ? <Clock size={52} /> : view === 'favorites' ? <Heart size={52} /> : <Search size={52} />}
+                                                   </div>
+                                               )}
+
+                                               {/* Info */}
+                                               <div className="flex-1 min-w-0 flex flex-col gap-3 pb-1">
+                                                   {/* Type Label */}
+                                                   <div className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                                                       {view === 'playlist' ? '专辑' : view === 'history' ? '播放记录' : view === 'favorites' ? '我的收藏' : '搜索结果'}
+                                                   </div>
+
+                                                   <h2 className="text-3xl md:text-5xl font-extrabold text-slate-800 dark:text-slate-50 leading-tight line-clamp-2">
+                                                       {view === 'history' ? '最近播放' : view === 'favorites' ? '我喜欢的音乐' : view === 'search' ? `"${searchQuery}"` : selectedPlaylist?.name ?? ''}
+                                                   </h2>
+
+                                                   {/* Metadata Chips */}
+                                                   {view === 'playlist' && selectedPlaylist && (
+                                                       <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                           {selectedPlaylist.artist && (
+                                                               <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                                                   <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                                                                       <Music size={10} className="text-slate-500" />
+                                                                   </div>
+                                                                   {selectedPlaylist.artist}
+                                                               </span>
+                                                           )}
+                                                           {selectedPlaylist.artist && (selectedPlaylist.publishTime || selectedPlaylist.company) && (
+                                                               <span className="text-slate-300 dark:text-slate-600">·</span>
+                                                           )}
+                                                           {selectedPlaylist.publishTime && (
+                                                               <span className="text-sm text-slate-500 dark:text-slate-400">{selectedPlaylist.publishTime}</span>
+                                                           )}
+                                                           {selectedPlaylist.company && (
+                                                               <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium border border-slate-200 dark:border-slate-700">
+                                                                   {selectedPlaylist.company}
+                                                               </span>
+                                                           )}
+                                                       </div>
+                                                   )}
+
+                                                   {/* Song Count + Play Button Row */}
+                                                   <div className="flex items-center gap-4 mt-1">
+                                                       <button
+                                                         onClick={() => playAll(view === 'search' ? searchResults : playlistSongs)}
+                                                         className="flex items-center gap-2.5 px-7 py-2.5 bg-red-500 hover:bg-red-400 text-white rounded-full text-sm font-bold shadow-lg shadow-red-500/30 transition-all hover:scale-105 active:scale-95"
+                                                       >
+                                                           <Play size={16} fill="currentColor" /> 播放全部
+                                                       </button>
+                                                       <span className="text-sm text-slate-400 dark:text-slate-500 font-medium">
+                                                           {(view === 'search' ? searchResults : playlistSongs).length} 首
+                                                       </span>
+                                                   </div>
+                                               </div>
                                            </div>
-                                       )}
+
+                                           {/* Description - Integrated into hero */}
+                                           {view === 'playlist' && selectedPlaylist?.description && (
+                                               <div className="relative px-6 md:px-10 pb-6">
+                                                   <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl border border-slate-200/60 dark:border-slate-700/50 p-4">
+                                                       <div className={`text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap transition-all duration-300 relative overflow-hidden ${showFullDesc ? '' : 'max-h-[4.5rem]'}`}>
+                                                           {selectedPlaylist.description}
+                                                           {!showFullDesc && (
+                                                               <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white/80 dark:from-slate-800/80 to-transparent"></div>
+                                                           )}
+                                                       </div>
+                                                       <button
+                                                           onClick={() => setShowFullDesc(!showFullDesc)}
+                                                           className="mt-2 flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-400 transition-colors"
+                                                       >
+                                                           {showFullDesc ? '收起' : '展开介绍'}
+                                                           <ChevronDown size={13} className={`transition-transform duration-200 ${showFullDesc ? 'rotate-180' : ''}`} />
+                                                       </button>
+                                                   </div>
+                                               </div>
+                                           )}
+                                       </div>
 
                                        {/* List Header - Sticky */}
                                        <div className="sticky top-[72px] z-10 grid grid-cols-[50px_1fr_40px] md:grid-cols-[60px_4fr_3fr_80px] gap-4 px-6 md:px-10 py-3 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-400 uppercase tracking-wider shadow-sm">
