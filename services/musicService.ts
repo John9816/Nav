@@ -20,6 +20,17 @@ const toHttps = (url: string) => {
     return url.replace(/^http:\/\//i, 'https://');
 };
 
+// Upscale Netease cover URLs by stripping any existing query params and appending high-res param
+const toHighResCover = (url: string, size: number = 800): string => {
+    if (!url) return '';
+    const https = toHttps(url);
+    if (https.includes('music.126.net')) {
+        const base = https.split('?')[0];
+        return `${base}?param=${size}y${size}`;
+    }
+    return https;
+};
+
 // Helper to resolve Netease Cover URL from GDStudio JSON API
 const resolveNeteaseCover = async (picId: string | number): Promise<string | undefined> => {
     if (!picId) return undefined;
@@ -32,7 +43,7 @@ const resolveNeteaseCover = async (picId: string | number): Promise<string | und
     const fetchTask = async () => {
         try {
             // Using the interface provided by user which returns JSON
-            const response = await fetch(`/gdstudio-api/api.php?types=pic&source=netease&id=${picId}&size=500`);
+            const response = await fetch(`/gdstudio-api/api.php?types=pic&source=netease&id=${picId}&size=1000`);
             const data = await response.json();
             if (data && data.url) {
                 return toHttps(data.url);
@@ -67,7 +78,7 @@ const mapApiItemToSong = async (item: any): Promise<Song> => {
 
   // Album
   const al = item.al || item.album || {};
-  let picUrl = toHttps(al.picUrl || item.picUrl || item.img120 || '');
+  let picUrl = toHighResCover(al.picUrl || item.picUrl || item.img120 || '');
   
   // Try to resolve cover via API if picId exists
   // We prioritize this if the original picUrl is suspicious or just to ensure we use the requested interface
@@ -339,7 +350,7 @@ export const fetchNeteaseTopPlaylists = async (cat: string = '', limit: number =
     return playlists.map((item: any) => ({
       id: item.id,
       name: item.name,
-      coverImgUrl: toHttps(item.coverImgUrl || item.picUrl || ''),
+      coverImgUrl: toHighResCover(item.coverImgUrl || item.picUrl || ''),
       description: item.description || '',
       trackCount: item.trackCount || 0,
       playCount: item.playCount || 0,
@@ -365,7 +376,7 @@ const fetchNeteaseTopLists = async (): Promise<Playlist[]> => {
         return list.slice(0, 15).map((item: any) => ({
             id: item.id,
             name: item.name,
-            coverImgUrl: toHttps(item.coverImgUrl || item.picUrl),
+            coverImgUrl: toHighResCover(item.coverImgUrl || item.picUrl),
             description: item.description || '',
             trackCount: item.trackCount || 0,
             playCount: item.playCount || 0,

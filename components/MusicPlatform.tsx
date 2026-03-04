@@ -1151,19 +1151,6 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                {view === 'charts' && (
                                    <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
                                        <div className="px-6 md:px-10 py-8">
-                                            <div className="mb-6 flex items-center gap-3">
-                                                {chartSource === 'netease' && <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-xl"><Disc size={24} /></div>}
-                                                {chartSource === 'qq' && <div className="p-2 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-xl"><Music size={24} /></div>}
-                                                {chartSource === 'kuwo' && <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 rounded-xl"><Radio size={24} /></div>}
-                                                <div>
-                                                    <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-                                                        {chartSource === 'netease' ? '网易云音乐' : chartSource === 'qq' ? 'QQ音乐榜单' : '酷我音乐榜单'}
-                                                    </h3>
-                                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                                        热门排行一网打尽
-                                                    </p>
-                                                </div>
-                                            </div>
 
                                             {/* Netease: unified tabs (榜单 + 歌单分类) */}
                                             {chartSource === 'netease' ? (
@@ -1187,7 +1174,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
                                                     {/* 榜单 tab: show netease charts */}
                                                     {playlistCat === '榜单' && (
-                                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                                                        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4">
                                                             {topLists.filter(l => l.source === 'netease').map(list => (
                                                                 <div
                                                                     key={list.id}
@@ -1222,7 +1209,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                     {/* 歌单分类 tab */}
                                                     {playlistCat !== '榜单' && (
                                                         <>
-                                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                                                            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4">
                                                                 {topPlaylists.map(list => (
                                                                     <div
                                                                         key={list.id}
@@ -1283,7 +1270,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                 </>
                                             ) : (
                                                 /* QQ / Kuwo: charts only */
-                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                                                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4">
                                                     {topLists.filter(l => l.source === chartSource).map(list => (
                                                         <div
                                                             key={list.id}
