@@ -321,6 +321,37 @@ export const fetchAlbumDetails = async (id: string | number): Promise<{ album: P
 };
 
 /**
+ * Fetch Netease Regular Playlists (普通歌单)
+ */
+export const fetchNeteaseTopPlaylists = async (cat: string = '', limit: number = 42, offset: number = 0): Promise<Playlist[]> => {
+  try {
+    const params = new URLSearchParams({
+      cat,
+      limit: String(limit),
+      offset: String(offset),
+      timestamp: String(Date.now()),
+      device: 'mobile'
+    });
+    const response = await fetch(`/alger-api/api/top/playlist?${params.toString()}`);
+    const data = await response.json();
+    console.log('[fetchNeteaseTopPlaylists] raw response:', data);
+    const playlists = data.playlists || data.data?.playlists || data.result?.playlists || [];
+    return playlists.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      coverImgUrl: toHttps(item.coverImgUrl || item.picUrl || ''),
+      description: item.description || '',
+      trackCount: item.trackCount || 0,
+      playCount: item.playCount || 0,
+      source: 'netease' as const
+    }));
+  } catch (e) {
+    console.warn('Fetch Netease top playlists failed', e);
+    return [];
+  }
+};
+
+/**
  * Fetch Netease Top Lists
  */
 const fetchNeteaseTopLists = async (): Promise<Playlist[]> => {

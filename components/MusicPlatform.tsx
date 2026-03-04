@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Song, Playlist, LyricLine } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { 
-  fetchSongUrl, fetchSongDetail, fetchLyrics, 
+  fetchSongUrl, fetchSongDetail, fetchLyrics,
   fetchPlaylistDetails, addToHistory, getHistory, deleteFromHistory,
   fetchTopLists, fetchDailyRecommendSongs, searchSongs, getLikedSongs, toggleLike, checkIsLiked, parseLyrics,
-  fetchRandomMusic, fetchAlbumDetails
+  fetchRandomMusic, fetchAlbumDetails, fetchNeteaseTopPlaylists
 } from '../services/musicService';
 import { 
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
@@ -27,8 +27,18 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 }) => {
   const { user } = useAuth();
   
+  // Playlist categories for Netease top playlists
+  const PLAYLIST_CATS = ['榜单', '推荐', '流行', '华语', '欧美', '摇滚', '民谣', '电子', '舞曲', '日语', '韩语', '粤语', '影视原声', 'ACG', '综艺', '清晨', '夜晚', '清新', '怀旧', '浪漫', '伤感', '治愈', '午休', '下午茶', '工作', '学习', '校园', '儿童', '游戏', '70后'];
+
   // Data State
   const [topLists, setTopLists] = useState<Playlist[]>([]);
+  const PLAYLIST_PAGE_SIZE = 30;
+  const [topPlaylists, setTopPlaylists] = useState<Playlist[]>([]);
+  const [topPlaylistsLoading, setTopPlaylistsLoading] = useState(false);
+  const [topPlaylistsLoadingMore, setTopPlaylistsLoadingMore] = useState(false);
+  const [topPlaylistsOffset, setTopPlaylistsOffset] = useState(0);
+  const [topPlaylistsHasMore, setTopPlaylistsHasMore] = useState(true);
+  const [playlistCat, setPlaylistCat] = useState('榜单');
   const [dailySongs, setDailySongs] = useState<Song[]>([]);
   
   // Player State
@@ -89,12 +99,41 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
   // Load Initial Data
   useEffect(() => {
-    // Load Top Lists for Sidebar
     fetchTopLists().then(setTopLists).catch(e => console.warn("Failed to load top lists", e));
-    
-    // Load Daily Recommendations for Home
     fetchDailyRecommendSongs().then(setDailySongs).catch(e => console.warn("Failed to load daily songs", e));
   }, []);
+
+  // Reload topPlaylists when category changes (reset pagination)
+  useEffect(() => {
+    if (playlistCat === '榜单') return; // charts are already in topLists
+    setTopPlaylistsLoading(true);
+    setTopPlaylists([]);
+    setTopPlaylistsOffset(0);
+    setTopPlaylistsHasMore(true);
+    const cat = playlistCat === '推荐' ? '' : playlistCat;
+    fetchNeteaseTopPlaylists(cat, PLAYLIST_PAGE_SIZE, 0)
+      .then(data => {
+        setTopPlaylists(data);
+        setTopPlaylistsHasMore(data.length >= PLAYLIST_PAGE_SIZE);
+        setTopPlaylistsOffset(data.length);
+      })
+      .catch(e => console.warn("Failed to load top playlists", e))
+      .finally(() => setTopPlaylistsLoading(false));
+  }, [playlistCat]);
+
+  const loadMoreTopPlaylists = () => {
+    if (topPlaylistsLoadingMore || !topPlaylistsHasMore) return;
+    setTopPlaylistsLoadingMore(true);
+    const cat = playlistCat === '推荐' ? '' : playlistCat;
+    fetchNeteaseTopPlaylists(cat, PLAYLIST_PAGE_SIZE, topPlaylistsOffset)
+      .then(data => {
+        setTopPlaylists(prev => [...prev, ...data]);
+        setTopPlaylistsHasMore(data.length >= PLAYLIST_PAGE_SIZE);
+        setTopPlaylistsOffset(prev => prev + data.length);
+      })
+      .catch(e => console.warn("Failed to load more playlists", e))
+      .finally(() => setTopPlaylistsLoadingMore(false));
+  };
 
   // Sync volume
   useEffect(() => {
@@ -1108,7 +1147,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                    </div>
                                )}
 
-                               {/* Charts View (New) */}
+                               {/* Charts View */}
                                {view === 'charts' && (
                                    <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
                                        <div className="px-6 md:px-10 py-8">
@@ -1118,45 +1157,163 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                 {chartSource === 'kuwo' && <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 rounded-xl"><Radio size={24} /></div>}
                                                 <div>
                                                     <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-                                                        {chartSource === 'netease' ? '网易云音乐榜单' : chartSource === 'qq' ? 'QQ音乐榜单' : '酷我音乐榜单'}
+                                                        {chartSource === 'netease' ? '网易云音乐' : chartSource === 'qq' ? 'QQ音乐榜单' : '酷我音乐榜单'}
                                                     </h3>
                                                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                                                         热门排行一网打尽
                                                     </p>
                                                 </div>
                                             </div>
-                                            
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                                                {topLists.filter(l => l.source === chartSource).map(list => (
-                                                    <div 
-                                                        key={list.id}
-                                                        onClick={() => handlePlaylistClick(list)}
-                                                        className="group cursor-pointer flex flex-col gap-2"
-                                                    >
-                                                        <div className="aspect-square rounded-2xl overflow-hidden shadow-md relative bg-slate-200 dark:bg-slate-800">
-                                                            <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
-                                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                                                <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all shadow-xl backdrop-blur-sm">
-                                                                    <Play size={24} fill="currentColor" className="ml-1" />
+
+                                            {/* Netease: unified tabs (榜单 + 歌单分类) */}
+                                            {chartSource === 'netease' ? (
+                                                <>
+                                                    {/* Category Tabs */}
+                                                    <div className="flex flex-wrap gap-2 mb-6">
+                                                        {PLAYLIST_CATS.map(cat => (
+                                                            <button
+                                                                key={cat}
+                                                                onClick={() => setPlaylistCat(cat)}
+                                                                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                                                                    playlistCat === cat
+                                                                        ? 'bg-red-500 text-white shadow-md shadow-red-500/30'
+                                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'
+                                                                }`}
+                                                            >
+                                                                {cat}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+
+                                                    {/* 榜单 tab: show netease charts */}
+                                                    {playlistCat === '榜单' && (
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                                                            {topLists.filter(l => l.source === 'netease').map(list => (
+                                                                <div
+                                                                    key={list.id}
+                                                                    onClick={() => handlePlaylistClick(list)}
+                                                                    className="group cursor-pointer flex flex-col gap-2"
+                                                                >
+                                                                    <div className="aspect-square rounded-2xl overflow-hidden shadow-md relative bg-slate-200 dark:bg-slate-800">
+                                                                        <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                                                            <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all shadow-xl backdrop-blur-sm">
+                                                                                <Play size={24} fill="currentColor" className="ml-1" />
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="absolute top-2 right-2 text-[10px] text-white font-bold px-2 py-1 bg-black/40 backdrop-blur-md rounded-full flex items-center gap-1">
+                                                                            <Play size={8} fill="currentColor" />
+                                                                            {list.playCount > 10000 ? `${(list.playCount / 10000).toFixed(1)}万` : list.playCount}
+                                                                        </div>
+                                                                    </div>
+                                                                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-snug group-hover:text-red-500 transition-colors">
+                                                                        {list.name}
+                                                                    </h4>
+                                                                </div>
+                                                            ))}
+                                                            {topLists.filter(l => l.source === 'netease').length === 0 && (
+                                                                <div className="col-span-full text-center py-20 text-slate-400">
+                                                                    {loading ? '榜单加载中...' : '暂无榜单数据'}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* 歌单分类 tab */}
+                                                    {playlistCat !== '榜单' && (
+                                                        <>
+                                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                                                                {topPlaylists.map(list => (
+                                                                    <div
+                                                                        key={list.id}
+                                                                        onClick={() => handlePlaylistClick(list)}
+                                                                        className="group cursor-pointer flex flex-col gap-2"
+                                                                    >
+                                                                        <div className="aspect-square rounded-2xl overflow-hidden shadow-md relative bg-slate-200 dark:bg-slate-800">
+                                                                            <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                                                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                                                                <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all shadow-xl backdrop-blur-sm">
+                                                                                    <Play size={24} fill="currentColor" className="ml-1" />
+                                                                                </div>
+                                                                            </div>
+                                                                            {list.playCount > 0 && (
+                                                                                <div className="absolute top-2 right-2 text-[10px] text-white font-bold px-2 py-1 bg-black/40 backdrop-blur-md rounded-full flex items-center gap-1">
+                                                                                    <Play size={8} fill="currentColor" />
+                                                                                    {list.playCount > 10000 ? `${(list.playCount / 10000).toFixed(1)}万` : list.playCount}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-snug group-hover:text-red-500 transition-colors">
+                                                                            {list.name}
+                                                                        </h4>
+                                                                    </div>
+                                                                ))}
+                                                                {topPlaylistsLoading && (
+                                                                    <div className="col-span-full flex justify-center py-10">
+                                                                        <Loader2 size={24} className="animate-spin text-red-400" />
+                                                                    </div>
+                                                                )}
+                                                                {!topPlaylistsLoading && topPlaylists.length === 0 && (
+                                                                    <div className="col-span-full text-center py-10 text-slate-400 text-sm">
+                                                                        暂无歌单数据
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            {/* Load More */}
+                                                            {!topPlaylistsLoading && topPlaylists.length > 0 && (
+                                                                <div className="mt-8 flex justify-center">
+                                                                    {topPlaylistsHasMore ? (
+                                                                        <button
+                                                                            onClick={loadMoreTopPlaylists}
+                                                                            disabled={topPlaylistsLoadingMore}
+                                                                            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-all disabled:opacity-50"
+                                                                        >
+                                                                            {topPlaylistsLoadingMore
+                                                                                ? <><Loader2 size={15} className="animate-spin" /> 加载中...</>
+                                                                                : <><ArrowDown size={15} /> 加载更多</>
+                                                                            }
+                                                                        </button>
+                                                                    ) : (
+                                                                        <p className="text-xs text-slate-400 dark:text-slate-600">已加载全部歌单</p>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                /* QQ / Kuwo: charts only */
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                                                    {topLists.filter(l => l.source === chartSource).map(list => (
+                                                        <div
+                                                            key={list.id}
+                                                            onClick={() => handlePlaylistClick(list)}
+                                                            className="group cursor-pointer flex flex-col gap-2"
+                                                        >
+                                                            <div className="aspect-square rounded-2xl overflow-hidden shadow-md relative bg-slate-200 dark:bg-slate-800">
+                                                                <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                                                    <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all shadow-xl backdrop-blur-sm">
+                                                                        <Play size={24} fill="currentColor" className="ml-1" />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="absolute top-2 right-2 text-[10px] text-white font-bold px-2 py-1 bg-black/40 backdrop-blur-md rounded-full flex items-center gap-1">
+                                                                    <Play size={8} fill="currentColor" />
+                                                                    {list.playCount > 10000 ? `${(list.playCount / 10000).toFixed(1)}万` : list.playCount}
                                                                 </div>
                                                             </div>
-                                                            {/* Play Count Overlay */}
-                                                            <div className="absolute top-2 right-2 text-[10px] text-white font-bold px-2 py-1 bg-black/40 backdrop-blur-md rounded-full flex items-center gap-1">
-                                                                <Play size={8} fill="currentColor" />
-                                                                {list.playCount > 10000 ? `${(list.playCount / 10000).toFixed(1)}万` : list.playCount}
-                                                            </div>
+                                                            <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-snug group-hover:text-red-500 transition-colors">
+                                                                {list.name}
+                                                            </h4>
                                                         </div>
-                                                        <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-snug group-hover:text-red-500 transition-colors">
-                                                            {list.name}
-                                                        </h4>
-                                                    </div>
-                                                ))}
-                                                {topLists.filter(l => l.source === chartSource).length === 0 && (
-                                                    <div className="col-span-full text-center py-20 text-slate-400">
-                                                        {loading ? '榜单加载中...' : '暂无榜单数据'}
-                                                    </div>
-                                                )}
-                                            </div>
+                                                    ))}
+                                                    {topLists.filter(l => l.source === chartSource).length === 0 && (
+                                                        <div className="col-span-full text-center py-20 text-slate-400">
+                                                            {loading ? '榜单加载中...' : '暂无榜单数据'}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                        </div>
                                    </div>
                                )}
