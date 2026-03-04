@@ -42,7 +42,7 @@
     },
     {
       "source": "/alger-api/(.*)",
-      "destination": "http://mc.alger.fun/$1"
+      "destination": "/api/alger?_path=$1"
     },
     {
       "source": "/((?!assets/|.*\\..*).*)",
