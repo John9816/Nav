@@ -334,7 +334,7 @@ export const fetchAlbumDetails = async (id: string | number): Promise<{ album: P
 /**
  * Fetch Netease Regular Playlists (普通歌单)
  */
-export const fetchNeteaseTopPlaylists = async (cat: string = '', limit: number = 42, offset: number = 0): Promise<Playlist[]> => {
+export const fetchNeteaseTopPlaylists = async (cat: string = '', limit: number = 30, offset: number = 0): Promise<Playlist[]> => {
   try {
     const params = new URLSearchParams({
       cat,
@@ -345,7 +345,6 @@ export const fetchNeteaseTopPlaylists = async (cat: string = '', limit: number =
     });
     const response = await fetch(`/alger-api/api/top/playlist?${params.toString()}`);
     const data = await response.json();
-    console.log('[fetchNeteaseTopPlaylists] raw response:', data);
     const playlists = data.playlists || data.data?.playlists || data.result?.playlists || [];
     return playlists.map((item: any) => ({
       id: item.id,
