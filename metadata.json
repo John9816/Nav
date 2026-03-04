@@ -1,5 +1,5 @@
 {
-  "name": "Blank Canvas AI",
-  "description": "A minimalist, distraction-free interface for interacting with Gemini models. Features a clean 'blank page' aesthetic.",
+  "name": "七五导航",
+  "description": "一个功能丰富的导航网站，包含音乐播放、搜索、常用链接等功能。",
   "requestFramePermissions": []
 }

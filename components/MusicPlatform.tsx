@@ -86,9 +86,6 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     // Load Top Lists for Sidebar
     fetchTopLists().then(setTopLists).catch(e => console.warn("Failed to load top lists", e));
     
-    // Load Playlists
-    fetchPlaylists().then(setPlaylists).catch(e => console.warn("Failed to load playlists", e));
-
     // Load Daily Recommendations for Home
     fetchDailyRecommendSongs().then(setDailySongs).catch(e => console.warn("Failed to load daily songs", e));
   }, []);
@@ -680,18 +677,6 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                <Radio size={18} className="shrink-0 text-yellow-500" /> 
                                <span>酷我音乐</span>
                            </button>
-                           <button 
-                             onClick={() => { setView('playlists'); }}
-                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors truncate text-left
-                                ${view === 'playlists'
-                                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' 
-                                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                                }
-                             `}
-                           >
-                               <ListMusic size={18} className="shrink-0 text-blue-500" /> 
-                               <span>歌单分类</span>
-                           </button>
                        </div>
                    </div>
                </div>
@@ -723,6 +708,12 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${view === 'history' ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50' : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}
                    >
                        历史
+                   </button>
+                   <button 
+                     onClick={() => { setView('playlists'); }}
+                     className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${view === 'playlists' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/50' : 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'}`}
+                   >
+                       歌单
                    </button>
                </div>
            </div>
@@ -1091,6 +1082,57 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                 {topLists.filter(l => l.source === chartSource).length === 0 && (
                                                     <div className="col-span-full text-center py-20 text-slate-400">
                                                         {loading ? '榜单加载中...' : '暂无榜单数据'}
+                                                    </div>
+                                                )}
+                                            </div>
+                                       </div>
+                                   </div>
+                               )}
+
+                               {/* Playlists View (New) */}
+                               {view === 'playlists' && (
+                                   <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
+                                       <div className="px-6 md:px-10 py-8">
+                                            <div className="mb-6 flex items-center gap-3">
+                                                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-xl"><ListMusic size={24} /></div>
+                                                <div>
+                                                    <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+                                                        网易云音乐歌单
+                                                    </h3>
+                                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                                        精选歌单推荐
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                                                {playlists.map(list => (
+                                                    <div 
+                                                        key={list.id}
+                                                        onClick={() => handlePlaylistClick(list)}
+                                                        className="group cursor-pointer flex flex-col gap-2"
+                                                    >
+                                                        <div className="aspect-square rounded-2xl overflow-hidden shadow-md relative bg-slate-200 dark:bg-slate-800">
+                                                            <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                                                <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center text-blue-500 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all shadow-xl backdrop-blur-sm">
+                                                                    <Play size={24} fill="currentColor" className="ml-1" />
+                                                                </div>
+                                                            </div>
+                                                            {/* Play Count Overlay */}
+                                                            <div className="absolute top-2 right-2 text-[10px] text-white font-bold px-2 py-1 bg-black/40 backdrop-blur-md rounded-full flex items-center gap-1">
+                                                                <Play size={8} fill="currentColor" />
+                                                                {list.playCount > 10000 ? `${(list.playCount / 10000).toFixed(1)}万` : list.playCount}
+                                                            </div>
+                                                        </div>
+                                                        <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-snug group-hover:text-blue-500 transition-colors">
+                                                            {list.name}
+                                                        </h4>
+                                                    </div>
+                                                ))}
+                                                {playlists.length === 0 && (
+                                                    <div className="col-span-full text-center py-20 text-slate-400">
+                                                        {loading ? '歌单加载中...' : '暂无歌单数据'}
                                                     </div>
                                                 )}
                                             </div>
