@@ -10,10 +10,22 @@ const FORWARD_HEADERS: Record<string, string> = {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // req.query.path = ['api', 'top', 'playlist'], other keys = actual query params
   const pathSegments = (req.query.path as string[]) || [];
-  const path = pathSegments.join('/');
-  const search = req.url?.split('?')[1] ? `?${req.url.split('?')[1]}` : '';
-  const url = `${TARGET}/${path}${search}`;
+  const urlPath = pathSegments.join('/');
+
+  // Rebuild query string, excluding the internal 'path' key injected by Vercel
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(req.query)) {
+    if (key === 'path') continue;
+    if (Array.isArray(value)) {
+      value.forEach(v => qs.append(key, v));
+    } else if (value !== undefined) {
+      qs.set(key, value as string);
+    }
+  }
+  const search = qs.toString() ? `?${qs.toString()}` : '';
+  const url = `${TARGET}/${urlPath}${search}`;
 
   try {
     const upstream = await fetch(url, {
