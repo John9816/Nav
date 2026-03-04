@@ -1,0 +1,5 @@
+{
+  "name": "Blank Canvas AI",
+  "description": "A minimalist, distraction-free interface for interacting with Gemini models. Features a clean 'blank page' aesthetic.",
+  "requestFramePermissions": []
+}

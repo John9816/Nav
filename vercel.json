@@ -1,0 +1,52 @@
+{
+  "rewrites": [
+    {
+      "source": "/netease-api/(.*)",
+      "destination": "https://music.163.com/$1"
+    },
+    {
+      "source": "/qq-api/(.*)",
+      "destination": "https://u.y.qq.com/$1"
+    },
+    {
+      "source": "/kuwo-api/(.*)",
+      "destination": "http://search.kuwo.cn/$1"
+    },
+    {
+      "source": "/kuwo-data-api/(.*)",
+      "destination": "http://qukudata.kuwo.cn/$1"
+    },
+    {
+      "source": "/kuwo-www-api/(.*)",
+      "destination": "http://www.kuwo.cn/$1"
+    },
+    {
+      "source": "/random-music-api/(.*)",
+      "destination": "https://node.api.xfabe.com/$1"
+    },
+    {
+      "source": "/music-api/(.*)",
+      "destination": "https://music.byebug.cn/api/$1"
+    },
+    {
+      "source": "/cy-api/(.*)",
+      "destination": "https://cyapi.top/$1"
+    },
+    {
+      "source": "/yunzhi-api/(.*)",
+      "destination": "https://yunzhiapi.cn/$1"
+    },
+    {
+      "source": "/gdstudio-api/(.*)",
+      "destination": "https://music-api.gdstudio.xyz/$1"
+    },
+    {
+      "source": "/alger-api/(.*)",
+      "destination": "http://mc.alger.fun/$1"
+    },
+    {
+      "source": "/((?!assets/|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
