@@ -4,7 +4,8 @@
       "Bash(gh auth:*)",
       "Bash(curl:*)",
       "Bash(npm install:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

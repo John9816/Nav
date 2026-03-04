@@ -89,3 +89,16 @@ body {
   animation: music-wave 0.9s ease-in-out infinite;
   animation-delay: 0.2s;
 }
+
+/* Vinyl Record Spin */
+@keyframes vinyl-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-vinyl-spin {
+  animation: vinyl-spin 8s linear infinite;
+}
+.animate-vinyl-spin-paused {
+  animation: vinyl-spin 8s linear infinite;
+  animation-play-state: paused;
+}
