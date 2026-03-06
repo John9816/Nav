@@ -84,6 +84,10 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [rawLyric, setRawLyric] = useState<string>(''); // Store raw lyric text for DB saving
   const [showLyrics, setShowLyrics] = useState(false);
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
+  const contentScrollRef = useRef<HTMLDivElement>(null);
+  const topPlaylistsLoadMoreRef = useRef<HTMLDivElement>(null);
+  const [showQueuePanel, setShowQueuePanel] = useState(false);
+  const [queueTitle, setQueueTitle] = useState('当前播放列表');
 
   // Album Description Expanded State
   const [showFullDesc, setShowFullDesc] = useState(false);
@@ -134,6 +138,46 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       .catch(e => console.warn("Failed to load more playlists", e))
       .finally(() => setTopPlaylistsLoadingMore(false));
   };
+
+  useEffect(() => {
+    if (
+      view !== 'charts' ||
+      chartSource !== 'netease' ||
+      playlistCat === '姒滃崟' ||
+      topPlaylistsLoading ||
+      !topPlaylistsHasMore
+    ) {
+      return;
+    }
+
+    const root = contentScrollRef.current;
+    const target = topPlaylistsLoadMoreRef.current;
+
+    if (!root || !target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMoreTopPlaylists();
+        }
+      },
+      {
+        root,
+        rootMargin: '0px 0px 320px 0px',
+      }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [
+    view,
+    chartSource,
+    playlistCat,
+    topPlaylistsLoading,
+    topPlaylistsLoadingMore,
+    topPlaylistsHasMore,
+    topPlaylistsOffset,
+  ]);
 
   // Sync volume
   useEffect(() => {
@@ -229,7 +273,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
           // We add it to the front of the queue so user can go back or forward if needed, 
           // or just play it as a single instance.
           const newQueue = [song, ...queue];
-          playSong(song, newQueue);
+          playSong(song, newQueue, '随机播放');
           setToastMessage(null);
       } else {
           setToastMessage("获取随机音乐失败，请重试");
@@ -369,11 +413,29 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       }
   };
 
+  const getQueueTitleForCurrentView = () => {
+    switch (view) {
+      case 'playlist':
+        return selectedPlaylist?.name || '当前歌单';
+      case 'search':
+        return searchQuery.trim() ? `搜索结果：${searchQuery.trim()}` : '搜索结果';
+      case 'favorites':
+        return '我喜欢的音乐';
+      case 'history':
+        return '最近播放';
+      case 'home':
+        return '每日推荐';
+      default:
+        return '当前播放列表';
+    }
+  };
+
   // Player Controls
-  const playSong = async (song: Song, newQueue?: Song[]) => {
+  const playSong = async (song: Song, newQueue?: Song[], newQueueTitle?: string) => {
     let currentQueue = newQueue || queue;
     if (newQueue) {
       setQueue(newQueue);
+      setQueueTitle(newQueueTitle || '当前播放列表');
     }
 
     if (currentSong?.id === song.id) {
@@ -606,9 +668,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     playSong(queue[prevIndex]);
   };
 
-  const playAll = (songs: Song[]) => {
+  const playAll = (songs: Song[], newQueueTitle?: string) => {
     if (songs.length > 0) {
-      playSong(songs[0], songs);
+      playSong(songs[0], songs, newQueueTitle);
     }
   };
 
@@ -845,7 +907,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                )}
 
                {/* Scrollable Content Container */}
-               <div className="flex-1 overflow-y-auto relative z-10 scroll-smooth">
+               <div ref={contentScrollRef} className="flex-1 overflow-y-auto relative z-10 scroll-smooth">
                    
                    {/* Internal Toolbar for Search and Navigation */}
                    <div className="sticky top-0 z-20 px-4 md:px-6 py-4 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800/50 flex items-center gap-4">
@@ -996,7 +1058,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                    {/* Song Count + Play Button Row */}
                                                    <div className="flex items-center gap-4 mt-1">
                                                        <button
-                                                         onClick={() => playAll(view === 'search' ? searchResults : playlistSongs)}
+                                                         onClick={() => playAll(view === 'search' ? searchResults : playlistSongs, getQueueTitleForCurrentView())}
                                                          className="flex items-center gap-2.5 px-7 py-2.5 bg-red-500 hover:bg-red-400 text-white rounded-full text-sm font-bold shadow-lg shadow-red-500/30 transition-all hover:scale-105 active:scale-95"
                                                        >
                                                            <Play size={16} fill="currentColor" /> 播放全部
@@ -1043,7 +1105,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                            {(view === 'search' ? searchResults : playlistSongs).map((song, i) => (
                                                <div 
                                                  key={`${song.source}-${song.id}`}
-                                                 onClick={() => playSong(song, view === 'search' ? searchResults : playlistSongs)}
+                                                 onClick={() => playSong(song, view === 'search' ? searchResults : playlistSongs, getQueueTitleForCurrentView())}
                                                  className={`group grid grid-cols-[50px_1fr_40px] md:grid-cols-[60px_4fr_3fr_80px] gap-4 px-6 md:px-10 py-3.5 items-center transition-all cursor-pointer
                                                     ${String(currentSong?.id) === String(song.id) 
                                                         ? 'bg-red-50/50 dark:bg-red-900/10' 
@@ -1248,18 +1310,14 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                             </div>
                                                             {/* Load More */}
                                                             {!topPlaylistsLoading && topPlaylists.length > 0 && (
-                                                                <div className="mt-8 flex justify-center">
+                                                                <div ref={topPlaylistsLoadMoreRef} className="mt-8 flex justify-center min-h-10">
                                                                     {topPlaylistsHasMore ? (
-                                                                        <button
-                                                                            onClick={loadMoreTopPlaylists}
-                                                                            disabled={topPlaylistsLoadingMore}
-                                                                            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-all disabled:opacity-50"
-                                                                        >
+                                                                        <div className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
                                                                             {topPlaylistsLoadingMore
                                                                                 ? <><Loader2 size={15} className="animate-spin" /> 加载中...</>
                                                                                 : <><ArrowDown size={15} /> 加载更多</>
                                                                             }
-                                                                        </button>
+                                                                        </div>
                                                                     ) : (
                                                                         <p className="text-xs text-slate-400 dark:text-slate-600">已加载全部歌单</p>
                                                                     )}
@@ -1322,7 +1380,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                     </div>
                                                </div>
                                                <button
-                                                    onClick={() => playAll(dailySongs)}
+                                                    onClick={() => playAll(dailySongs, '每日推荐')}
                                                     className="flex items-center gap-2 px-5 py-2 bg-red-500 hover:bg-red-400 text-white rounded-full text-sm font-bold shadow-md shadow-red-500/30 transition-all active:scale-95"
                                                >
                                                     <Play size={15} fill="currentColor" /> 播放全部
@@ -1334,7 +1392,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                {dailySongs.map((song, i) => (
                                                    <div
                                                        key={`${song.source}-${song.id}`}
-                                                       onClick={() => playSong(song, dailySongs)}
+                                                       onClick={() => playSong(song, dailySongs, '每日推荐')}
                                                        className={`group flex items-center gap-3 p-2.5 rounded-2xl transition-all cursor-pointer border
                                                            ${String(currentSong?.id) === String(song.id)
                                                                ? 'bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/10 border-red-200/60 dark:border-red-800/40 shadow-sm'
@@ -1501,6 +1559,18 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
            {/* Volume & Lyrics - Hidden on small mobile */}
            <div className="hidden md:flex w-1/3 items-center justify-end gap-3 group/vol">
+               <button
+                 onClick={() => setShowQueuePanel(v => !v)}
+                 className={`relative p-2 rounded-full transition-colors ${showQueuePanel ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-slate-400 hover:text-red-500'}`}
+                 title="当前播放列表"
+               >
+                  <ListMusic size={16} />
+                  {queue.length > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center">
+                      {Math.min(queue.length, 99)}
+                    </span>
+                  )}
+               </button>
                <button onClick={() => setVolume(v => v === 0 ? 0.8 : 0)}>
                   <Volume2 size={18} className={`transition-colors ${volume === 0 ? 'text-slate-300' : 'text-slate-400 dark:text-slate-500'}`} />
                </button>
@@ -1524,12 +1594,86 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
            {/* Mobile Lyrics Toggle */}
            <button
+             onClick={() => setShowQueuePanel(v => !v)}
+             className={`md:hidden relative p-2 transition-colors ${showQueuePanel ? 'text-red-500 bg-red-50 dark:bg-red-900/20 rounded-full' : 'text-slate-400'}`}
+           >
+              <ListMusic size={20} />
+              {queue.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center">
+                  {Math.min(queue.length, 99)}
+                </span>
+              )}
+           </button>
+           <button
              onClick={() => setShowLyrics(!showLyrics)}
              className={`md:hidden p-2 transition-colors ${showLyrics ? 'text-red-500 bg-red-50 dark:bg-red-900/20 rounded-full' : 'text-slate-400'}`}
            >
               <Mic2 size={20} />
            </button>
        </div>
+
+       {showQueuePanel && (
+           <>
+               <div className="absolute inset-0 z-[60] bg-black/20 backdrop-blur-[1px]" onClick={() => setShowQueuePanel(false)} />
+               <div className="absolute z-[70] left-3 right-3 bottom-24 md:left-auto md:right-6 md:w-[24rem] md:bottom-28 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-700 rounded-3xl shadow-2xl overflow-hidden">
+                   <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+                       <div className="min-w-0">
+                           <div className="text-sm font-bold text-slate-800 dark:text-slate-100">当前播放列表</div>
+                           <div className="text-xs text-slate-400 dark:text-slate-500 truncate">{queueTitle} · {queue.length} 首</div>
+                       </div>
+                       <button
+                         onClick={() => setShowQueuePanel(false)}
+                         className="text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                       >
+                         关闭
+                       </button>
+                   </div>
+
+                   <div className="max-h-[22rem] overflow-y-auto">
+                       {queue.length > 0 ? (
+                           <div className="p-2">
+                               {queue.map((song, index) => {
+                                   const isActive = String(currentSong?.id) === String(song.id);
+                                   return (
+                                       <button
+                                         key={`${song.source}-${song.id}-${index}`}
+                                         onClick={() => {
+                                           playSong(song);
+                                           setShowQueuePanel(false);
+                                         }}
+                                         className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-colors ${
+                                           isActive
+                                             ? 'bg-red-50 dark:bg-red-900/20'
+                                             : 'hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                                         }`}
+                                       >
+                                           <div className={`w-7 text-center text-xs font-semibold shrink-0 ${isActive ? 'text-red-500' : 'text-slate-400 dark:text-slate-500'}`}>
+                                               {isActive && isPlaying ? '♪' : index + 1}
+                                           </div>
+                                           <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-800">
+                                               <img src={song.al.picUrl} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
+                                           </div>
+                                           <div className="min-w-0 flex-1">
+                                               <div className={`truncate text-sm font-semibold ${isActive ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                                                   {song.name}
+                                               </div>
+                                               <div className="truncate text-xs text-slate-400 dark:text-slate-500">
+                                                   {song.ar.map(a => a.name).join(', ')}
+                                               </div>
+                                           </div>
+                                       </button>
+                                   );
+                               })}
+                           </div>
+                       ) : (
+                           <div className="px-5 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
+                               当前还没有播放列表
+                           </div>
+                       )}
+                   </div>
+               </div>
+           </>
+       )}
 
        {toastMessage && (
            <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-slate-800/90 backdrop-blur text-white px-6 py-3 rounded-full text-sm shadow-xl animate-in fade-in slide-in-from-top-4 z-[100] flex items-center gap-2 w-max max-w-[90vw] truncate">
