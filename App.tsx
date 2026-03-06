@@ -13,7 +13,7 @@ import BookmarkBar from './components/BookmarkBar'; // Import BookmarkBar
 import { CategoryModal, LinkModal } from './components/BookmarkModals';
 import { DEFAULT_CATEGORIES } from './constants';
 import { Category, LinkItem } from './types';
-import { ArrowUp, Sun, Moon, Sparkles, Music, Home, LogOut, LogIn, Heart, Settings, History, MessageSquareQuote, Menu } from 'lucide-react';
+import { ArrowUp, Sun, Moon, Sparkles, Music, Home, LogOut, LogIn, Heart, Settings, History, MessageSquareQuote } from 'lucide-react';
 import { ChatMessage } from './types';
 import { useAuth } from './contexts/AuthContext';
 import { 
@@ -292,46 +292,41 @@ function App() {
   };
 
   return (
-    <div className={`h-screen font-sans transition-colors duration-300 flex flex-col
-      bg-slate-50 text-slate-800 selection:bg-blue-500/30
-      dark:bg-slate-900 dark:text-slate-100
-    `}>
+    <div className="h-screen flex flex-col transition-colors duration-300 text-slate-900 dark:text-slate-100">
       
       {/* Background Ambience */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden transition-opacity duration-500">
-         <div className="absolute top-[-10%] right-[-5%] w-[400px] h-[400px] bg-blue-200/40 rounded-full blur-[100px] opacity-60 dark:opacity-0 transition-opacity duration-500 animate-blob"></div>
-         <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-200/40 rounded-full blur-[100px] opacity-50 dark:opacity-0 transition-opacity duration-500 animate-blob animation-delay-2000"></div>
-         <div className="absolute top-[20%] left-[20%] w-[300px] h-[300px] bg-emerald-200/30 rounded-full blur-[100px] opacity-40 dark:opacity-0 transition-opacity duration-500 animate-blob animation-delay-4000"></div>
-
-         <div className="absolute top-[-10%] right-[-5%] w-[400px] h-[400px] bg-blue-900/20 rounded-full blur-[100px] opacity-0 dark:opacity-40 transition-opacity duration-500 animate-blob"></div>
-         <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-900/20 rounded-full blur-[100px] opacity-0 dark:opacity-30 transition-opacity duration-500 animate-blob animation-delay-2000"></div>
-         <div className="absolute top-[20%] left-[20%] w-[300px] h-[300px] bg-emerald-900/10 rounded-full blur-[100px] opacity-0 dark:opacity-20 transition-opacity duration-500 animate-blob animation-delay-4000"></div>
+         <div className="absolute inset-0 surface-grid opacity-90 dark:opacity-70"></div>
+         <div className="absolute top-[-10%] right-[-8%] w-[34rem] h-[34rem] rounded-full blur-[120px] bg-orange-200/45 dark:bg-orange-500/12 animate-blob"></div>
+         <div className="absolute top-[8%] left-[10%] w-[26rem] h-[26rem] rounded-full blur-[110px] bg-amber-100/55 dark:bg-teal-400/10 animate-blob animation-delay-2000"></div>
+         <div className="absolute bottom-[-18%] right-[12%] w-[28rem] h-[28rem] rounded-full blur-[120px] bg-teal-200/35 dark:bg-cyan-400/10 animate-blob animation-delay-4000"></div>
+         <div className="absolute bottom-[-10%] left-[-8%] w-[30rem] h-[30rem] rounded-full blur-[120px] bg-rose-100/35 dark:bg-slate-700/30 animate-blob animation-delay-2000"></div>
       </div>
 
       {/* FIXED TOP NAVIGATION BAR */}
-      <header className="shrink-0 z-50 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 transition-all duration-300">
+      <header className="shrink-0 z-50 h-18 bg-[rgba(255,250,242,0.72)] dark:bg-[rgba(9,20,28,0.8)] backdrop-blur-xl border-b border-[rgba(148,114,70,0.14)] dark:border-[rgba(94,234,212,0.1)] flex items-center justify-between px-4 sm:px-6 lg:px-8 transition-all duration-300">
         
         {/* Left: Menu Toggle (Mobile Only) */}
-        <div className="flex items-center gap-2">
-            {view === 'dashboard' && (
-                <button 
-                    onClick={() => setIsMobileSidebarOpen(true)}
-                    className="md:hidden p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
-                >
-                    <Menu size={20} />
-                </button>
-            )}
-            <div className="w-2 md:w-8"></div>
+        <div className="flex items-center gap-3 min-w-0">
+            <div className="hidden sm:flex items-center gap-3 min-w-0">
+              <div className="brand-ring w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-teal-500 text-white flex items-center justify-center shadow-[0_16px_32px_-18px_rgba(217,119,69,0.9)]">
+                <span className="font-[Outfit] text-base font-extrabold tracking-[0.18em] pl-[0.18em]">75</span>
+              </div>
+              <div className="min-w-0">
+                <div className="font-[Outfit] text-lg font-semibold tracking-[0.18em] text-slate-800 dark:text-slate-100 truncate">七五导航</div>
+                <div className="text-[11px] uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400 truncate">Curated Start Surface</div>
+              </div>
+            </div>
         </div>
 
         {/* Center: Main Navigation Tabs */}
-        <nav className="flex items-center gap-1 sm:gap-2 p-1 bg-slate-100/50 dark:bg-slate-800/50 rounded-full border border-slate-200/50 dark:border-slate-700/50 overflow-x-auto max-w-[60vw] scrollbar-hide">
+        <nav className="flex items-center gap-1 sm:gap-2 p-1.5 bg-white/55 dark:bg-slate-900/50 rounded-[1.4rem] border border-white/60 dark:border-slate-700/50 shadow-[0_12px_30px_-22px_rgba(31,41,55,0.45)] overflow-x-auto max-w-[60vw] scrollbar-hide">
            <button
              onClick={() => setView('dashboard')}
-             className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2 whitespace-nowrap
+             className={`px-3 py-2 sm:px-4 rounded-[1rem] text-sm font-semibold transition-all duration-300 flex items-center gap-2 whitespace-nowrap
                ${view === 'dashboard'
-                 ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400'
-                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/50'
+                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-[0_16px_30px_-18px_rgba(217,119,69,0.9)]'
+                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/70'
                }
              `}
            >
@@ -340,10 +335,10 @@ function App() {
            </button>
            <button
              onClick={() => setView('studio')}
-             className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2 whitespace-nowrap
+             className={`px-3 py-2 sm:px-4 rounded-[1rem] text-sm font-semibold transition-all duration-300 flex items-center gap-2 whitespace-nowrap
                ${view === 'studio'
-                 ? 'bg-white text-purple-600 shadow-sm dark:bg-slate-700 dark:text-purple-400'
-                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/50'
+                 ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-[0_16px_30px_-18px_rgba(20,184,166,0.9)]'
+                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/70'
                }
              `}
            >
@@ -352,10 +347,10 @@ function App() {
            </button>
            <button
              onClick={() => setView('music')}
-             className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2 whitespace-nowrap
+             className={`px-3 py-2 sm:px-4 rounded-[1rem] text-sm font-semibold transition-all duration-300 flex items-center gap-2 whitespace-nowrap
                ${view === 'music'
-                 ? 'bg-white text-red-600 shadow-sm dark:bg-slate-700 dark:text-red-400'
-                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/50'
+                 ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-[0_16px_30px_-18px_rgba(244,63,94,0.85)]'
+                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/70'
                }
              `}
            >
@@ -364,10 +359,10 @@ function App() {
            </button>
            <button
              onClick={() => setView('guestbook')}
-             className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2 whitespace-nowrap
+             className={`px-3 py-2 sm:px-4 rounded-[1rem] text-sm font-semibold transition-all duration-300 flex items-center gap-2 whitespace-nowrap
                ${view === 'guestbook'
-                 ? 'bg-white text-emerald-600 shadow-sm dark:bg-slate-700 dark:text-emerald-400'
-                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/50'
+                 ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-[0_16px_30px_-18px_rgba(16,185,129,0.85)]'
+                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/70'
                }
              `}
            >
@@ -377,18 +372,16 @@ function App() {
         </nav>
 
         {/* Right: Weather & Theme & User */}
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
            {/* Weather Compact Widget */}
-           <div className="hidden md:block">
+           <div className="hidden lg:block px-3 py-2 rounded-2xl bg-white/45 dark:bg-slate-900/45 border border-white/60 dark:border-slate-700/50">
               <Weather compact={true} />
            </div>
 
-           <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 hidden md:block"></div>
-
            <button
             onClick={toggleTheme}
-            className="p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            className="p-2.5 rounded-2xl text-slate-600 hover:bg-white/70 dark:text-slate-300 dark:hover:bg-slate-800/80 transition-colors border border-[rgba(148,114,70,0.12)] dark:border-slate-700/60"
+            title={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
           >
             {theme === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
@@ -399,7 +392,7 @@ function App() {
                <div className="relative">
                  <button 
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-2 p-1 pl-2 pr-1 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
+                    className="flex items-center gap-2 p-1 pl-3 pr-1 rounded-full bg-white/65 hover:bg-white/85 dark:bg-slate-900/70 dark:hover:bg-slate-800 transition-colors border border-white/60 dark:border-slate-700/60 shadow-[0_12px_28px_-22px_rgba(31,41,55,0.55)]"
                  >
                     <span className="text-xs font-medium text-slate-600 dark:text-slate-300 hidden md:block max-w-[100px] truncate">
                       {/* Priority: Nickname > Username > Email Part */}
@@ -409,10 +402,10 @@ function App() {
                        <img 
                           src={profile.avatar_url} 
                           alt="Avatar" 
-                          className="w-8 h-8 rounded-full object-cover shadow-md bg-white border border-slate-200 dark:border-slate-700"
+                          className="w-8 h-8 rounded-full object-cover shadow-md bg-white border border-[rgba(148,114,70,0.18)] dark:border-slate-700"
                        />
                     ) : (
-                       <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold shadow-md">
+                       <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-500 to-teal-500 flex items-center justify-center text-white text-xs font-bold shadow-md">
                           {(profile?.nickname || user.email || 'U').charAt(0).toUpperCase()}
                        </div>
                     )}
@@ -421,8 +414,8 @@ function App() {
                  {showUserMenu && (
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setShowUserMenu(false)}></div>
-                      <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-200">
-                         <div className="p-4 border-b border-slate-100 dark:border-slate-700">
+                      <div className="absolute right-0 top-full mt-2 w-56 bg-[rgba(255,251,245,0.95)] dark:bg-[rgba(9,20,28,0.96)] rounded-2xl shadow-2xl border border-[rgba(148,114,70,0.14)] dark:border-slate-700 overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-200">
+                         <div className="p-4 border-b border-[rgba(148,114,70,0.1)] dark:border-slate-700">
                             {profile?.nickname && (
                                <p className="font-bold text-slate-800 dark:text-slate-100 truncate">{profile.nickname}</p>
                             )}
@@ -438,7 +431,7 @@ function App() {
                                 setView('bookmarks');
                                 setShowUserMenu(false);
                             }}
-                            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors border-b border-slate-50 dark:border-slate-700/50"
+                            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-orange-50 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors border-b border-[rgba(148,114,70,0.08)] dark:border-slate-700/50"
                          >
                             <Settings size={16} className="text-blue-500" />
                             <span>导航管理</span>
@@ -451,7 +444,7 @@ function App() {
                                 setMusicTabRequest('favorites');
                                 setShowUserMenu(false); 
                             }}
-                            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors border-b border-slate-50 dark:border-slate-700/50"
+                            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-orange-50 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors border-b border-[rgba(148,114,70,0.08)] dark:border-slate-700/50"
                          >
                             <Heart size={16} className="text-red-500" />
                             <span>我喜欢的音乐</span>
@@ -464,7 +457,7 @@ function App() {
                                 setMusicTabRequest('history');
                                 setShowUserMenu(false); 
                             }}
-                            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors border-b border-slate-50 dark:border-slate-700/50"
+                            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-orange-50 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors border-b border-[rgba(148,114,70,0.08)] dark:border-slate-700/50"
                          >
                             <History size={16} className="text-blue-500" />
                             <span>播放历史</span>
@@ -484,7 +477,7 @@ function App() {
             ) : (
                <button
                  onClick={() => setIsAuthModalOpen(true)}
-                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium shadow-md shadow-blue-500/20 transition-all hover:shadow-lg"
+                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-gradient-to-r from-orange-500 to-teal-500 hover:from-orange-400 hover:to-teal-400 text-white text-sm font-medium shadow-[0_18px_36px_-18px_rgba(217,119,69,0.9)] transition-all hover:-translate-y-0.5"
                >
                  <LogIn size={16} />
                  <span className="hidden sm:inline">登录</span>
@@ -496,9 +489,9 @@ function App() {
       
       {/* Bookmark Bar - Detached Background Fix for Clipping Issues */}
       {view === 'dashboard' && bookmarkBarCategories.length > 0 && (
-          <div className="shrink-0 z-50 border-b border-slate-200 dark:border-slate-800 relative">
+          <div className="shrink-0 z-50 border-b border-[rgba(148,114,70,0.12)] dark:border-[rgba(94,234,212,0.1)] relative">
              {/* Background with blur - separate layer to avoid clipping children in some browsers */}
-             <div className="absolute inset-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm -z-10" />
+             <div className="absolute inset-0 bg-[rgba(255,250,242,0.82)] dark:bg-[rgba(9,20,28,0.86)] backdrop-blur-xl -z-10" />
              
              {/* Content container - explicit overflow-visible */}
              <div className="relative overflow-visible">
@@ -526,42 +519,81 @@ function App() {
             />
             
             <main className={`relative z-10 flex flex-col flex-1 transition-all duration-300 ease-in-out
-              ${isSidebarCollapsed ? 'md:pl-16' : 'md:pl-56'}
-              pl-0 
+              ${isSidebarCollapsed ? 'pl-20 md:pl-20' : 'pl-20 md:pl-72'}
             `}>
-              <div className="w-full mx-auto px-4 sm:px-8 md:px-12 py-10 space-y-12">
+              <div className="w-full mx-auto px-4 sm:px-8 md:px-12 py-8 md:py-10 space-y-12">
                 {/* Hero Section */}
-                <div className="flex flex-col items-center justify-center space-y-8 py-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                  <div className="text-center flex flex-col items-center select-none">
-                    <div className="text-6xl md:text-8xl font-extrabold tracking-tighter drop-shadow-sm
-                      text-slate-800 dark:text-slate-100
-                      bg-clip-text text-transparent bg-gradient-to-b from-slate-700 to-slate-900 dark:from-white dark:to-slate-300
-                    ">
-                      {currentTime ? formatTime(currentTime) : <span className="opacity-0">00:00</span>}
-                    </div>
-                    <div className="mt-2 text-xs md:text-sm font-bold tracking-[0.2em] uppercase
-                      text-slate-500 dark:text-slate-400
-                    ">
-                      {currentTime ? formatDate(currentTime) : <span className="opacity-0">Loading...</span>}
-                    </div>
-                  </div>
+                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_22rem] gap-6 xl:gap-8 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <section className="glass-panel rounded-[2rem] px-6 py-7 md:px-8 md:py-8 overflow-hidden relative">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(217,119,69,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(13,148,136,0.14),transparent_28%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(251,146,60,0.16),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(45,212,191,0.12),transparent_24%)]" />
+                    <div className="relative z-10 flex flex-col gap-6">
+                      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="max-w-2xl">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/70 dark:bg-slate-900/70 border border-white/60 dark:border-slate-700/70 text-[11px] font-semibold tracking-[0.28em] uppercase text-slate-500 dark:text-slate-400">
+                            <span className="w-2 h-2 rounded-full bg-gradient-to-r from-orange-500 to-teal-500" />
+                            七五导航
+                          </div>
+                          <h1 className="mt-4 text-4xl md:text-5xl lg:text-6xl font-[Outfit] font-semibold tracking-tight text-slate-900 dark:text-white">
+                            把常用网站、AI 助手和音乐入口收进一个首页。
+                          </h1>
+                          <p className="mt-4 max-w-xl text-sm md:text-base leading-7 text-slate-600 dark:text-slate-300">
+                            保留原有功能结构，重新整理视觉层级、色彩节奏和卡片密度，让首页更像一个可长期使用的私人工作台。
+                          </p>
+                        </div>
 
-                  <div className="w-full max-w-xl transform hover:scale-[1.01] transition-transform duration-300">
-                     <SearchBar />
-                  </div>
+                        <div className="shrink-0 rounded-[1.75rem] bg-[rgba(255,255,255,0.72)] dark:bg-[rgba(9,20,28,0.78)] border border-white/60 dark:border-slate-700/60 px-5 py-4 min-w-[15rem] select-none shadow-[0_24px_50px_-30px_rgba(66,45,22,0.45)]">
+                          <div className="text-[11px] uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">Current Time</div>
+                          <div className="mt-2 font-[Outfit] text-5xl md:text-6xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                            {currentTime ? formatTime(currentTime) : <span className="opacity-0">00:00</span>}
+                          </div>
+                          <div className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                            {currentTime ? formatDate(currentTime) : <span className="opacity-0">Loading...</span>}
+                          </div>
+                        </div>
+                      </div>
 
-                  <DailyQuote />
-                  
-                  {/* Mobile Weather Fallback */}
-                  <div className="md:hidden mt-4">
-                     <Weather compact={false} />
-                  </div>
+                      <div className="w-full max-w-3xl">
+                        <SearchBar />
+                      </div>
+
+                      <DailyQuote />
+
+                      <div className="md:hidden">
+                        <Weather compact={false} />
+                      </div>
+                    </div>
+                  </section>
+
+                  <aside className="glass-panel rounded-[2rem] px-5 py-6 md:px-6 flex flex-col justify-between gap-6">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">Overview</div>
+                      <div className="mt-3 space-y-3">
+                        <div className="rounded-[1.5rem] bg-white/70 dark:bg-slate-900/70 border border-white/60 dark:border-slate-700/60 px-4 py-4">
+                          <div className="text-xs text-slate-500 dark:text-slate-400">分类数量</div>
+                          <div className="mt-1 font-[Outfit] text-3xl font-semibold text-slate-900 dark:text-white">{dashboardCategories.length}</div>
+                        </div>
+                        <div className="rounded-[1.5rem] bg-white/70 dark:bg-slate-900/70 border border-white/60 dark:border-slate-700/60 px-4 py-4">
+                          <div className="text-xs text-slate-500 dark:text-slate-400">书签栏</div>
+                          <div className="mt-1 font-[Outfit] text-3xl font-semibold text-slate-900 dark:text-white">{bookmarkBarCategories.length}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.5rem] bg-gradient-to-br from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 px-5 py-5 text-white dark:text-slate-900">
+                      <div className="text-xs uppercase tracking-[0.24em] opacity-70">Quick Access</div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button onClick={() => setView('studio')} className="px-3 py-2 rounded-full bg-white/12 dark:bg-slate-900/10 border border-white/15 dark:border-slate-900/10 text-sm font-medium backdrop-blur-sm">AI 助手</button>
+                        <button onClick={() => setView('music')} className="px-3 py-2 rounded-full bg-white/12 dark:bg-slate-900/10 border border-white/15 dark:border-slate-900/10 text-sm font-medium backdrop-blur-sm">音乐中心</button>
+                        <button onClick={() => setView('guestbook')} className="px-3 py-2 rounded-full bg-white/12 dark:bg-slate-900/10 border border-white/15 dark:border-slate-900/10 text-sm font-medium backdrop-blur-sm">留言板</button>
+                      </div>
+                    </div>
+                  </aside>
                 </div>
 
                 <div className="w-full pb-16">
                    {isLoadingBookmarks ? (
                      <div className="flex justify-center py-20">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500"></div>
                      </div>
                    ) : (
                      <LinkGrid categories={dashboardCategories} />
@@ -572,7 +604,7 @@ function App() {
 
             <button
               onClick={scrollToTop}
-              className={`fixed bottom-8 right-8 p-3 rounded-full shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 z-30 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl
+              className={`fixed bottom-8 right-8 p-3 rounded-full shadow-lg bg-[rgba(255,250,242,0.86)] dark:bg-[rgba(9,20,28,0.82)] backdrop-blur-xl border border-[rgba(148,114,70,0.14)] dark:border-[rgba(94,234,212,0.12)] text-slate-700 dark:text-slate-200 z-30 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:bg-white
                 ${showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}
               `}
               aria-label="Back to top"

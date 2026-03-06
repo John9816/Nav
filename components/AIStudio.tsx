@@ -24,9 +24,9 @@ interface AIStudioProps {
 type Mode = 'chat' | 'image';
 
 const MODELS = [
-  { id: 'deepseek-v3.2', name: 'DeepSeek V3.2', icon: <Zap size={14} className="text-blue-500" /> },
-  { id: 'LongCat-Flash-Chat', name: 'LongCat Flash', icon: <Cpu size={14} className="text-rose-500" /> },
-  { id: 'LongCat-Flash-Thinking', name: 'LongCat Thinking', icon: <Bot size={14} className="text-purple-500" /> },
+  { id: 'deepseek-v3.2', name: 'DeepSeek V3.2', icon: <Zap size={14} className="text-orange-500" /> },
+  { id: 'LongCat-Flash-Chat', name: 'LongCat Flash', icon: <Cpu size={14} className="text-teal-500" /> },
+  { id: 'LongCat-Flash-Thinking', name: 'LongCat Thinking', icon: <Bot size={14} className="text-amber-500" /> },
   { id: 'LongCat-Flash-Thinking-2601', name: 'LongCat Thinking 2601', icon: <Sparkles size={14} className="text-orange-500" /> },
 ];
 
@@ -69,10 +69,10 @@ const MessageItem: React.FC<{ msg: ChatMessage; mode: Mode; onDelete: (id: strin
         {/* Avatar */}
         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm mt-1
           ${isUser 
-            ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-blue-500/20' 
+            ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-orange-500/20' 
             : mode === 'image' 
-              ? 'bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-purple-500/20' 
-              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-emerald-500 shadow-sm'
+              ? 'bg-gradient-to-br from-teal-500 to-cyan-500 text-white shadow-teal-500/20' 
+              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-orange-500 shadow-sm'
           }
         `}>
           {isUser ? (
@@ -85,14 +85,14 @@ const MessageItem: React.FC<{ msg: ChatMessage; mode: Mode; onDelete: (id: strin
         {/* Bubble */}
         <div className={`relative group/bubble p-3.5 md:p-4 rounded-2xl shadow-sm text-[15px] leading-relaxed overflow-hidden transition-all duration-300
           ${isUser 
-            ? 'bg-blue-600 text-white rounded-tr-sm shadow-blue-500/10' 
-            : 'bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60 text-slate-700 dark:text-slate-200 rounded-tl-sm'
+            ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white rounded-tr-sm shadow-[0_18px_30px_-20px_rgba(217,119,69,0.9)]' 
+            : 'bg-[rgba(255,251,246,0.92)] dark:bg-[rgba(9,20,28,0.9)] border border-[rgba(148,114,70,0.12)] dark:border-slate-700/60 text-slate-700 dark:text-slate-200 rounded-tl-sm backdrop-blur-sm'
           }
         `}>
           
           {/* Image Content */}
           {msg.imageUrl && (
-            <div className="mb-4 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/50 min-h-[200px] flex items-center justify-center relative group/image">
+            <div className="mb-4 rounded-xl overflow-hidden bg-[rgba(255,247,239,0.8)] dark:bg-slate-950 border border-[rgba(148,114,70,0.14)] dark:border-slate-700/50 min-h-[200px] flex items-center justify-center relative group/image">
               <img 
                 src={msg.imageUrl} 
                 alt="AI Generated" 
@@ -136,15 +136,15 @@ const MessageItem: React.FC<{ msg: ChatMessage; mode: Mode; onDelete: (id: strin
             <div className={`absolute bottom-1 right-1 flex gap-1 transition-all duration-300 transform translate-y-2 opacity-0 group-hover/bubble:translate-y-0 group-hover/bubble:opacity-100`}>
                 <button
                     onClick={handleCopy}
-                    className="p-1.5 rounded-lg bg-white/90 dark:bg-slate-700/90 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 shadow-sm border border-slate-200 dark:border-slate-600 transition-colors backdrop-blur-sm"
+                    className="p-1.5 rounded-lg bg-white/90 dark:bg-slate-800/90 hover:bg-orange-50 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 shadow-sm border border-[rgba(148,114,70,0.14)] dark:border-slate-600 transition-colors backdrop-blur-sm"
                     title="复制"
                 >
-                    {isCopied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+                    {isCopied ? <Check size={12} className="text-teal-500" /> : <Copy size={12} />}
                 </button>
                 
                 <button
                     onClick={() => onDelete(msg.id)}
-                    className="p-1.5 rounded-lg bg-white/90 dark:bg-slate-700/90 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 shadow-sm border border-slate-200 dark:border-slate-600 transition-colors backdrop-blur-sm"
+                    className="p-1.5 rounded-lg bg-white/90 dark:bg-slate-800/90 hover:bg-orange-50 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 shadow-sm border border-[rgba(148,114,70,0.14)] dark:border-slate-600 transition-colors backdrop-blur-sm"
                     title="删除此消息"
                 >
                     <Trash2 size={12} />
@@ -403,16 +403,16 @@ const AIStudio: React.FC<AIStudioProps> = ({
   };
 
   return (
-    <div className="w-full h-full flex flex-col md:flex-row bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans animate-fade-in overflow-hidden">
+    <div className="w-full h-full flex flex-col md:flex-row bg-transparent text-slate-800 dark:text-slate-100 animate-fade-in overflow-hidden">
       
       {/* Mobile Top Navigation */}
-      <div className="md:hidden shrink-0 px-4 py-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50 z-20">
-         <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+      <div className="md:hidden shrink-0 px-4 py-3 bg-[rgba(255,250,242,0.8)] dark:bg-[rgba(9,20,28,0.82)] backdrop-blur-xl border-b border-[rgba(148,114,70,0.12)] dark:border-slate-800/50 z-20">
+         <div className="flex bg-white/70 dark:bg-slate-900/70 p-1 rounded-2xl border border-[rgba(148,114,70,0.12)] dark:border-slate-700/60">
             <button 
               onClick={() => setMode('chat')}
               className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2
                 ${mode === 'chat' 
-                  ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400' 
+                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm' 
                   : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
                 }`}
             >
@@ -422,7 +422,7 @@ const AIStudio: React.FC<AIStudioProps> = ({
               onClick={() => setMode('image')}
               className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2
                 ${mode === 'image' 
-                  ? 'bg-white text-purple-600 shadow-sm dark:bg-slate-700 dark:text-purple-400' 
+                  ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-sm' 
                   : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
                 }`}
             >
@@ -430,44 +430,44 @@ const AIStudio: React.FC<AIStudioProps> = ({
             </button>
          </div>
          <div className="absolute right-4 top-1/2 -translate-y-1/2">
-            <button onClick={handleNewChat} className="p-2 text-slate-400 hover:text-blue-500 transition-colors">
+            <button onClick={handleNewChat} className="p-2 text-slate-400 hover:text-orange-500 transition-colors">
                <Plus size={20} />
             </button>
          </div>
       </div>
 
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex w-72 bg-white/50 dark:bg-slate-900/50 border-r border-slate-200/60 dark:border-slate-800/60 flex-col p-4 z-20 shrink-0 h-full overflow-hidden pb-36 backdrop-blur-md">
+      <div className="hidden md:flex w-80 glass-sidebar sidebar-shell border-r border-[rgba(148,114,70,0.12)] dark:border-[rgba(94,234,212,0.1)] flex-col p-4 z-20 shrink-0 h-full overflow-hidden pb-36">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6 px-2 pt-2">
-             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white">
-                <Sparkle size={20} fill="currentColor" className="opacity-90" />
+        <div className="sidebar-card flex items-center gap-3 px-4 py-4">
+             <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-teal-500 flex items-center justify-center shadow-[0_18px_30px_-18px_rgba(217,119,69,0.85)] text-white">
+                <Sparkle size={19} fill="currentColor" className="opacity-90" />
              </div>
              <div>
-                <h3 className="font-bold text-base leading-tight text-slate-800 dark:text-slate-100">AI Studio</h3>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-wide">CREATIVE SUITE</p>
+                <h3 className="font-[Outfit] font-semibold text-base tracking-[0.08em] leading-tight text-slate-900 dark:text-slate-100">AI Studio</h3>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-[0.24em] uppercase">Creative Suite</p>
              </div>
         </div>
 
         {/* New Chat Button */}
         <button 
              onClick={handleNewChat}
-             className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-95 mb-6 shrink-0 font-medium text-sm group"
+             className="relative overflow-hidden w-full flex items-center justify-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white py-3 rounded-[1.4rem] shadow-lg shadow-orange-500/20 transition-all active:scale-95 mb-4 shrink-0 font-medium text-sm group"
         >
              <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
              <span>开启新对话</span>
         </button>
            
         {/* Mode Selection */}
-        <div className="space-y-1 mb-6 shrink-0">
+        <div className="sidebar-card space-y-1 mb-4 shrink-0 p-3">
              <div className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">模式选择</div>
              
              <button 
                onClick={() => setMode('chat')}
-               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium
+	               className={`w-full flex items-center gap-3 px-3 py-3 rounded-[1.2rem] transition-all duration-200 text-sm font-medium
                  ${mode === 'chat' 
-                   ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200 dark:border-slate-700' 
-                   : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50'
+	                   ? 'bg-gradient-to-r from-orange-500/14 via-orange-500/10 to-teal-500/10 text-slate-900 dark:text-slate-100 shadow-[0_18px_36px_-30px_rgba(217,119,69,0.85)]' 
+                   : 'text-slate-500 hover:bg-white/70 dark:hover:bg-slate-800/50'
                  }`}
              >
                 <MessageSquare size={16} />
@@ -476,10 +476,10 @@ const AIStudio: React.FC<AIStudioProps> = ({
 
              <button 
                onClick={() => setMode('image')}
-               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium
+	               className={`w-full flex items-center gap-3 px-3 py-3 rounded-[1.2rem] transition-all duration-200 text-sm font-medium
                  ${mode === 'image' 
-                   ? 'bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm border border-slate-200 dark:border-slate-700' 
-                   : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50'
+	                   ? 'bg-gradient-to-r from-teal-500/14 via-teal-500/10 to-orange-500/10 text-slate-900 dark:text-slate-100 shadow-[0_18px_36px_-30px_rgba(15,118,110,0.75)]' 
+                   : 'text-slate-500 hover:bg-white/70 dark:hover:bg-slate-800/50'
                  }`}
              >
                 <ImageIcon size={16} />
@@ -489,22 +489,22 @@ const AIStudio: React.FC<AIStudioProps> = ({
 
         {/* Chat History List */}
         {mode === 'chat' && user && (
-            <div className="flex-1 flex flex-col min-h-0">
+            <div className="sidebar-card flex-1 flex flex-col min-h-0 p-3">
                 <div className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 shrink-0">历史对话</div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar px-1 space-y-0.5">
+                <div className="flex-1 overflow-y-auto custom-scrollbar px-1 space-y-1">
                     {sessions.map(session => (
                         <div 
                             key={session.id}
                             onClick={() => handleLoadSession(session)}
-                            className={`group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors text-sm
+                            className={`group flex items-center justify-between px-3 py-3 rounded-[1.2rem] cursor-pointer transition-colors text-sm
                                 ${currentSessionId === session.id 
-                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium' 
-                                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                                    ? 'bg-gradient-to-r from-orange-500/14 via-orange-500/10 to-teal-500/10 text-slate-900 dark:text-slate-100 font-medium shadow-[0_18px_36px_-30px_rgba(217,119,69,0.85)]' 
+                                    : 'text-slate-600 dark:text-slate-400 hover:bg-white/60 dark:hover:bg-slate-800/50'
                                 }
                             `}
                         >
                             <div className="flex items-center gap-2.5 truncate">
-                                <MessageCircle size={14} className={`shrink-0 ${currentSessionId === session.id ? 'text-blue-500' : 'opacity-50'}`} />
+                                <MessageCircle size={14} className={`shrink-0 ${currentSessionId === session.id ? 'text-orange-500' : 'opacity-50'}`} />
                                 <span className="truncate">{session.title || '新对话'}</span>
                             </div>
                             <button 
@@ -525,7 +525,7 @@ const AIStudio: React.FC<AIStudioProps> = ({
         )}
 
         {/* Footer Actions */}
-        <div className="mt-auto pt-4 shrink-0 border-t border-slate-200/50 dark:border-slate-800/50">
+        <div className="sidebar-card mt-auto shrink-0 p-3">
            {!user && (
                <div className="text-xs text-center text-slate-400 mb-2">
                    登录后可保存对话记录
@@ -533,7 +533,7 @@ const AIStudio: React.FC<AIStudioProps> = ({
            )}
            <button 
             onClick={clearHistory}
-            className="w-full flex items-center justify-center gap-2 p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-xs font-medium"
+            className="w-full flex items-center justify-center gap-2 px-3 py-3 rounded-[1.2rem] text-slate-500 hover:text-red-500 hover:bg-red-50 dark:text-slate-400 dark:hover:bg-red-900/20 transition-colors text-sm font-medium"
           >
             <Eraser size={14} />
             <span>清空当前屏幕</span>
@@ -542,12 +542,12 @@ const AIStudio: React.FC<AIStudioProps> = ({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col relative min-w-0 bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm pb-0 md:pb-6">
+      <div className="flex-1 flex flex-col relative min-w-0 bg-[rgba(255,250,242,0.34)] dark:bg-[rgba(9,20,28,0.34)] backdrop-blur-sm pb-0 md:pb-6">
         
         {/* Top Header (Desktop Only) */}
-        <div className="hidden md:flex h-16 border-b border-slate-200/50 dark:border-slate-800/50 items-center justify-between px-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm shrink-0 sticky top-0 z-10">
+        <div className="hidden md:flex h-16 border-b border-[rgba(148,114,70,0.12)] dark:border-slate-800/50 items-center justify-between px-6 bg-[rgba(255,250,242,0.74)] dark:bg-[rgba(9,20,28,0.78)] backdrop-blur-xl shrink-0 sticky top-0 z-10">
             <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${mode === 'chat' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'}`}>
+                <div className={`p-2 rounded-xl ${mode === 'chat' ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-300' : 'bg-teal-100 dark:bg-teal-900/20 text-teal-600 dark:text-teal-300'}`}>
                     {mode === 'chat' ? <MessageSquare size={18} /> : <ImageIcon size={18} />}
                 </div>
                 <h2 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
@@ -560,7 +560,7 @@ const AIStudio: React.FC<AIStudioProps> = ({
                 <div className="relative" ref={modelMenuRef}>
                     <button 
                         onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/70 dark:bg-slate-900/70 border border-[rgba(148,114,70,0.12)] dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-orange-50 dark:hover:bg-slate-800 transition-colors"
                     >
                         {activeModel.icon}
                         <span>{activeModel.name}</span>
@@ -568,7 +568,7 @@ const AIStudio: React.FC<AIStudioProps> = ({
                     </button>
                     
                     {isModelMenuOpen && (
-                        <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50">
+                        <div className="absolute top-full right-0 mt-2 w-56 bg-[rgba(255,251,245,0.96)] dark:bg-[rgba(9,20,28,0.96)] rounded-2xl shadow-xl border border-[rgba(148,114,70,0.12)] dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50">
                             <div className="p-1">
                                 <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">选择模型</div>
                                 {MODELS.map((model) => (
@@ -580,8 +580,8 @@ const AIStudio: React.FC<AIStudioProps> = ({
                                         }}
                                         className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-3
                                             ${currentModel === model.id 
-                                                ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' 
-                                                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                                ? 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-300' 
+                                                : 'text-slate-600 dark:text-slate-300 hover:bg-orange-50 dark:hover:bg-slate-800'
                                             }
                                         `}
                                     >
@@ -597,7 +597,7 @@ const AIStudio: React.FC<AIStudioProps> = ({
             )}
             
             {mode === 'image' && (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/30 text-xs font-medium text-purple-600 dark:text-purple-400">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-teal-50 dark:bg-teal-900/20 border border-teal-100 dark:border-teal-800/30 text-xs font-medium text-teal-600 dark:text-teal-300">
                     <Sparkles size={12} />
                     <span>Z-Image Turbo</span>
                 </div>
@@ -612,10 +612,10 @@ const AIStudio: React.FC<AIStudioProps> = ({
               ))}
               {messages.length === 0 && (
                  <div className="flex flex-col items-center justify-center py-20 text-slate-400 space-y-6 opacity-60 animate-fade-in">
-                    <div className={`p-6 rounded-3xl ${mode === 'chat' ? 'bg-blue-100 dark:bg-blue-900/20' : 'bg-purple-100 dark:bg-purple-900/20'}`}>
+                    <div className={`p-6 rounded-3xl ${mode === 'chat' ? 'bg-orange-100 dark:bg-orange-900/20' : 'bg-teal-100 dark:bg-teal-900/20'}`}>
                         {mode === 'chat' 
-                            ? <Bot size={48} className="text-blue-500 dark:text-blue-400" /> 
-                            : <Sparkles size={48} className="text-purple-500 dark:text-purple-400" />
+                            ? <Bot size={48} className="text-orange-500 dark:text-orange-300" /> 
+                            : <Sparkles size={48} className="text-teal-500 dark:text-teal-300" />
                         }
                     </div>
                     <div className="text-center space-y-2">
@@ -635,8 +635,8 @@ const AIStudio: React.FC<AIStudioProps> = ({
         {/* Input Area (Docked at Bottom) */}
         <div className="shrink-0 p-4 md:p-6 z-10 transition-all duration-300 md:mb-0 mb-36">
           <div className="max-w-4xl mx-auto">
-            <div className={`relative bg-white dark:bg-slate-800 rounded-3xl shadow-lg border border-slate-200 dark:border-slate-700 flex flex-col transition-all duration-300
-               ${isTyping ? 'ring-2 ring-blue-500/10 border-blue-500/30 dark:border-blue-500/30' : 'hover:border-slate-300 dark:hover:border-slate-600'}
+            <div className={`relative bg-[rgba(255,251,246,0.94)] dark:bg-[rgba(9,20,28,0.92)] rounded-3xl shadow-[0_24px_60px_-36px_rgba(66,45,22,0.45)] border border-[rgba(148,114,70,0.12)] dark:border-slate-700 flex flex-col transition-all duration-300
+               ${isTyping ? 'ring-2 ring-orange-500/10 border-orange-500/30 dark:border-orange-400/20' : 'hover:border-[rgba(217,119,69,0.24)] dark:hover:border-slate-600'}
             `}>
               
               <textarea
@@ -664,8 +664,8 @@ const AIStudio: React.FC<AIStudioProps> = ({
                         disabled={!input.trim() || isTyping}
                         className={`p-2.5 rounded-xl text-white transition-all duration-300 flex items-center justify-center transform active:scale-95
                             ${!input.trim() || isTyping ? 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed' : ''}
-                            ${mode === 'chat' && input.trim() && !isTyping ? 'bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-500/20' : ''}
-                            ${mode === 'image' && input.trim() && !isTyping ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-md hover:shadow-purple-500/20' : ''}
+                            ${mode === 'chat' && input.trim() && !isTyping ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 shadow-md shadow-orange-500/20' : ''}
+                            ${mode === 'image' && input.trim() && !isTyping ? 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 hover:shadow-md hover:shadow-teal-500/20' : ''}
                         `}
                     >
                         {isTyping ? <StopCircle size={18} className="animate-pulse" /> : <Send size={18} />}

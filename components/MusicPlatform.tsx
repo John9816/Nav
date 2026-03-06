@@ -703,7 +703,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
   return (
     <div 
-      className={`fixed inset-0 z-40 bg-slate-50 dark:bg-slate-900 flex flex-col pt-16 transition-all duration-300 ease-in-out
+      className={`fixed inset-0 z-40 bg-transparent flex flex-col pt-16 transition-all duration-300 ease-in-out
         ${activeView === 'music' 
            ? 'opacity-100 translate-y-0 visible pointer-events-auto' 
            : 'opacity-0 translate-y-4 invisible pointer-events-none'
@@ -715,41 +715,47 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
        <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
            
            {/* Sidebar - Hidden on mobile, visible on md+ */}
-           <div className="w-60 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800/80 flex-col hidden md:flex shrink-0">
+           <div className="w-80 glass-sidebar sidebar-shell border-r border-[rgba(148,114,70,0.12)] dark:border-[rgba(94,234,212,0.1)] flex-col hidden md:flex shrink-0">
                {/* Brand Header */}
-               <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center gap-3 shrink-0">
-                   <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl flex items-center justify-center shadow-md shadow-red-500/30">
-                       <Music size={15} className="text-white" />
+               <div className="sidebar-card mx-4 mt-4 px-4 py-4 flex items-center justify-between gap-3 shrink-0">
+                   <div className="w-11 h-11 bg-gradient-to-br from-orange-500 via-amber-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-[0_18px_30px_-18px_rgba(217,119,69,0.85)]">
+                       <Music size={17} className="text-white" />
                    </div>
-                   <span className="font-bold text-slate-800 dark:text-slate-100 text-sm tracking-tight">音乐中心</span>
+                   <div className="min-w-0">
+                       <div className="font-[Outfit] font-semibold text-base tracking-[0.08em] text-slate-900 dark:text-slate-100">音乐中心</div>
+                       <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">Player Hub</div>
+                   </div>
+                   <div className="rounded-full bg-white/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:bg-slate-900/60 dark:text-slate-400">
+                       {queue.length}
+                   </div>
                </div>
 
-               <div className="px-3 py-4 space-y-5 overflow-y-auto custom-scrollbar flex-1">
+               <div className="relative z-10 px-4 py-4 space-y-4 overflow-y-auto custom-scrollbar flex-1">
                    {/* Library Section */}
-                   <div>
-                       <div className="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">我的音乐</div>
+                   <div className="sidebar-card p-3">
+                       <div className="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.26em]">我的音乐</div>
                        <div className="space-y-0.5">
                            <button
                              onClick={() => { setView('home'); setShowLyrics(false); setNavStack([]); }}
-                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${view === 'home' ? 'bg-red-500 text-white shadow-md shadow-red-500/25' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'}`}
+	                             className={`w-full flex items-center gap-3 px-3 py-3 rounded-[1.2rem] text-sm font-medium transition-all ${view === 'home' ? 'bg-gradient-to-r from-orange-500/90 to-amber-500/90 text-white shadow-[0_18px_36px_-28px_rgba(217,119,69,0.85)]' : 'text-slate-500 dark:text-slate-400 hover:bg-white/70 dark:hover:bg-slate-800/55 hover:text-slate-800 dark:hover:text-slate-200'}`}
                            >
                                <LayoutGrid size={16} className="shrink-0" /> 发现音乐
                            </button>
                            <button
                              onClick={loadFavorites}
-                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${view === 'favorites' ? 'bg-red-500 text-white shadow-md shadow-red-500/25' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'}`}
+	                             className={`w-full flex items-center gap-3 px-3 py-3 rounded-[1.2rem] text-sm font-medium transition-all ${view === 'favorites' ? 'bg-gradient-to-r from-orange-500/90 to-amber-500/90 text-white shadow-[0_18px_36px_-28px_rgba(217,119,69,0.85)]' : 'text-slate-500 dark:text-slate-400 hover:bg-white/70 dark:hover:bg-slate-800/55 hover:text-slate-800 dark:hover:text-slate-200'}`}
                            >
                                <Heart size={16} className="shrink-0" /> 我喜欢的音乐
                            </button>
                            <button
                              onClick={loadHistory}
-                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${view === 'history' ? 'bg-red-500 text-white shadow-md shadow-red-500/25' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'}`}
+	                             className={`w-full flex items-center gap-3 px-3 py-3 rounded-[1.2rem] text-sm font-medium transition-all ${view === 'history' ? 'bg-gradient-to-r from-orange-500/90 to-amber-500/90 text-white shadow-[0_18px_36px_-28px_rgba(217,119,69,0.85)]' : 'text-slate-500 dark:text-slate-400 hover:bg-white/70 dark:hover:bg-slate-800/55 hover:text-slate-800 dark:hover:text-slate-200'}`}
                            >
                                <Clock size={16} className="shrink-0" /> 最近播放
                            </button>
                            <button
                              onClick={handleRandomPlay}
-                             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-500 dark:text-slate-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 dark:hover:text-purple-400"
+	                             className="w-full flex items-center gap-3 px-3 py-3 rounded-[1.2rem] text-sm font-medium transition-all text-slate-500 dark:text-slate-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 hover:text-teal-600 dark:hover:text-teal-300"
                            >
                                <Sparkles size={16} className="shrink-0" /> 随机一曲
                            </button>
@@ -757,43 +763,43 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                    </div>
 
                    {/* Charts Section */}
-                   <div>
-                       <div className="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">精选榜单</div>
+                   <div className="sidebar-card p-3">
+                       <div className="px-2 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.26em]">精选榜单</div>
                        <div className="space-y-0.5">
                            <button
                              onClick={() => { setView('charts'); setChartSource('netease'); setShowLyrics(false); setNavStack([]); }}
-                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-left
+	                             className={`w-full flex items-center gap-3 px-3 py-3 rounded-[1.2rem] text-sm font-medium transition-all truncate text-left
                                 ${view === 'charts' && chartSource === 'netease'
-                                    ? 'bg-red-500 text-white shadow-md shadow-red-500/25'
+                                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25'
                                     : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'
                                 }
                              `}
                            >
-                               <Disc size={16} className={`shrink-0 ${view === 'charts' && chartSource === 'netease' ? 'text-white' : 'text-red-400'}`} />
+                               <Disc size={16} className={`shrink-0 ${view === 'charts' && chartSource === 'netease' ? 'text-white' : 'text-orange-400'}`} />
                                <span>网易云</span>
                            </button>
                            <button
                              onClick={() => { setView('charts'); setChartSource('qq'); setShowLyrics(false); setNavStack([]); }}
-                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-left
+	                             className={`w-full flex items-center gap-3 px-3 py-3 rounded-[1.2rem] text-sm font-medium transition-all truncate text-left
                                 ${view === 'charts' && chartSource === 'qq'
-                                    ? 'bg-green-500 text-white shadow-md shadow-green-500/25'
+                                    ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-md shadow-teal-500/25'
                                     : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'
                                 }
                              `}
                            >
-                               <Music size={16} className={`shrink-0 ${view === 'charts' && chartSource === 'qq' ? 'text-white' : 'text-green-400'}`} />
+                               <Music size={16} className={`shrink-0 ${view === 'charts' && chartSource === 'qq' ? 'text-white' : 'text-teal-400'}`} />
                                <span>QQ音乐</span>
                            </button>
                            <button
                              onClick={() => { setView('charts'); setChartSource('kuwo'); setShowLyrics(false); setNavStack([]); }}
-                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all truncate text-left
+	                             className={`w-full flex items-center gap-3 px-3 py-3 rounded-[1.2rem] text-sm font-medium transition-all truncate text-left
                                 ${view === 'charts' && chartSource === 'kuwo'
-                                    ? 'bg-yellow-500 text-white shadow-md shadow-yellow-500/25'
+                                    ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-white shadow-md shadow-orange-500/20'
                                     : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'
                                 }
                              `}
                            >
-                               <Radio size={16} className={`shrink-0 ${view === 'charts' && chartSource === 'kuwo' ? 'text-white' : 'text-yellow-400'}`} />
+                               <Radio size={16} className={`shrink-0 ${view === 'charts' && chartSource === 'kuwo' ? 'text-white' : 'text-amber-400'}`} />
                                <span>酷我音乐</span>
                            </button>
                        </div>
@@ -802,29 +808,29 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
            </div>
 
            {/* Mobile Tab Navigation - Visible only on Mobile */}
-           <div className="md:hidden shrink-0 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 overflow-x-auto scrollbar-hide">
+           <div className="md:hidden shrink-0 bg-[rgba(255,250,242,0.82)] dark:bg-[rgba(9,20,28,0.84)] backdrop-blur-xl border-b border-[rgba(148,114,70,0.12)] dark:border-slate-800 overflow-x-auto scrollbar-hide">
                <div className="flex px-3 py-2.5 gap-2 min-w-max">
                    <button
                      onClick={handleRandomPlay}
-                     className="px-3 py-1.5 rounded-full text-xs font-bold bg-purple-500 text-white flex items-center gap-1.5 shadow-md shadow-purple-500/30"
+                     className="px-3 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-teal-500 to-orange-400 text-white flex items-center gap-1.5 shadow-md shadow-teal-500/25"
                    >
                        <Sparkles size={11} /> 随机
                    </button>
                    <button
                      onClick={() => { setView('home'); setShowLyrics(false); }}
-                     className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${view === 'home' ? 'bg-red-500 text-white shadow-md shadow-red-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
+                     className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${view === 'home' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
                    >
                        发现
                    </button>
                    <button
                      onClick={loadFavorites}
-                     className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${view === 'favorites' ? 'bg-red-500 text-white shadow-md shadow-red-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
+                     className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${view === 'favorites' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
                    >
                        喜欢
                    </button>
                    <button
                      onClick={loadHistory}
-                     className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${view === 'history' ? 'bg-red-500 text-white shadow-md shadow-red-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
+                     className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${view === 'history' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}
                    >
                        历史
                    </button>
@@ -832,12 +838,12 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
            </div>
 
            {/* Right Content Wrapper - Anchors overlays and manages scroll */}
-           <div className="flex-1 flex flex-col relative min-w-0 bg-slate-50 dark:bg-slate-900 overflow-hidden">
+           <div className="flex-1 flex flex-col relative min-w-0 bg-[rgba(255,250,242,0.32)] dark:bg-[rgba(9,20,28,0.36)] overflow-hidden">
                
                {/* Ambient Background Blur - Static */}
                {currentSong && (
                    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-                       <div className="absolute -top-[20%] -right-[20%] w-[80%] h-[80%] opacity-5 dark:opacity-10 blur-[120px] rounded-full" style={{ backgroundColor: view === 'home' ? '#ef4444' : 'currentColor', color: 'inherit' }}></div>
+                       <div className="absolute -top-[20%] -right-[20%] w-[80%] h-[80%] opacity-5 dark:opacity-10 blur-[120px] rounded-full" style={{ backgroundColor: view === 'favorites' ? '#fb923c' : view === 'history' ? '#14b8a6' : '#f59e0b' }}></div>
                    </div>
                )}
 
@@ -910,7 +916,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                <div ref={contentScrollRef} className="flex-1 overflow-y-auto relative z-10 scroll-smooth">
                    
                    {/* Internal Toolbar for Search and Navigation */}
-                   <div className="sticky top-0 z-20 px-4 md:px-6 py-4 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800/50 flex items-center gap-4">
+                   <div className="sticky top-0 z-20 px-4 md:px-6 py-4 bg-[rgba(255,250,242,0.9)] dark:bg-[rgba(9,20,28,0.9)] backdrop-blur-xl border-b border-[rgba(148,114,70,0.12)] dark:border-slate-800/50 flex items-center gap-4">
                         {view !== 'home' && view !== 'charts' && (
                             <button onClick={() => {
                                 const prev = navStack[navStack.length - 1];
@@ -931,7 +937,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                         )}
                         
                         {/* Search Bar with Source Selector */}
-                        <form onSubmit={handleSearch} className="flex-1 flex items-center bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm focus-within:ring-2 focus-within:ring-red-500/30 max-w-xl relative">
+                        <form onSubmit={handleSearch} className="flex-1 flex items-center bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm focus-within:ring-2 focus-within:ring-orange-500/25 max-w-xl relative">
                             {/* Source Selector Dropdown */}
                             <div className="relative shrink-0">
                                 <button 
@@ -956,7 +962,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                         setShowSourceMenu(false);
                                                     }}
                                                     className={`w-full text-left px-4 py-2 text-xs font-medium transition-colors hover:bg-slate-50 dark:hover:bg-slate-700
-                                                       ${searchSource === s ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-slate-600 dark:text-slate-300'}
+                                                       ${searchSource === s ? 'text-orange-500 bg-orange-50 dark:bg-orange-900/20' : 'text-slate-600 dark:text-slate-300'}
                                                     `}
                                                 >
                                                     {getSourceLabel(s)}
@@ -975,7 +981,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                 placeholder={`搜索${getSourceLabel(searchSource)}...`}
                                 className="flex-1 bg-transparent border-none focus:ring-0 py-2.5 px-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 w-full"
                             />
-                            <button type="submit" className="pr-4 pl-2 text-slate-400 hover:text-red-500 transition-colors">
+                            <button type="submit" className="pr-4 pl-2 text-slate-400 hover:text-orange-500 transition-colors">
                                 <Search size={18} />
                             </button>
                         </form>
@@ -984,7 +990,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                    <div className={`relative min-h-full pb-36 ${view === 'home' ? 'p-0' : 'p-0'}`}>
                        {loading ? (
                            <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
-                               <Loader2 className="animate-spin text-red-500" size={32} />
+                               <Loader2 className="animate-spin text-orange-500" size={32} />
                                <p className="text-sm">加载精彩内容...</p>
                            </div>
                        ) : (
@@ -1001,7 +1007,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                    <div className="absolute inset-0 bg-gradient-to-b from-white/60 via-white/80 to-white dark:from-slate-900/60 dark:via-slate-900/80 dark:to-slate-900"></div>
                                                </div>
                                            ) : (
-                                               <div className={`absolute inset-0 opacity-10 ${view === 'history' ? 'bg-blue-500' : view === 'favorites' ? 'bg-red-500' : 'bg-slate-500'}`}></div>
+                                               <div className={`absolute inset-0 opacity-10 ${view === 'history' ? 'bg-teal-500' : view === 'favorites' ? 'bg-orange-500' : 'bg-slate-500'}`}></div>
                                            )}
 
                                            <div className="relative px-6 md:px-10 pt-8 pb-6 flex flex-col md:flex-row items-start md:items-end gap-6">
@@ -1012,7 +1018,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                    </div>
                                                ) : (
                                                    <div className={`w-36 h-36 md:w-48 md:h-48 rounded-2xl flex items-center justify-center shadow-2xl shrink-0
-                                                       ${view === 'history' ? 'bg-gradient-to-br from-blue-400 to-blue-600' : view === 'favorites' ? 'bg-gradient-to-br from-red-400 to-pink-600' : 'bg-gradient-to-br from-slate-400 to-slate-600'}
+                                                       ${view === 'history' ? 'bg-gradient-to-br from-teal-400 to-cyan-500' : view === 'favorites' ? 'bg-gradient-to-br from-orange-400 to-amber-500' : 'bg-gradient-to-br from-slate-400 to-slate-600'}
                                                        text-white
                                                    `}>
                                                        {view === 'history' ? <Clock size={52} /> : view === 'favorites' ? <Heart size={52} /> : <Search size={52} />}
@@ -1059,7 +1065,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                    <div className="flex items-center gap-4 mt-1">
                                                        <button
                                                          onClick={() => playAll(view === 'search' ? searchResults : playlistSongs, getQueueTitleForCurrentView())}
-                                                         className="flex items-center gap-2.5 px-7 py-2.5 bg-red-500 hover:bg-red-400 text-white rounded-full text-sm font-bold shadow-lg shadow-red-500/30 transition-all hover:scale-105 active:scale-95"
+                                                         className="flex items-center gap-2.5 px-7 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white rounded-full text-sm font-bold shadow-lg shadow-orange-500/25 transition-all hover:scale-105 active:scale-95"
                                                        >
                                                            <Play size={16} fill="currentColor" /> 播放全部
                                                        </button>
@@ -1082,7 +1088,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                        </div>
                                                        <button
                                                            onClick={() => setShowFullDesc(!showFullDesc)}
-                                                           className="mt-2 flex items-center gap-1 text-xs font-bold text-red-500 hover:text-red-400 transition-colors"
+                                                           className="mt-2 flex items-center gap-1 text-xs font-bold text-orange-500 hover:text-orange-400 transition-colors"
                                                        >
                                                            {showFullDesc ? '收起' : '展开介绍'}
                                                            <ChevronDown size={13} className={`transition-transform duration-200 ${showFullDesc ? 'rotate-180' : ''}`} />
@@ -1093,7 +1099,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                        </div>
 
                                        {/* List Header - Sticky */}
-                                       <div className="sticky top-[72px] z-10 grid grid-cols-[50px_1fr_40px] md:grid-cols-[60px_4fr_3fr_80px] gap-4 px-6 md:px-10 py-3 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-400 uppercase tracking-wider shadow-sm">
+                                       <div className="sticky top-[72px] z-10 grid grid-cols-[50px_1fr_40px] md:grid-cols-[60px_4fr_3fr_80px] gap-4 px-6 md:px-10 py-3 bg-[rgba(255,250,242,0.9)] dark:bg-[rgba(9,20,28,0.9)] backdrop-blur-xl border-b border-[rgba(148,114,70,0.12)] dark:border-slate-800 text-xs font-bold text-slate-400 uppercase tracking-wider shadow-sm">
                                            <div className="text-center">#</div>
                                            <div>标题</div>
                                            <div className="hidden md:block">专辑</div>
@@ -1108,7 +1114,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                  onClick={() => playSong(song, view === 'search' ? searchResults : playlistSongs, getQueueTitleForCurrentView())}
                                                  className={`group grid grid-cols-[50px_1fr_40px] md:grid-cols-[60px_4fr_3fr_80px] gap-4 px-6 md:px-10 py-3.5 items-center transition-all cursor-pointer
                                                     ${String(currentSong?.id) === String(song.id) 
-                                                        ? 'bg-red-50/50 dark:bg-red-900/10' 
+                                                        ? 'bg-orange-50/70 dark:bg-orange-900/10' 
                                                         : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'
                                                     }
                                                  `}
@@ -1116,9 +1122,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                    <div className="text-center text-sm font-medium text-slate-400 flex justify-center">
                                                       {String(currentSong?.id) === String(song.id) && isPlaying ? (
                                                           <div className="flex gap-0.5 items-end h-3">
-                                                              <div className="w-1 bg-red-500 animate-music-wave-1 rounded-sm"></div>
-                                                              <div className="w-1 bg-red-500 animate-music-wave-2 rounded-sm"></div>
-                                                              <div className="w-1 bg-red-500 animate-music-wave-3 rounded-sm"></div>
+                                                              <div className="w-1 bg-orange-500 animate-music-wave-1 rounded-sm"></div>
+                                                              <div className="w-1 bg-orange-500 animate-music-wave-2 rounded-sm"></div>
+                                                              <div className="w-1 bg-orange-500 animate-music-wave-3 rounded-sm"></div>
                                                           </div>
                                                       ) : (
                                                           <span className="md:group-hover:hidden">{i + 1}</span>
@@ -1131,21 +1137,21 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                             <img src={song.al.picUrl} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
                                                        </div>
                                                        <div className="min-w-0 flex-1">
-                                                           <div className={`font-medium truncate text-sm mb-0.5 ${String(currentSong?.id) === String(song.id) ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>{song.name}</div>
+                                                           <div className={`font-medium truncate text-sm mb-0.5 ${String(currentSong?.id) === String(song.id) ? 'text-orange-600 dark:text-orange-300' : 'text-slate-800 dark:text-slate-200'}`}>{song.name}</div>
                                                            <div className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-2">
                                                                {song.source === 'qq' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">QQ</span>}
                                                                {song.source === 'netease' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">WY</span>}
                                                                {song.source === 'kuwo' && <span className="text-[9px] px-1 rounded border border-slate-200 dark:border-slate-600 text-slate-400">KW</span>}
                                                                <span className="truncate">
                                                                   {song.ar.map(a => a.name).join(', ')}
-                                                                  <span className="md:hidden text-slate-400"> · <span className="hover:text-blue-500 hover:underline cursor-pointer" onClick={(e) => handleAlbumClick(e, song.al.id, song.source)}>{song.al.name}</span></span>
+                                                                  <span className="md:hidden text-slate-400"> · <span className="hover:text-orange-500 hover:underline cursor-pointer" onClick={(e) => handleAlbumClick(e, song.al.id, song.source)}>{song.al.name}</span></span>
                                                                </span>
                                                            </div>
                                                        </div>
                                                    </div>
                                                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate hidden md:block">
                                                        <span 
-                                                         className="hover:text-blue-500 hover:underline cursor-pointer transition-colors"
+                                                         className="hover:text-orange-500 hover:underline cursor-pointer transition-colors"
                                                          onClick={(e) => handleAlbumClick(e, song.al.id, song.source)}
                                                        >
                                                            {song.al.name}
@@ -1225,8 +1231,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                                 onClick={() => setPlaylistCat(cat)}
                                                                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
                                                                     playlistCat === cat
-                                                                        ? 'bg-red-500 text-white shadow-md shadow-red-500/30'
-                                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'
+                                                                        ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25'
+                                                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-500'
                                                                 }`}
                                                             >
                                                                 {cat}
@@ -1246,7 +1252,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                                     <div className="aspect-square rounded-2xl overflow-hidden shadow-md relative bg-slate-200 dark:bg-slate-800">
                                                                         <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
                                                                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                                                            <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all shadow-xl backdrop-blur-sm">
+                                                                            <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center text-orange-500 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all shadow-xl backdrop-blur-sm">
                                                                                 <Play size={24} fill="currentColor" className="ml-1" />
                                                                             </div>
                                                                         </div>
@@ -1255,7 +1261,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                                             {list.playCount > 10000 ? `${(list.playCount / 10000).toFixed(1)}万` : list.playCount}
                                                                         </div>
                                                                     </div>
-                                                                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-snug group-hover:text-red-500 transition-colors">
+                                                                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-snug group-hover:text-orange-500 transition-colors">
                                                                         {list.name}
                                                                     </h4>
                                                                 </div>
@@ -1281,7 +1287,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                                         <div className="aspect-square rounded-2xl overflow-hidden shadow-md relative bg-slate-200 dark:bg-slate-800">
                                                                             <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
                                                                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                                                                <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all shadow-xl backdrop-blur-sm">
+                                                                                <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center text-orange-500 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all shadow-xl backdrop-blur-sm">
                                                                                     <Play size={24} fill="currentColor" className="ml-1" />
                                                                                 </div>
                                                                             </div>
@@ -1292,14 +1298,14 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                                                 </div>
                                                                             )}
                                                                         </div>
-                                                                        <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-snug group-hover:text-red-500 transition-colors">
+                                                                        <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-snug group-hover:text-orange-500 transition-colors">
                                                                             {list.name}
                                                                         </h4>
                                                                     </div>
                                                                 ))}
                                                                 {topPlaylistsLoading && (
                                                                     <div className="col-span-full flex justify-center py-10">
-                                                                        <Loader2 size={24} className="animate-spin text-red-400" />
+                                                                        <Loader2 size={24} className="animate-spin text-orange-400" />
                                                                     </div>
                                                                 )}
                                                                 {!topPlaylistsLoading && topPlaylists.length === 0 && (
@@ -1338,7 +1344,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                             <div className="aspect-square rounded-2xl overflow-hidden shadow-md relative bg-slate-200 dark:bg-slate-800">
                                                                 <img src={list.coverImgUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
                                                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                                                                    <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all shadow-xl backdrop-blur-sm">
+                                                                    <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center text-orange-500 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all shadow-xl backdrop-blur-sm">
                                                                         <Play size={24} fill="currentColor" className="ml-1" />
                                                                     </div>
                                                                 </div>
@@ -1347,7 +1353,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                                     {list.playCount > 10000 ? `${(list.playCount / 10000).toFixed(1)}万` : list.playCount}
                                                                 </div>
                                                             </div>
-                                                            <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-snug group-hover:text-red-500 transition-colors">
+                                                            <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-snug group-hover:text-orange-500 transition-colors">
                                                                 {list.name}
                                                             </h4>
                                                         </div>
@@ -1369,7 +1375,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                        <div className="px-5 md:px-8 py-6">
                                            <div className="flex items-center justify-between mb-5">
                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 text-white flex items-center justify-center shadow-md shadow-red-500/30">
+                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-teal-500 text-white flex items-center justify-center shadow-md shadow-orange-500/25">
                                                         <Calendar size={20} />
                                                     </div>
                                                     <div>
@@ -1381,7 +1387,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                </div>
                                                <button
                                                     onClick={() => playAll(dailySongs, '每日推荐')}
-                                                    className="flex items-center gap-2 px-5 py-2 bg-red-500 hover:bg-red-400 text-white rounded-full text-sm font-bold shadow-md shadow-red-500/30 transition-all active:scale-95"
+                                                    className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white rounded-full text-sm font-bold shadow-md shadow-orange-500/25 transition-all active:scale-95"
                                                >
                                                     <Play size={15} fill="currentColor" /> 播放全部
                                                </button>
@@ -1395,13 +1401,13 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                        onClick={() => playSong(song, dailySongs, '每日推荐')}
                                                        className={`group flex items-center gap-3 p-2.5 rounded-2xl transition-all cursor-pointer border
                                                            ${String(currentSong?.id) === String(song.id)
-                                                               ? 'bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/10 border-red-200/60 dark:border-red-800/40 shadow-sm'
+                                                               ? 'bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/10 border-orange-200/60 dark:border-orange-800/40 shadow-sm'
                                                                : 'border-transparent hover:bg-white dark:hover:bg-slate-800 hover:border-slate-100 dark:hover:border-slate-700/50 hover:shadow-md'
                                                            }
                                                        `}
                                                    >
                                                        {/* Rank Number */}
-                                                       <div className={`text-xs font-bold w-5 shrink-0 text-center ${i < 3 ? 'text-red-500' : 'text-slate-300 dark:text-slate-600'}`}>
+                                                       <div className={`text-xs font-bold w-5 shrink-0 text-center ${i < 3 ? 'text-orange-500' : 'text-slate-300 dark:text-slate-600'}`}>
                                                            {i + 1}
                                                        </div>
                                                        <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-700 shadow-sm">
@@ -1417,14 +1423,14 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                            )}
                                                            {String(currentSong?.id) !== String(song.id) && (
                                                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                                   <div className="p-1.5 bg-white/90 rounded-full text-red-500 transform scale-0 group-hover:scale-100 transition-transform duration-200">
+                                                                   <div className="p-1.5 bg-white/90 rounded-full text-orange-500 transform scale-0 group-hover:scale-100 transition-transform duration-200">
                                                                        <Play size={11} fill="currentColor" className="ml-0.5" />
                                                                    </div>
                                                                </div>
                                                            )}
                                                        </div>
                                                        <div className="flex-1 min-w-0">
-                                                           <div className={`font-semibold truncate text-sm mb-0.5 ${String(currentSong?.id) === String(song.id) ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                                                           <div className={`font-semibold truncate text-sm mb-0.5 ${String(currentSong?.id) === String(song.id) ? 'text-orange-600 dark:text-orange-300' : 'text-slate-800 dark:text-slate-200'}`}>
                                                                {song.name}
                                                            </div>
                                                            <div className="text-xs text-slate-400 dark:text-slate-500 truncate">
@@ -1451,7 +1457,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
        </div>
 
        {/* Bottom Player Bar - Glassmorphism */}
-       <div className="shrink-0 h-20 md:h-24 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 flex items-center px-4 md:px-8 gap-4 md:gap-6 z-50 relative shadow-[0_-8px_32px_-8px_rgba(0,0,0,0.12)]">
+       <div className="shrink-0 h-20 md:h-24 bg-[rgba(255,250,242,0.88)] dark:bg-[rgba(9,20,28,0.9)] backdrop-blur-xl border-t border-[rgba(148,114,70,0.12)] dark:border-slate-800 flex items-center px-4 md:px-8 gap-4 md:gap-6 z-50 relative shadow-[0_-8px_32px_-8px_rgba(0,0,0,0.12)]">
 
            {/* Progress Bar (Absolute Top) */}
            <div
@@ -1465,10 +1471,10 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
              }}
            >
               <div
-                className="h-full bg-gradient-to-r from-red-500 to-orange-400 relative transition-[width] duration-100 ease-linear"
+                className="h-full bg-gradient-to-r from-orange-500 to-amber-400 relative transition-[width] duration-100 ease-linear"
                 style={{ width: `${duration ? (progress / duration) * 100 : 0}%` }}
               >
-                 <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-md border-2 border-red-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                 <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-md border-2 border-orange-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               </div>
            </div>
 
@@ -1488,12 +1494,12 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        <div className="min-w-0 flex flex-col justify-center overflow-hidden">
                            <div className="font-bold text-slate-800 dark:text-slate-100 truncate text-sm md:text-base mb-0.5">{currentSong.name}</div>
                            <div className="text-xs text-slate-500 dark:text-slate-400 truncate font-medium">
-                               {currentSong.ar.map(a => a.name).join(', ')} · <span className="hover:text-blue-500 hover:underline cursor-pointer" onClick={(e) => handleAlbumClick(e, currentSong.al.id, currentSong.source)}>{currentSong.al.name}</span>
+                               {currentSong.ar.map(a => a.name).join(', ')} · <span className="hover:text-orange-500 hover:underline cursor-pointer" onClick={(e) => handleAlbumClick(e, currentSong.al.id, currentSong.source)}>{currentSong.al.name}</span>
                            </div>
                        </div>
                        <button
                          onClick={handleLikeToggle}
-                         className={`ml-1 md:ml-2 shrink-0 transition-all active:scale-90 ${isLiked ? 'text-red-500' : 'text-slate-400 hover:text-red-500'} hidden sm:block`}
+                         className={`ml-1 md:ml-2 shrink-0 transition-all active:scale-90 ${isLiked ? 'text-orange-500' : 'text-slate-400 hover:text-orange-500'} hidden sm:block`}
                        >
                            <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
                        </button>
@@ -1511,17 +1517,17 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
            {/* Controls */}
            <div className="flex-none md:flex-1 flex flex-col items-end md:items-center justify-center max-w-lg">
                <div className="flex items-center gap-3 md:gap-6">
-                   <button onClick={togglePlayMode} className={`hidden md:block p-2 rounded-full transition-colors ${playMode !== 'loop' ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                   <button onClick={togglePlayMode} className={`hidden md:block p-2 rounded-full transition-colors ${playMode !== 'loop' ? 'text-orange-500 bg-orange-50 dark:bg-orange-900/20' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
                        {playMode === 'single' ? <Repeat1 size={17} /> : playMode === 'shuffle' ? <Shuffle size={17} /> : <Repeat size={17} />}
                    </button>
 
-                   <button onClick={playPrev} className="hidden md:block text-slate-600 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+                   <button onClick={playPrev} className="hidden md:block text-slate-600 dark:text-slate-300 hover:text-orange-500 dark:hover:text-orange-300 transition-colors">
                        <SkipBack size={26} fill="currentColor" />
                    </button>
 
                    <button
                      onClick={() => isPlaying ? audioRef.current?.pause() : audioRef.current?.play()}
-                     className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-red-500 hover:bg-red-400 text-white rounded-full shadow-lg shadow-red-500/40 transition-all hover:scale-105 active:scale-95"
+                     className="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white rounded-full shadow-lg shadow-orange-500/30 transition-all hover:scale-105 active:scale-95"
                    >
                        {isPlaying ? (
                            <Pause className="w-5 h-5 md:w-6 md:h-6" fill="currentColor" />
@@ -1530,21 +1536,21 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        )}
                    </button>
 
-                   <button onClick={playNext} className="text-slate-600 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+                   <button onClick={playNext} className="text-slate-600 dark:text-slate-300 hover:text-orange-500 dark:hover:text-orange-300 transition-colors">
                        <SkipForward className="w-6 h-6 md:w-7 md:h-7" fill="currentColor" />
                    </button>
 
                    <div className="relative hidden md:block">
                        <button
                          onClick={() => setShowQualityMenu(!showQualityMenu)}
-                         className={`text-xs font-bold border rounded-md px-1.5 py-0.5 transition-colors ${quality === 'flac' || quality === 'flac24bit' ? 'text-red-500 border-red-400 bg-red-50 dark:bg-red-900/20' : 'text-slate-400 border-slate-300 dark:border-slate-600 hover:text-slate-600'}`}
+                         className={`text-xs font-bold border rounded-md px-1.5 py-0.5 transition-colors ${quality === 'flac' || quality === 'flac24bit' ? 'text-orange-500 border-orange-400 bg-orange-50 dark:bg-orange-900/20' : 'text-slate-400 border-slate-300 dark:border-slate-600 hover:text-slate-600'}`}
                        >
                            {quality === '320k' ? 'HQ' : (quality === '128k' ? 'SD' : 'SQ')}
                        </button>
                        {showQualityMenu && (
                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-4 w-24 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 py-1">
                                {['128k', '320k', 'flac'].map(q => (
-                                   <button key={q} onClick={() => changeQuality(q)} className={`block w-full px-3 py-2 text-xs text-center hover:bg-slate-50 dark:hover:bg-slate-700 ${quality === q ? 'text-red-500 font-bold' : 'text-slate-600 dark:text-slate-300'}`}>
+                                   <button key={q} onClick={() => changeQuality(q)} className={`block w-full px-3 py-2 text-xs text-center hover:bg-slate-50 dark:hover:bg-slate-700 ${quality === q ? 'text-orange-500 font-bold' : 'text-slate-600 dark:text-slate-300'}`}>
                                        {q.toUpperCase()}
                                    </button>
                                ))}
@@ -1561,12 +1567,12 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
            <div className="hidden md:flex w-1/3 items-center justify-end gap-3 group/vol">
                <button
                  onClick={() => setShowQueuePanel(v => !v)}
-                 className={`relative p-2 rounded-full transition-colors ${showQueuePanel ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-slate-400 hover:text-red-500'}`}
+                 className={`relative p-2 rounded-full transition-colors ${showQueuePanel ? 'text-orange-500 bg-orange-50 dark:bg-orange-900/20' : 'text-slate-400 hover:text-orange-500'}`}
                  title="当前播放列表"
                >
                   <ListMusic size={16} />
                   {queue.length > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center">
+                    <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-orange-500 text-white text-[10px] leading-4 text-center">
                       {Math.min(queue.length, 99)}
                     </span>
                   )}
@@ -1575,7 +1581,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                   <Volume2 size={18} className={`transition-colors ${volume === 0 ? 'text-slate-300' : 'text-slate-400 dark:text-slate-500'}`} />
                </button>
                <div className="w-20 h-1 bg-slate-200 dark:bg-slate-700 rounded-full relative cursor-pointer overflow-hidden hover:h-1.5 transition-all group-hover/vol:h-1.5">
-                   <div className="absolute inset-y-0 left-0 bg-slate-400 dark:bg-slate-500 rounded-full transition-all group-hover/vol:bg-red-500" style={{ width: `${volume * 100}%` }}></div>
+                   <div className="absolute inset-y-0 left-0 bg-slate-400 dark:bg-slate-500 rounded-full transition-all group-hover/vol:bg-orange-500" style={{ width: `${volume * 100}%` }}></div>
                    <input
                      type="range"
                      min="0" max="1" step="0.05"
@@ -1586,7 +1592,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                </div>
               <button
                 onClick={() => setShowLyrics(!showLyrics)}
-                className={`ml-1 p-2 rounded-full transition-colors ${showLyrics ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-slate-400 hover:text-red-500'}`}
+                className={`ml-1 p-2 rounded-full transition-colors ${showLyrics ? 'text-orange-500 bg-orange-50 dark:bg-orange-900/20' : 'text-slate-400 hover:text-orange-500'}`}
               >
                  <Mic2 size={16} />
               </button>
@@ -1595,18 +1601,18 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
            {/* Mobile Lyrics Toggle */}
            <button
              onClick={() => setShowQueuePanel(v => !v)}
-             className={`md:hidden relative p-2 transition-colors ${showQueuePanel ? 'text-red-500 bg-red-50 dark:bg-red-900/20 rounded-full' : 'text-slate-400'}`}
+             className={`md:hidden relative p-2 transition-colors ${showQueuePanel ? 'text-orange-500 bg-orange-50 dark:bg-orange-900/20 rounded-full' : 'text-slate-400'}`}
            >
               <ListMusic size={20} />
               {queue.length > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center">
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-orange-500 text-white text-[10px] leading-4 text-center">
                   {Math.min(queue.length, 99)}
                 </span>
               )}
            </button>
            <button
              onClick={() => setShowLyrics(!showLyrics)}
-             className={`md:hidden p-2 transition-colors ${showLyrics ? 'text-red-500 bg-red-50 dark:bg-red-900/20 rounded-full' : 'text-slate-400'}`}
+             className={`md:hidden p-2 transition-colors ${showLyrics ? 'text-orange-500 bg-orange-50 dark:bg-orange-900/20 rounded-full' : 'text-slate-400'}`}
            >
               <Mic2 size={20} />
            </button>
@@ -1616,7 +1622,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
            <>
                <div className="absolute inset-0 z-[60] bg-black/20 backdrop-blur-[1px]" onClick={() => setShowQueuePanel(false)} />
                <div className="absolute z-[70] left-3 right-3 bottom-24 md:left-auto md:right-6 md:w-[24rem] md:bottom-28 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-700 rounded-3xl shadow-2xl overflow-hidden">
-                   <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+                   <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(148,114,70,0.12)] dark:border-slate-800">
                        <div className="min-w-0">
                            <div className="text-sm font-bold text-slate-800 dark:text-slate-100">当前播放列表</div>
                            <div className="text-xs text-slate-400 dark:text-slate-500 truncate">{queueTitle} · {queue.length} 首</div>
@@ -1643,18 +1649,18 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                          }}
                                          className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-colors ${
                                            isActive
-                                             ? 'bg-red-50 dark:bg-red-900/20'
+                                             ? 'bg-orange-50 dark:bg-orange-900/20'
                                              : 'hover:bg-slate-100 dark:hover:bg-slate-800/70'
                                          }`}
                                        >
-                                           <div className={`w-7 text-center text-xs font-semibold shrink-0 ${isActive ? 'text-red-500' : 'text-slate-400 dark:text-slate-500'}`}>
+                                           <div className={`w-7 text-center text-xs font-semibold shrink-0 ${isActive ? 'text-orange-500' : 'text-slate-400 dark:text-slate-500'}`}>
                                                {isActive && isPlaying ? '♪' : index + 1}
                                            </div>
                                            <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-slate-200 dark:bg-slate-800">
                                                <img src={song.al.picUrl} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
                                            </div>
                                            <div className="min-w-0 flex-1">
-                                               <div className={`truncate text-sm font-semibold ${isActive ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                                               <div className={`truncate text-sm font-semibold ${isActive ? 'text-orange-600 dark:text-orange-300' : 'text-slate-800 dark:text-slate-200'}`}>
                                                    {song.name}
                                                </div>
                                                <div className="truncate text-xs text-slate-400 dark:text-slate-500">
