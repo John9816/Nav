@@ -1,27 +1,28 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
 import SearchBar from './components/SearchBar';
 import LinkGrid from './components/LinkGrid';
 import Weather from './components/Weather';
 import Sidebar from './components/Sidebar';
 import DailyQuote from './components/DailyQuote';
-import AIStudio from './components/AIStudio';
-import MusicPlatform from './components/MusicPlatform';
-import AuthModal from './components/AuthModal';
-import BookmarkManager from './components/BookmarkManager';
-import Guestbook from './components/Guestbook'; 
 import BookmarkBar from './components/BookmarkBar'; // Import BookmarkBar
 import { CategoryModal, LinkModal } from './components/BookmarkModals';
 import { DEFAULT_CATEGORIES } from './constants';
 import { Category, LinkItem } from './types';
-import { ArrowUp, Sun, Moon, Sparkles, Music, Home, LogOut, LogIn, Heart, Settings, History, MessageSquareQuote } from 'lucide-react';
+import { ArrowUp, Sun, Moon, Sparkles, Music, Home, LogOut, LogIn, Heart, Settings, History, MessageSquareQuote, PanelLeft } from 'lucide-react';
 import { ChatMessage } from './types';
 import { useAuth } from './contexts/AuthContext';
-import { 
-  fetchUserBookmarks, 
+import {
+  fetchUserBookmarks,
   addCategory, updateCategory, deleteCategory,
   addLink, updateLink, deleteLink, getColorClass
 } from './services/bookmarkService';
 import { getIconByName } from './utils/iconMap';
+
+const AIStudio = lazy(() => import('./components/AIStudio'));
+const MusicPlatform = lazy(() => import('./components/MusicPlatform'));
+const AuthModal = lazy(() => import('./components/AuthModal'));
+const BookmarkManager = lazy(() => import('./components/BookmarkManager'));
+const Guestbook = lazy(() => import('./components/Guestbook'));
 
 function App() {
   const [view, setView] = useState<'dashboard' | 'studio' | 'music' | 'bookmarks' | 'guestbook'>('dashboard');
@@ -30,17 +31,21 @@ function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [hasVisitedMusic, setHasVisitedMusic] = useState(false);
   
   // Bookmarks State
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [isLoadingBookmarks, setIsLoadingBookmarks] = useState(false);
 
   // Split categories for UI
-  // Bookmark Bar Categories: Exact match '书签栏' OR start with '书签栏/'
-  const bookmarkBarCategories = categories.filter(c => c.title === '书签栏' || c.title.startsWith('书签栏/'));
+  const bookmarkBarRootTitle = '\u4e66\u7b7e\u680f';
+  const bookmarkBarCategories = categories.filter(category => category.title === bookmarkBarRootTitle || category.title.startsWith(bookmarkBarRootTitle));
   
   // Dashboard Categories: Everything else
-  const dashboardCategories = categories.filter(c => c.title !== '书签栏' && !c.title.startsWith('书签栏/'));
+  const dashboardCategories = categories.filter(category => category.title !== bookmarkBarRootTitle && !category.title.startsWith(bookmarkBarRootTitle));
+
+  const totalDashboardLinks = dashboardCategories.reduce((total, category) => total + category.links.length, 0);
+  const currentSectionTitle = dashboardCategories.find(category => category.id === activeSection)?.title || dashboardCategories[0]?.title || '首页';
 
   // Modal States
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -72,13 +77,13 @@ function App() {
 
   // AI Chat History State (Lifted up for persistence)
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
-    { id: 'init-chat', role: 'model', text: '你好！我是你的 AI 智能助手。有什么我可以帮你的吗？' }
+    { id: 'init-chat', role: 'model', text: '\u4f60\u597d\uff01\u6211\u662f\u4f60\u7684 AI \u667a\u80fd\u52a9\u624b\u3002\u6709\u4ec0\u4e48\u6211\u53ef\u4ee5\u5e2e\u4f60\u7684\u5417\uff1f' }
   ]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   
   // AI Image History State (Lifted up for persistence)
   const [imageHistory, setImageHistory] = useState<ChatMessage[]>([
-    { id: 'init-image', role: 'model', text: '欢迎来到 AI 绘画模式。请描述你想要生成的画面。' }
+    { id: 'init-image', role: 'model', text: '\u6b22\u8fce\u6765\u5230 AI \u7ed8\u753b\u6a21\u5f0f\u3002\u8bf7\u63cf\u8ff0\u4f60\u60f3\u8981\u751f\u6210\u7684\u753b\u9762\u3002' }
   ]);
 
   // Apply theme to document and save to local storage
@@ -101,6 +106,13 @@ function App() {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (view === 'music') {
+      setHasVisitedMusic(true);
+    }
+  }, [view]);
+
 
   // Helper to rehydrate icons from raw data (for cache)
   const hydrateCategories = (data: Category[]) => {
@@ -190,7 +202,7 @@ function App() {
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (!confirm('确定删除此分类吗？包含的链接也会被删除。')) return;
+    if (!confirm("确定删除此分类吗？包含的链接也会被删除。")) return;
     try {
       await deleteCategory(id);
       await refreshBookmarks();
@@ -217,7 +229,7 @@ function App() {
   };
 
   const handleDeleteLink = async (id: string) => {
-    if (!confirm('确定删除此链接吗？')) return;
+    if (!confirm("确定删除此链接吗？")) return;
     try {
       await deleteLink(id);
       await refreshBookmarks();
@@ -291,205 +303,140 @@ function App() {
     return date.toLocaleDateString('zh-CN', { weekday: 'long', month: 'long', day: 'numeric' });
   };
 
+
+  const viewFallback = (
+    <div className="flex-1 flex items-center justify-center px-6 py-10">
+      <div className="glass-panel rounded-[1.8rem] px-6 py-8 text-center text-slate-600 dark:text-slate-300">
+        <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-amber-300 border-t-amber-500 dark:border-amber-500/20 dark:border-t-amber-300" />
+        <div className="text-sm font-medium">正在加载模块...</div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="h-screen flex flex-col transition-colors duration-300 text-slate-900 dark:text-slate-100">
       
       {/* Background Ambience */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden transition-opacity duration-500">
          <div className="absolute inset-0 surface-grid opacity-90 dark:opacity-70"></div>
-         <div className="absolute top-[-10%] right-[-8%] w-[34rem] h-[34rem] rounded-full blur-[120px] bg-orange-200/45 dark:bg-orange-500/12 animate-blob"></div>
-         <div className="absolute top-[8%] left-[10%] w-[26rem] h-[26rem] rounded-full blur-[110px] bg-amber-100/55 dark:bg-teal-400/10 animate-blob animation-delay-2000"></div>
-         <div className="absolute bottom-[-18%] right-[12%] w-[28rem] h-[28rem] rounded-full blur-[120px] bg-teal-200/35 dark:bg-cyan-400/10 animate-blob animation-delay-4000"></div>
+         <div className="absolute top-[-10%] right-[-8%] w-[34rem] h-[34rem] rounded-full blur-[120px] bg-amber-200/35 dark:bg-amber-500/10 animate-blob"></div>
+         <div className="absolute top-[8%] left-[10%] w-[26rem] h-[26rem] rounded-full blur-[110px] bg-amber-100/45 dark:bg-amber-400/08 animate-blob animation-delay-2000"></div>
+         <div className="absolute bottom-[-18%] right-[12%] w-[28rem] h-[28rem] rounded-full blur-[120px] bg-stone-200/28 dark:bg-stone-400/08 animate-blob animation-delay-4000"></div>
          <div className="absolute bottom-[-10%] left-[-8%] w-[30rem] h-[30rem] rounded-full blur-[120px] bg-rose-100/35 dark:bg-slate-700/30 animate-blob animation-delay-2000"></div>
       </div>
 
       {/* FIXED TOP NAVIGATION BAR */}
-      <header className="shrink-0 z-50 h-18 bg-[rgba(255,250,242,0.72)] dark:bg-[rgba(9,20,28,0.8)] backdrop-blur-xl border-b border-[rgba(148,114,70,0.14)] dark:border-[rgba(94,234,212,0.1)] flex items-center justify-between px-4 sm:px-6 lg:px-8 transition-all duration-300">
-        
-        {/* Left: Menu Toggle (Mobile Only) */}
+      <header className="shrink-0 z-50 h-[4.5rem] header-shell border-b border-[rgba(148,114,70,0.14)] dark:border-[rgba(209,154,102,0.1)] flex items-center justify-between gap-3 px-4 sm:px-5 lg:px-6 transition-all duration-300">
         <div className="flex items-center gap-3 min-w-0">
-            <div className="hidden sm:flex items-center gap-3 min-w-0">
-              <div className="brand-ring w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-500 via-amber-500 to-teal-500 text-white flex items-center justify-center shadow-[0_16px_32px_-18px_rgba(217,119,69,0.9)]">
-                <span className="font-[Outfit] text-base font-extrabold tracking-[0.18em] pl-[0.18em]">75</span>
-              </div>
-              <div className="min-w-0">
-                <div className="font-[Outfit] text-lg font-semibold tracking-[0.18em] text-slate-800 dark:text-slate-100 truncate">七五导航</div>
-                <div className="text-[11px] uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400 truncate">Curated Start Surface</div>
-              </div>
+          <button
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-white/70 dark:border-slate-700/60 bg-white/60 dark:bg-slate-900/55 text-slate-600 dark:text-slate-300"
+            aria-label="打开侧栏"
+          >
+            <PanelLeft size={18} />
+          </button>
+          <div className="hidden sm:flex items-center gap-3 min-w-0">
+            <div className="brand-ring w-10 h-10 rounded-[1.1rem] bg-gradient-to-br from-amber-500 via-orange-400 to-orange-300 text-white flex items-center justify-center shadow-[0_16px_32px_-18px_rgba(217,119,69,0.9)]">
+              <span className="font-[Outfit] text-base font-extrabold tracking-[0.18em] pl-[0.18em]">75</span>
             </div>
+            <div className="min-w-0">
+              <div className="font-[Outfit] text-base font-semibold tracking-[0.14em] text-slate-800 dark:text-slate-100 truncate">七五导航</div>
+            </div>
+          </div>
+          <div className="hidden xl:flex items-center gap-2 rounded-full bg-white/60 dark:bg-slate-900/55 border border-white/70 dark:border-slate-700/60 px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <span className="h-2 w-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-400" />
+            {currentSectionTitle}
+          </div>
         </div>
 
-        {/* Center: Main Navigation Tabs */}
-        <nav className="flex items-center gap-1 sm:gap-2 p-1.5 bg-white/55 dark:bg-slate-900/50 rounded-[1.4rem] border border-white/60 dark:border-slate-700/50 shadow-[0_12px_30px_-22px_rgba(31,41,55,0.45)] overflow-x-auto max-w-[60vw] scrollbar-hide">
-           <button
-             onClick={() => setView('dashboard')}
-             className={`px-3 py-2 sm:px-4 rounded-[1rem] text-sm font-semibold transition-all duration-300 flex items-center gap-2 whitespace-nowrap
-               ${view === 'dashboard'
-                 ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-[0_16px_30px_-18px_rgba(217,119,69,0.9)]'
-                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/70'
-               }
-             `}
-           >
-             <Home size={16} />
-             <span className="hidden sm:inline">导航</span>
-           </button>
-           <button
-             onClick={() => setView('studio')}
-             className={`px-3 py-2 sm:px-4 rounded-[1rem] text-sm font-semibold transition-all duration-300 flex items-center gap-2 whitespace-nowrap
-               ${view === 'studio'
-                 ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-[0_16px_30px_-18px_rgba(20,184,166,0.9)]'
-                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/70'
-               }
-             `}
-           >
-             <Sparkles size={16} />
-             <span className="hidden sm:inline">AI助手</span>
-           </button>
-           <button
-             onClick={() => setView('music')}
-             className={`px-3 py-2 sm:px-4 rounded-[1rem] text-sm font-semibold transition-all duration-300 flex items-center gap-2 whitespace-nowrap
-               ${view === 'music'
-                 ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-[0_16px_30px_-18px_rgba(244,63,94,0.85)]'
-                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/70'
-               }
-             `}
-           >
-             <Music size={16} />
-             <span className="hidden sm:inline">音乐</span>
-           </button>
-           <button
-             onClick={() => setView('guestbook')}
-             className={`px-3 py-2 sm:px-4 rounded-[1rem] text-sm font-semibold transition-all duration-300 flex items-center gap-2 whitespace-nowrap
-               ${view === 'guestbook'
-                 ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-[0_16px_30px_-18px_rgba(16,185,129,0.85)]'
-                 : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/70'
-               }
-             `}
-           >
-             <MessageSquareQuote size={16} />
-             <span className="hidden sm:inline">留言</span>
-           </button>
+        <nav className="flex items-center gap-1.5 sm:gap-1.5 p-1.5 bg-white/55 dark:bg-slate-900/50 rounded-[1.1rem] border border-white/60 dark:border-slate-700/50 shadow-[0_12px_30px_-22px_rgba(31,41,55,0.45)] overflow-x-auto max-w-[58vw] scrollbar-hide">
+          <button onClick={() => setView('dashboard')} className={`px-2.5 py-2 sm:px-3.5 rounded-[0.9rem] text-sm font-semibold transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${view === 'dashboard' ? 'bg-gradient-to-r from-amber-500 to-orange-400 text-white shadow-[0_16px_30px_-20px_rgba(201,131,77,0.45)]' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/70'}`}>
+            <Home size={16} />
+            <span className="hidden md:inline">导航</span>
+          </button>
+          <button onClick={() => setView('studio')} className={`px-2.5 py-2 sm:px-3.5 rounded-[0.9rem] text-sm font-semibold transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${view === 'studio' ? 'bg-gradient-to-r from-amber-500 to-orange-400 text-white shadow-[0_16px_30px_-20px_rgba(201,131,77,0.45)]' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/70'}`}>
+            <Sparkles size={16} />
+            <span className="hidden md:inline">AI 助手</span>
+          </button>
+          <button onClick={() => setView('music')} className={`px-2.5 py-2 sm:px-3.5 rounded-[0.9rem] text-sm font-semibold transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${view === 'music' ? 'bg-gradient-to-r from-amber-500 to-orange-400 text-white shadow-[0_16px_30px_-20px_rgba(201,131,77,0.45)]' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/70'}`}>
+            <Music size={16} />
+            <span className="hidden md:inline">音乐</span>
+          </button>
+          <button onClick={() => setView('guestbook')} className={`px-2.5 py-2 sm:px-3.5 rounded-[0.9rem] text-sm font-semibold transition-all duration-300 flex items-center gap-2 whitespace-nowrap ${view === 'guestbook' ? 'bg-gradient-to-r from-amber-500 to-orange-400 text-white shadow-[0_16px_30px_-20px_rgba(201,131,77,0.45)]' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/70'}`}>
+            <MessageSquareQuote size={16} />
+            <span className="hidden md:inline">留言板</span>
+          </button>
         </nav>
 
-        {/* Right: Weather & Theme & User */}
         <div className="flex items-center gap-2 sm:gap-3">
-           {/* Weather Compact Widget */}
-           <div className="hidden lg:block px-3 py-2 rounded-2xl bg-white/45 dark:bg-slate-900/45 border border-white/60 dark:border-slate-700/50">
-              <Weather compact={true} />
-           </div>
 
-           <button
+          <button
             onClick={toggleTheme}
             className="p-2.5 rounded-2xl text-slate-600 hover:bg-white/70 dark:text-slate-300 dark:hover:bg-slate-800/80 transition-colors border border-[rgba(148,114,70,0.12)] dark:border-slate-700/60"
             title={theme === 'dark' ? '切换到浅色模式' : '切换到深色模式'}
           >
             {theme === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
-          
-          {/* User Auth Section */}
-          <div className="relative">
-            {user ? (
-               <div className="relative">
-                 <button 
-                    onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-2 p-1 pl-3 pr-1 rounded-full bg-white/65 hover:bg-white/85 dark:bg-slate-900/70 dark:hover:bg-slate-800 transition-colors border border-white/60 dark:border-slate-700/60 shadow-[0_12px_28px_-22px_rgba(31,41,55,0.55)]"
-                 >
-                    <span className="text-xs font-medium text-slate-600 dark:text-slate-300 hidden md:block max-w-[100px] truncate">
-                      {/* Priority: Nickname > Username > Email Part */}
-                      {profile?.nickname || profile?.username || user.email?.split('@')[0]}
-                    </span>
-                    {profile?.avatar_url ? (
-                       <img 
-                          src={profile.avatar_url} 
-                          alt="Avatar" 
-                          className="w-8 h-8 rounded-full object-cover shadow-md bg-white border border-[rgba(148,114,70,0.18)] dark:border-slate-700"
-                       />
-                    ) : (
-                       <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-500 to-teal-500 flex items-center justify-center text-white text-xs font-bold shadow-md">
-                          {(profile?.nickname || user.email || 'U').charAt(0).toUpperCase()}
-                       </div>
-                    )}
-                 </button>
-                 
-                 {showUserMenu && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setShowUserMenu(false)}></div>
-                      <div className="absolute right-0 top-full mt-2 w-56 bg-[rgba(255,251,245,0.95)] dark:bg-[rgba(9,20,28,0.96)] rounded-2xl shadow-2xl border border-[rgba(148,114,70,0.14)] dark:border-slate-700 overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-200">
-                         <div className="p-4 border-b border-[rgba(148,114,70,0.1)] dark:border-slate-700">
-                            {profile?.nickname && (
-                               <p className="font-bold text-slate-800 dark:text-slate-100 truncate">{profile.nickname}</p>
-                            )}
-                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
-                            {profile?.signature && (
-                                <p className="text-xs text-slate-400 mt-1 italic truncate">"{profile.signature}"</p>
-                            )}
-                         </div>
-                         
-                         {/* Navigation Manager Button */}
-                         <button 
-                            onClick={() => {
-                                setView('bookmarks');
-                                setShowUserMenu(false);
-                            }}
-                            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-orange-50 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors border-b border-[rgba(148,114,70,0.08)] dark:border-slate-700/50"
-                         >
-                            <Settings size={16} className="text-blue-500" />
-                            <span>导航管理</span>
-                         </button>
 
-                         {/* My Favorites Button */}
-                         <button 
-                            onClick={() => { 
-                                setView('music');
-                                setMusicTabRequest('favorites');
-                                setShowUserMenu(false); 
-                            }}
-                            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-orange-50 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors border-b border-[rgba(148,114,70,0.08)] dark:border-slate-700/50"
-                         >
-                            <Heart size={16} className="text-red-500" />
-                            <span>我喜欢的音乐</span>
-                         </button>
+          {user ? (
+            <div className="relative" id="user-menu-container">
+              <button
+                onClick={() => setShowUserMenu(prev => !prev)}
+                className="flex items-center gap-2 rounded-[1.1rem] border border-white/70 dark:border-slate-700/60 bg-white/60 dark:bg-slate-900/55 px-3 py-2.5 transition-colors hover:bg-white dark:hover:bg-slate-800/80"
+              >
+                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-400 text-white font-semibold">
+                  {profile?.nickname?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
+                </div>
+                <div className="hidden md:block text-left min-w-0 max-w-[10rem]">
+                  <div className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{profile?.nickname || '已登录'}</div>
+                  <div className="truncate text-[11px] text-slate-500 dark:text-slate-400">{user.email}</div>
+                </div>
+              </button>
 
-                         {/* Play History Button */}
-                         <button 
-                            onClick={() => { 
-                                setView('music');
-                                setMusicTabRequest('history');
-                                setShowUserMenu(false); 
-                            }}
-                            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-orange-50 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors border-b border-[rgba(148,114,70,0.08)] dark:border-slate-700/50"
-                         >
-                            <History size={16} className="text-blue-500" />
-                            <span>播放历史</span>
-                         </button>
-
-                         <button 
-                           onClick={() => { signOut(); setShowUserMenu(false); }}
-                           className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors"
-                         >
-                            <LogOut size={16} />
-                            <span>退出登录</span>
-                         </button>
-                      </div>
-                    </>
-                 )}
-               </div>
-            ) : (
-               <button
-                 onClick={() => setIsAuthModalOpen(true)}
-                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-gradient-to-r from-orange-500 to-teal-500 hover:from-orange-400 hover:to-teal-400 text-white text-sm font-medium shadow-[0_18px_36px_-18px_rgba(217,119,69,0.9)] transition-all hover:-translate-y-0.5"
-               >
-                 <LogIn size={16} />
-                 <span className="hidden sm:inline">登录</span>
-               </button>
-            )}
-          </div>
+              {showUserMenu && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setShowUserMenu(false)} />
+                  <div className="absolute right-0 mt-3 w-72 rounded-[1.6rem] border border-white/70 dark:border-slate-700/60 bg-[rgba(255,251,245,0.96)] dark:bg-[rgba(9,20,28,0.96)] backdrop-blur-xl shadow-[0_28px_60px_-28px_rgba(15,23,42,0.35)] overflow-hidden z-40">
+                    <div className="p-4 border-b border-[rgba(148,114,70,0.1)] dark:border-slate-700/60">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{profile?.nickname || '已登录用户'}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
+                      {profile?.signature && <p className="text-xs text-slate-400 mt-1 italic truncate">"{profile.signature}"</p>}
+                    </div>
+                    <button onClick={() => { setView('bookmarks'); setShowUserMenu(false); }} className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-orange-50 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors border-b border-[rgba(148,114,70,0.08)] dark:border-slate-700/50">
+                      <Settings size={16} className="text-blue-500" />
+                      <span>导航管理</span>
+                    </button>
+                    <button onClick={() => { setView('music'); setMusicTabRequest('favorites'); setShowUserMenu(false); }} className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-orange-50 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors border-b border-[rgba(148,114,70,0.08)] dark:border-slate-700/50">
+                      <Heart size={16} className="text-red-500" />
+                      <span>我的收藏音乐</span>
+                    </button>
+                    <button onClick={() => { setView('music'); setMusicTabRequest('history'); setShowUserMenu(false); }} className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-orange-50 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors border-b border-[rgba(148,114,70,0.08)] dark:border-slate-700/50">
+                      <History size={16} className="text-blue-500" />
+                      <span>播放历史</span>
+                    </button>
+                    <button onClick={() => { signOut(); setShowUserMenu(false); }} className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors">
+                      <LogOut size={16} />
+                      <span>退出登录</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-400 hover:from-orange-400 hover:to-orange-300 text-white text-sm font-medium shadow-[0_18px_36px_-18px_rgba(217,119,69,0.9)] transition-all hover:-translate-y-0.5"
+            >
+              <LogIn size={16} />
+              <span className="hidden md:inline">登录</span>
+            </button>
+          )}
         </div>
       </header>
       
       {/* Bookmark Bar - Detached Background Fix for Clipping Issues */}
       {view === 'dashboard' && bookmarkBarCategories.length > 0 && (
-          <div className="shrink-0 z-50 border-b border-[rgba(148,114,70,0.12)] dark:border-[rgba(94,234,212,0.1)] relative">
+          <div className="shrink-0 z-50 border-b border-[rgba(148,114,70,0.12)] dark:border-[rgba(209,154,102,0.1)] relative">
              {/* Background with blur - separate layer to avoid clipping children in some browsers */}
              <div className="absolute inset-0 bg-[rgba(255,250,242,0.82)] dark:bg-[rgba(9,20,28,0.86)] backdrop-blur-xl -z-10" />
              
@@ -518,82 +465,81 @@ function App() {
               closeMobileSidebar={() => setIsMobileSidebarOpen(false)}
             />
             
-            <main className={`relative z-10 flex flex-col flex-1 transition-all duration-300 ease-in-out
-              ${isSidebarCollapsed ? 'pl-20 md:pl-20' : 'pl-20 md:pl-72'}
-            `}>
-              <div className="w-full mx-auto px-4 sm:px-8 md:px-12 py-8 md:py-10 space-y-12">
-                {/* Hero Section */}
-                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_22rem] gap-6 xl:gap-8 items-stretch animate-in fade-in slide-in-from-bottom-4 duration-700">
-                  <section className="glass-panel rounded-[2rem] px-6 py-7 md:px-8 md:py-8 overflow-hidden relative">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(217,119,69,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(13,148,136,0.14),transparent_28%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(251,146,60,0.16),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(45,212,191,0.12),transparent_24%)]" />
-                    <div className="relative z-10 flex flex-col gap-6">
-                      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="max-w-2xl">
-                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/70 dark:bg-slate-900/70 border border-white/60 dark:border-slate-700/70 text-[11px] font-semibold tracking-[0.28em] uppercase text-slate-500 dark:text-slate-400">
-                            <span className="w-2 h-2 rounded-full bg-gradient-to-r from-orange-500 to-teal-500" />
-                            七五导航
-                          </div>
-                          <h1 className="mt-4 text-4xl md:text-5xl lg:text-6xl font-[Outfit] font-semibold tracking-tight text-slate-900 dark:text-white">
-                            把常用网站、AI 助手和音乐入口收进一个首页。
-                          </h1>
-                          <p className="mt-4 max-w-xl text-sm md:text-base leading-7 text-slate-600 dark:text-slate-300">
-                            保留原有功能结构，重新整理视觉层级、色彩节奏和卡片密度，让首页更像一个可长期使用的私人工作台。
-                          </p>
+            <main className={`relative z-10 flex flex-col flex-1 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'pl-0 md:pl-20' : 'pl-0 md:pl-64'}`}> 
+              <div className="w-full max-w-[1820px] mx-auto px-4 sm:px-8 md:px-10 xl:px-12 py-5 md:py-6 xl:py-7 space-y-6 md:space-y-8">
+                {/* Dashboard Top */}
+                <section className="glass-panel rounded-[1.8rem] px-5 py-5 md:px-6 md:py-6 xl:px-6 xl:py-6 overflow-hidden relative animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(217,119,69,0.12),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(176,137,104,0.08),transparent_24%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(251,146,60,0.12),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(209,154,102,0.08),transparent_24%)]" />
+                  <div className="relative z-10 flex flex-col gap-4">
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                      <div className="min-w-0 max-w-4xl">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/72 dark:bg-slate-900/72 border border-white/70 dark:border-slate-700/70 text-[11px] font-semibold tracking-[0.22em] text-slate-500 dark:text-slate-400 shadow-[0_12px_30px_-24px_rgba(15,23,42,0.45)]">
+                          <span className="w-2 h-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-400" />
+                          七五导航
                         </div>
-
-                        <div className="shrink-0 rounded-[1.75rem] bg-[rgba(255,255,255,0.72)] dark:bg-[rgba(9,20,28,0.78)] border border-white/60 dark:border-slate-700/60 px-5 py-4 min-w-[15rem] select-none shadow-[0_24px_50px_-30px_rgba(66,45,22,0.45)]">
-                          <div className="text-[11px] uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">Current Time</div>
-                          <div className="mt-2 font-[Outfit] text-5xl md:text-6xl font-semibold tracking-tight text-slate-900 dark:text-white">
-                            {currentTime ? formatTime(currentTime) : <span className="opacity-0">00:00</span>}
-                          </div>
-                          <div className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-                            {currentTime ? formatDate(currentTime) : <span className="opacity-0">Loading...</span>}
-                          </div>
-                        </div>
+                        <h1 className="mt-4 text-[2rem] leading-[1.04] md:text-[2.7rem] lg:text-[3rem] font-[Outfit] font-semibold tracking-[-0.05em] text-slate-900 dark:text-white">
+                          一屏直达
+                        </h1>
+                        <p className="mt-2 max-w-xl text-sm md:text-[14px] leading-6 text-slate-600 dark:text-slate-300">
+                          常用入口集中展示，少一点干扰，多一点效率。
+                        </p>
                       </div>
 
-                      <div className="w-full max-w-3xl">
-                        <SearchBar />
+                      <div className="flex flex-wrap gap-2.5">
+                        <div className="rounded-full bg-white/72 dark:bg-slate-900/72 border border-white/70 dark:border-slate-700/70 px-4 py-2 text-sm font-medium text-slate-700 shadow-[0_16px_32px_-26px_rgba(15,23,42,0.4)] dark:text-slate-200">
+                          {totalDashboardLinks} 链接
+                        </div>
+                        <div className="rounded-full bg-amber-500/10 dark:bg-amber-400/10 px-4 py-2 text-sm font-medium text-amber-700 dark:text-amber-300">
+                          {currentSectionTitle}
+                        </div>
+                      </div>
+                    </div>
+
+                    <SearchBar />
+
+                    <div className="grid gap-3 xl:grid-cols-[14rem_minmax(0,1fr)_15rem]">
+                      <div className="surface-card surface-card-soft rounded-[1.45rem] px-4 py-4">
+                        <div className="text-[11px] tracking-[0.2em] text-slate-400 dark:text-slate-500">当前时间</div>
+                        <div className="mt-2 font-[Outfit] text-[2.35rem] font-semibold leading-none tracking-tight text-slate-900 dark:text-white">
+                          {currentTime ? formatTime(currentTime) : <span className="opacity-0">00:00</span>}
+                        </div>
+                        <div className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                          {currentTime ? formatDate(currentTime) : <span className="opacity-0">加载中</span>}
+                        </div>
+                        <div className="mt-4 inline-flex rounded-full bg-amber-500/10 dark:bg-amber-400/10 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+                          {currentSectionTitle}
+                        </div>
                       </div>
 
                       <DailyQuote />
 
-                      <div className="md:hidden">
+                      <div className="grid gap-3">
                         <Weather compact={false} />
-                      </div>
-                    </div>
-                  </section>
-
-                  <aside className="glass-panel rounded-[2rem] px-5 py-6 md:px-6 flex flex-col justify-between gap-6">
-                    <div>
-                      <div className="text-[11px] uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">Overview</div>
-                      <div className="mt-3 space-y-3">
-                        <div className="rounded-[1.5rem] bg-white/70 dark:bg-slate-900/70 border border-white/60 dark:border-slate-700/60 px-4 py-4">
-                          <div className="text-xs text-slate-500 dark:text-slate-400">分类数量</div>
-                          <div className="mt-1 font-[Outfit] text-3xl font-semibold text-slate-900 dark:text-white">{dashboardCategories.length}</div>
+                        <div className="surface-card surface-card-soft rounded-[1.45rem] p-3">
+                          <div className="grid gap-2.5">
+                            <button onClick={() => setView('studio')} className="flex items-center justify-between gap-3 rounded-[0.95rem] border border-[rgba(148,114,70,0.12)] bg-white/78 px-3.5 py-2.5 text-sm font-medium text-slate-700 transition-all hover:-translate-y-0.5 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:bg-slate-900/72 dark:text-slate-200 dark:hover:border-amber-400/20 dark:hover:text-amber-300">
+                              <span className="flex items-center gap-2"><Sparkles size={15} />AI 助手</span>
+                              <ArrowUp size={14} className="rotate-45" />
+                            </button>
+                            <button onClick={() => setView('music')} className="flex items-center justify-between gap-3 rounded-[0.95rem] border border-[rgba(148,114,70,0.12)] bg-white/78 px-3.5 py-2.5 text-sm font-medium text-slate-700 transition-all hover:-translate-y-0.5 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:bg-slate-900/72 dark:text-slate-200 dark:hover:border-amber-400/20 dark:hover:text-amber-300">
+                              <span className="flex items-center gap-2"><Music size={15} />音乐中心</span>
+                              <ArrowUp size={14} className="rotate-45" />
+                            </button>
+                            <button onClick={() => setView('guestbook')} className="flex items-center justify-between gap-3 rounded-[0.95rem] border border-[rgba(148,114,70,0.12)] bg-white/78 px-3.5 py-2.5 text-sm font-medium text-slate-700 transition-all hover:-translate-y-0.5 hover:border-amber-200 hover:text-amber-700 dark:border-slate-700 dark:bg-slate-900/72 dark:text-slate-200 dark:hover:border-amber-400/20 dark:hover:text-amber-300">
+                              <span className="flex items-center gap-2"><MessageSquareQuote size={15} />留言板</span>
+                              <ArrowUp size={14} className="rotate-45" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="rounded-[1.5rem] bg-white/70 dark:bg-slate-900/70 border border-white/60 dark:border-slate-700/60 px-4 py-4">
-                          <div className="text-xs text-slate-500 dark:text-slate-400">书签栏</div>
-                          <div className="mt-1 font-[Outfit] text-3xl font-semibold text-slate-900 dark:text-white">{bookmarkBarCategories.length}</div>
-                        </div>
                       </div>
                     </div>
-
-                    <div className="rounded-[1.5rem] bg-gradient-to-br from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 px-5 py-5 text-white dark:text-slate-900">
-                      <div className="text-xs uppercase tracking-[0.24em] opacity-70">Quick Access</div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <button onClick={() => setView('studio')} className="px-3 py-2 rounded-full bg-white/12 dark:bg-slate-900/10 border border-white/15 dark:border-slate-900/10 text-sm font-medium backdrop-blur-sm">AI 助手</button>
-                        <button onClick={() => setView('music')} className="px-3 py-2 rounded-full bg-white/12 dark:bg-slate-900/10 border border-white/15 dark:border-slate-900/10 text-sm font-medium backdrop-blur-sm">音乐中心</button>
-                        <button onClick={() => setView('guestbook')} className="px-3 py-2 rounded-full bg-white/12 dark:bg-slate-900/10 border border-white/15 dark:border-slate-900/10 text-sm font-medium backdrop-blur-sm">留言板</button>
-                      </div>
-                    </div>
-                  </aside>
-                </div>
+                  </div>
+                </section>
 
                 <div className="w-full pb-16">
                    {isLoadingBookmarks ? (
                      <div className="flex justify-center py-20">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500"></div>
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-500"></div>
                      </div>
                    ) : (
                      <LinkGrid categories={dashboardCategories} />
@@ -601,13 +547,12 @@ function App() {
                 </div>
               </div>
             </main>
-
             <button
               onClick={scrollToTop}
-              className={`fixed bottom-8 right-8 p-3 rounded-full shadow-lg bg-[rgba(255,250,242,0.86)] dark:bg-[rgba(9,20,28,0.82)] backdrop-blur-xl border border-[rgba(148,114,70,0.14)] dark:border-[rgba(94,234,212,0.12)] text-slate-700 dark:text-slate-200 z-30 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:bg-white
+              className={`fixed bottom-8 right-8 p-3 rounded-full shadow-lg bg-[rgba(255,250,242,0.86)] dark:bg-[rgba(9,20,28,0.82)] backdrop-blur-xl border border-[rgba(148,114,70,0.14)] dark:border-[rgba(209,154,102,0.12)] text-slate-700 dark:text-slate-200 z-30 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:bg-white
                 ${showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}
               `}
-              aria-label="Back to top"
+              aria-label="回到顶部"
             >
               <ArrowUp size={20} />
             </button>
@@ -616,67 +561,81 @@ function App() {
 
         {/* VIEW: STUDIO */}
         {view === 'studio' && (
-          <div className="flex-1 h-full overflow-hidden">
-             <AIStudio 
-              chatHistory={chatHistory}
-              setChatHistory={setChatHistory}
-              imageHistory={imageHistory}
-              setImageHistory={setImageHistory}
-              currentSessionId={currentSessionId}
-              setCurrentSessionId={setCurrentSessionId}
-             />
-          </div>
+          <Suspense fallback={viewFallback}>
+            <div className="flex-1 h-full overflow-hidden">
+              <AIStudio 
+                chatHistory={chatHistory}
+                setChatHistory={setChatHistory}
+                imageHistory={imageHistory}
+                setImageHistory={setImageHistory}
+                currentSessionId={currentSessionId}
+                setCurrentSessionId={setCurrentSessionId}
+              />
+            </div>
+          </Suspense>
         )}
 
         {/* VIEW: GUESTBOOK */}
         {view === 'guestbook' && (
-           <div className="flex-1 h-full overflow-hidden">
-             <Guestbook />
-           </div>
+          <Suspense fallback={viewFallback}>
+            <div className="flex-1 h-full overflow-hidden">
+              <Guestbook />
+            </div>
+          </Suspense>
         )}
 
         {/* VIEW: BOOKMARKS MANAGEMENT */}
         {view === 'bookmarks' && (
-           <div className="flex-1 h-full overflow-hidden">
-             <BookmarkManager 
-               categories={categories}
-               onAddCategory={() => {
-                 setEditingCategory(null);
-                 setCategoryModalOpen(true);
-               }}
-               onEditCategory={(cat) => {
-                 setEditingCategory(cat);
-                 setCategoryModalOpen(true);
-               }}
-               onDeleteCategory={handleDeleteCategory}
-               onAddLink={(catId) => {
-                 setTargetCategoryId(catId);
-                 setEditingLink(null);
-                 setLinkModalOpen(true);
-               }}
-               onEditLink={(link) => {
-                 setEditingLink(link);
-                 setLinkModalOpen(true);
-               }}
-               onDeleteLink={handleDeleteLink}
-               refreshBookmarks={refreshBookmarks}
-             />
-           </div>
+          <Suspense fallback={viewFallback}>
+            <div className="flex-1 h-full overflow-hidden">
+              <BookmarkManager 
+                categories={categories}
+                onAddCategory={() => {
+                  setEditingCategory(null);
+                  setCategoryModalOpen(true);
+                }}
+                onEditCategory={(cat) => {
+                  setEditingCategory(cat);
+                  setCategoryModalOpen(true);
+                }}
+                onDeleteCategory={handleDeleteCategory}
+                onAddLink={(catId) => {
+                  setTargetCategoryId(catId);
+                  setEditingLink(null);
+                  setLinkModalOpen(true);
+                }}
+                onEditLink={(link) => {
+                  setEditingLink(link);
+                  setLinkModalOpen(true);
+                }}
+                onDeleteLink={handleDeleteLink}
+                refreshBookmarks={refreshBookmarks}
+              />
+            </div>
+          </Suspense>
         )}
 
-        {/* VIEW: MUSIC (Always mounted for background playback) */}
-        <MusicPlatform 
-           activeView={view as any}
-           onViewChange={(v) => setView(v)}
-           requestedTab={musicTabRequest}
-           onTabChangeHandled={handleMusicTabReset}
-           onAuthRequest={() => setIsAuthModalOpen(true)}
-        />
+        {/* VIEW: MUSIC */}
+        {(hasVisitedMusic || view === 'music') && (
+          <Suspense fallback={view === 'music' ? viewFallback : null}>
+            <MusicPlatform 
+              activeView={view as any}
+              onViewChange={(v) => setView(v)}
+              requestedTab={musicTabRequest}
+              onTabChangeHandled={handleMusicTabReset}
+              onAuthRequest={() => setIsAuthModalOpen(true)}
+            />
+          </Suspense>
+        )}
 
       </div>
 
       {/* Modals */}
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      {isAuthModalOpen && (
+        <Suspense fallback={null}>
+          <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+        </Suspense>
+      )}
       
       {/* Category Modal */}
       <CategoryModal 
@@ -693,10 +652,10 @@ function App() {
         onClose={() => setLinkModalOpen(false)}
         onSave={handleSaveLink}
         initialData={editingLink ? { 
-           title: editingLink.title, 
-           url: editingLink.url, 
-           description: editingLink.description || '', 
-           iconName: (editingLink as any).raw_icon_name || 'Globe'
+          title: editingLink.title, 
+          url: editingLink.url, 
+          description: editingLink.description || '', 
+          iconName: (editingLink as any).raw_icon_name || 'Globe'
         } : undefined}
         title={editingLink ? '编辑链接' : '添加链接'}
       />
@@ -706,3 +665,17 @@ function App() {
 }
 
 export default App;
+
+
+
+
+
+
+
+
+
+
+
+
+
+

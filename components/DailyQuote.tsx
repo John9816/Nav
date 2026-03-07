@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Quote, RefreshCw } from 'lucide-react';
 
 interface QuoteData {
@@ -11,16 +11,16 @@ const CACHE_KEY = 'daily_quote_cache';
 const CACHE_DURATION = 6 * 60 * 60 * 1000;
 
 const BACKUP_QUOTES: QuoteData[] = [
-  { hitokoto: "生活原本沉闷，但跑起来就有风。", from: "网络", from_who: null },
-  { hitokoto: "热爱可抵岁月漫长。", from: "网络", from_who: null },
-  { hitokoto: "星光不问赶路人，时光不负有心人。", from: "网络", from_who: null },
-  { hitokoto: "凡是过往，皆为序章。", from: "暴风雨", from_who: "莎士比亚" },
-  { hitokoto: "满地都是六便士，他却抬头看见了月亮。", from: "月亮与六便士", from_who: "毛姆" },
-  { hitokoto: "人生天地间，忽如远行客。", from: "古诗十九首", from_who: null },
-  { hitokoto: "既然选择了远方，便只顾风雨兼程。", from: "热爱生命", from_who: "汪国真" },
-  { hitokoto: "海内存知己，天涯若比邻。", from: "送杜少府之任蜀州", from_who: "王勃" },
-  { hitokoto: "未曾长夜痛哭者，不足以语人生。", from: "网络", from_who: "歌德" },
-  { hitokoto: "知我者，谓我心忧；不知我者，谓我何求。", from: "诗经", from_who: null }
+  { hitokoto: '生活原本沉闷，但跑起来就有风。', from: '网络', from_who: null },
+  { hitokoto: '热爱可抵岁月漫长。', from: '网络', from_who: null },
+  { hitokoto: '星光不问赶路人，时光不负有心人。', from: '网络', from_who: null },
+  { hitokoto: '凡是过往，皆为序章。', from: '暴风雨', from_who: '莎士比亚' },
+  { hitokoto: '满地都是六便士，他却抬头看见了月亮。', from: '月亮与六便士', from_who: '毛姆' },
+  { hitokoto: '人生天地间，忽如远行客。', from: '古诗十九首', from_who: null },
+  { hitokoto: '既然选择了远方，便只顾风雨兼程。', from: '热爱生命', from_who: '汪国真' },
+  { hitokoto: '海内存知己，天涯若比邻。', from: '送杜少府之任蜀州', from_who: '王勃' },
+  { hitokoto: '未曾长夜痛哭者，不足以语人生。', from: '网络', from_who: '歌德' },
+  { hitokoto: '知我者，谓我心忧；不知我者，谓我何求。', from: '诗经', from_who: null }
 ];
 
 const DailyQuote: React.FC = () => {
@@ -31,8 +31,8 @@ const DailyQuote: React.FC = () => {
         const parsed = JSON.parse(cached);
         return parsed.data;
       }
-    } catch (e) {
-      console.warn("Failed to parse quote cache", e);
+    } catch (error) {
+      console.warn('Failed to parse quote cache', error);
     }
     return null;
   });
@@ -52,7 +52,7 @@ const DailyQuote: React.FC = () => {
 
     fetch(`https://v1.hitokoto.cn?t=${Date.now()}`, { signal: controller.signal })
       .then((response) => {
-        if (!response.ok) throw new Error("Network response was not ok");
+        if (!response.ok) throw new Error('Network response was not ok');
         return response.json();
       })
       .then((data) => {
@@ -65,14 +65,14 @@ const DailyQuote: React.FC = () => {
               timestamp: Date.now(),
             })
           );
-        } catch (e) {
-          console.warn("Failed to cache quote", e);
+        } catch (error) {
+          console.warn('Failed to cache quote', error);
         }
       })
-      .catch((err) => {
+      .catch((error) => {
         console.warn(
-          "Daily Quote API unavailable, switching to backup.",
-          err.name === 'AbortError' ? 'Request Timeout' : err.message
+          'Daily quote API unavailable, switching to backup.',
+          error.name === 'AbortError' ? 'Request Timeout' : error.message
         );
         const randomBackup = BACKUP_QUOTES[Math.floor(Math.random() * BACKUP_QUOTES.length)];
         setQuote(randomBackup);
@@ -102,11 +102,11 @@ const DailyQuote: React.FC = () => {
     if (!quote || shouldFetch) {
       fetchQuote();
     }
-  }, [fetchQuote]);
+  }, [fetchQuote, quote]);
 
   if (!quote) {
     return (
-      <div className="glass-panel rounded-[1.5rem] px-5 py-4 max-w-3xl">
+      <div className="surface-card surface-card-soft rounded-[1.45rem] w-full px-5 py-4">
         <div className="h-4 w-64 bg-slate-200 dark:bg-slate-800 rounded animate-pulse"></div>
         <div className="h-3 w-32 bg-slate-200 dark:bg-slate-800 rounded animate-pulse mt-3"></div>
       </div>
@@ -116,30 +116,30 @@ const DailyQuote: React.FC = () => {
   return (
     <div
       onClick={fetchQuote}
-      className={`glass-panel rounded-[1.75rem] max-w-3xl w-full px-5 py-5 md:px-6 md:py-6 group cursor-pointer select-none transition-all active:scale-[0.99]
+      className={`surface-card surface-card-soft rounded-[1.55rem] w-full px-4 py-4 md:px-5 md:py-5 group cursor-pointer select-none transition-all active:scale-[0.99]
         ${isFetching ? 'cursor-wait' : 'hover:-translate-y-0.5'}
       `}
-      title="点击切换每日一言"
+      title="点击切换一言"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
-            <Quote size={14} className="text-orange-500 dark:text-teal-300" />
-            Daily Quote
+          <div className="flex items-center gap-2 text-[11px] tracking-[0.22em] text-slate-400 dark:text-slate-500">
+            <Quote size={14} className="text-amber-600 dark:text-amber-300" />
+            一言
           </div>
-          <p className="mt-3 text-sm md:text-base font-medium text-slate-700 dark:text-slate-200 tracking-wide leading-7">
+          <p className="mt-3 text-sm md:text-base font-medium text-slate-700 dark:text-slate-200 leading-7">
             {quote.hitokoto}
           </p>
           <div className="mt-3 text-xs text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
             <span>—</span>
-            <span>{quote.from_who ? `${quote.from_who} ` : ''}</span>
-            <span>《{quote.from}》</span>
+            <span>{quote.from_who ? `${quote.from_who} · ` : ''}</span>
+            <span>{quote.from}</span>
           </div>
         </div>
         <div className="shrink-0 p-2 rounded-full bg-white/70 dark:bg-slate-900/70 border border-white/60 dark:border-slate-700/60">
           <RefreshCw
             size={14}
-            className={`transition-all ${isFetching ? 'animate-spin text-orange-500 dark:text-teal-300' : 'text-slate-400 group-hover:text-orange-500 dark:group-hover:text-teal-300'}`}
+            className={`transition-all ${isFetching ? 'animate-spin text-amber-600 dark:text-amber-300' : 'text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-300'}`}
           />
         </div>
       </div>
@@ -148,3 +148,7 @@ const DailyQuote: React.FC = () => {
 };
 
 export default DailyQuote;
+
+
+
+

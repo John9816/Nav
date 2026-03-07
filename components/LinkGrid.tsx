@@ -1,79 +1,79 @@
-import React from 'react';
+﻿import React from 'react';
 import { Category } from '../types';
-import { ExternalLink, Hash } from 'lucide-react';
+import { Hash, ArrowUpRight } from 'lucide-react';
 
 interface LinkGridProps {
   categories: Category[];
 }
 
+const getHostname = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+};
+
 const LinkGrid: React.FC<LinkGridProps> = ({ categories }) => {
   return (
-    <div className="grid gap-12 w-full">
+    <div className="grid gap-6 w-full">
       {categories.map((category) => (
-        <div
+        <section
           key={category.id}
           id={category.id}
-          className="scroll-mt-24 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500"
+          className="scroll-mt-24 animate-in fade-in slide-in-from-bottom-4 duration-500"
         >
-          <div className="flex items-center justify-between gap-4 pb-3 border-b border-[rgba(148,114,70,0.16)] dark:border-[rgba(94,234,212,0.1)]">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-orange-100 to-amber-50 text-orange-600 dark:from-teal-500/10 dark:to-cyan-500/10 dark:text-teal-300 shadow-inner">
-                {category.icon || <Hash size={18} />}
-              </div>
-              <h2 className="text-lg font-[Outfit] font-semibold tracking-[0.08em] text-slate-800 dark:text-slate-100">
-                {category.title}
-              </h2>
+          <div className="mb-3 flex items-center gap-3 px-1">
+            <div className="flex h-[2.125rem] w-[2.125rem] shrink-0 items-center justify-center rounded-[0.95rem] bg-gradient-to-br from-amber-100 to-orange-50 text-amber-700 dark:from-amber-500/10 dark:to-orange-400/10 dark:text-amber-300 border border-white/70 dark:border-slate-700/60">
+              {category.icon || <Hash size={17} />}
             </div>
-            <span className="hidden md:inline-flex text-[11px] uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
-              {category.links.length} Links
-            </span>
+            <h2 className="shrink-0 text-[1.18rem] font-[Outfit] font-semibold tracking-[-0.03em] text-slate-900 dark:text-slate-100">
+              {category.title}
+            </h2>
+            <div className="h-px flex-1 bg-gradient-to-r from-[rgba(201,131,77,0.18)] via-[rgba(201,131,77,0.08)] to-transparent dark:from-[rgba(201,131,77,0.16)] dark:via-[rgba(201,131,77,0.07)] dark:to-transparent" />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
             {category.links.map((link) => (
-              <div key={link.id} className="relative group">
-                <a
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="relative flex flex-col p-5 h-full rounded-[1.75rem] transition-all duration-300 overflow-hidden
-                    bg-[rgba(255,251,246,0.84)] border border-white/70 shadow-[0_22px_50px_-34px_rgba(66,45,22,0.45)] hover:shadow-[0_30px_68px_-34px_rgba(66,45,22,0.55)]
-                    dark:bg-[rgba(9,20,28,0.75)] dark:border-slate-700/60 dark:hover:bg-[rgba(11,24,33,0.92)] dark:hover:border-slate-600 dark:hover:shadow-black/30 dark:backdrop-blur-sm
-                    hover:-translate-y-1.5 hover:border-orange-200 dark:hover:border-teal-400/20"
-                >
-                  <div className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-orange-300/70 to-transparent dark:via-teal-300/40" />
-
-                  <div className="flex items-start justify-between mb-3 relative z-10">
-                    <div className="p-3 rounded-2xl transition-colors duration-300
-                      bg-gradient-to-br from-white to-orange-50 text-slate-600 group-hover:from-orange-50 group-hover:to-amber-50 group-hover:text-orange-600
-                      dark:bg-slate-800 dark:text-slate-400 dark:group-hover:bg-teal-500/20 dark:group-hover:text-teal-300"
-                    >
-                      {link.icon}
-                    </div>
-                    <ExternalLink
-                      size={14}
-                      className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0 text-slate-400 dark:text-slate-500"
-                    />
+              <a
+                key={link.id}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="surface-card surface-card-soft group relative flex min-h-[6.7rem] flex-col rounded-[1.05rem] px-3 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-amber-200/70 dark:hover:border-amber-400/20"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.8rem] bg-white/80 dark:bg-slate-900/70 text-slate-600 transition-colors group-hover:text-amber-700 dark:text-slate-400 dark:group-hover:text-amber-300 border border-white/70 dark:border-slate-700/60">
+                    {link.icon}
                   </div>
+                  <ArrowUpRight size={13} className="mt-0.5 shrink-0 text-slate-400 transition-colors group-hover:text-amber-700 dark:text-slate-500 dark:group-hover:text-amber-300" />
+                </div>
 
-                  <div className="flex-1 min-w-0 relative z-10">
-                    <h3 className="text-[15px] font-semibold transition-colors mb-1 truncate text-slate-800 group-hover:text-orange-600 dark:text-slate-100 dark:group-hover:text-teal-300">
-                      {link.title}
-                    </h3>
-                    <p className="text-xs leading-relaxed line-clamp-2 text-slate-500 group-hover:text-slate-700 dark:text-slate-500 dark:group-hover:text-slate-300">
-                      {link.description || '暂无描述'}
+                <div className="mt-2.5 min-w-0 flex-1">
+                  <h3 className="truncate text-[13px] font-semibold leading-5 text-slate-800 transition-colors group-hover:text-amber-700 dark:text-slate-100 dark:group-hover:text-amber-300">
+                    {link.title}
+                  </h3>
+                  {link.description && (
+                    <p className="mt-1 line-clamp-1 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+                      {link.description}
                     </p>
-                  </div>
+                  )}
+                </div>
 
-                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-orange-100/45 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none transform translate-y-full group-hover:-translate-y-full transition-transform duration-1000 ease-in-out dark:via-teal-400/10" />
-                </a>
-              </div>
+                <div className="mt-2.5 flex items-center justify-between gap-2 pt-2 border-t border-[rgba(148,114,70,0.08)] dark:border-slate-800/80">
+                  <span className="truncate text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                    {getHostname(link.url)}
+                  </span>
+                </div>
+              </a>
             ))}
           </div>
-        </div>
+        </section>
       ))}
     </div>
   );
 };
 
 export default LinkGrid;
+
+

@@ -2,15 +2,15 @@ import { WeatherData } from "../types";
 
 // WMO Weather interpretation codes (WW)
 function getWeatherDescription(code: number): string {
-  if (code === 0) return 'Clear sky';
-  if (code >= 1 && code <= 3) return 'Partly cloudy';
-  if (code >= 45 && code <= 48) return 'Fog';
-  if (code >= 51 && code <= 55) return 'Drizzle';
-  if (code >= 61 && code <= 65) return 'Rain';
-  if (code >= 71 && code <= 77) return 'Snow';
-  if (code >= 80 && code <= 82) return 'Rain showers';
-  if (code >= 95) return 'Thunderstorm';
-  return 'Unknown';
+  if (code === 0) return '晴';
+  if (code >= 1 && code <= 3) return '多云';
+  if (code >= 45 && code <= 48) return '有雾';
+  if (code >= 51 && code <= 55) return '毛毛雨';
+  if (code >= 61 && code <= 65) return '雨';
+  if (code >= 71 && code <= 77) return '雪';
+  if (code >= 80 && code <= 82) return '阵雨';
+  if (code >= 95) return '雷暴';
+  return '未知';
 }
 
 export const fetchWeather = async (lat: number, lon: number): Promise<WeatherData | null> => {

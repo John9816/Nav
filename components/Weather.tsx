@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Cloud, CloudRain, CloudSun, Sun, Wind, MapPin } from 'lucide-react';
 import { fetchWeather, getWeatherDescription } from '../services/weatherService';
 import { WeatherData } from '../types';
@@ -9,7 +9,7 @@ interface WeatherProps {
 
 const Weather: React.FC<WeatherProps> = ({ compact = false }) => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [locationName, setLocationName] = useState<string>('Local');
+  const [locationName, setLocationName] = useState<string>('本地');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,22 +27,22 @@ const Weather: React.FC<WeatherProps> = ({ compact = false }) => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           loadWeather(position.coords.latitude, position.coords.longitude);
-          setLocationName("当前位置");
+          setLocationName('当前位置');
         },
         () => {
           loadWeather(defaultLat, defaultLon);
-          setLocationName("上海");
+          setLocationName('上海');
         }
       );
     } else {
       loadWeather(defaultLat, defaultLon);
-      setLocationName("上海");
+      setLocationName('上海');
     }
   }, []);
 
   if (loading) {
     return (
-      <div className={`flex items-center space-x-2 ${compact ? 'opacity-50' : 'glass-panel px-4 py-3 rounded-[1.5rem]'}`}>
+      <div className={`flex items-center space-x-2 ${compact ? 'opacity-50' : 'surface-card surface-card-soft px-4 py-3 rounded-[1.5rem]'}`}>
         <div className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse" />
         <div className="w-12 h-3 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
       </div>
@@ -53,10 +53,10 @@ const Weather: React.FC<WeatherProps> = ({ compact = false }) => {
 
   const WeatherIcon = () => {
     const code = weather.weatherCode;
-    const iconClass = compact ? "w-4 h-4" : "w-6 h-6";
+    const iconClass = compact ? 'w-4 h-4' : 'w-6 h-6';
     if (code === 0) return <Sun className={`text-amber-500 dark:text-yellow-300 ${iconClass}`} />;
     if (code <= 3) return <CloudSun className={`text-slate-500 dark:text-slate-300 ${iconClass}`} />;
-    if (code >= 51) return <CloudRain className={`text-cyan-500 dark:text-teal-300 ${iconClass}`} />;
+    if (code >= 51) return <CloudRain className={`text-amber-500 dark:text-amber-300 ${iconClass}`} />;
     return <Cloud className={`text-slate-500 dark:text-slate-300 ${iconClass}`} />;
   };
 
@@ -76,7 +76,7 @@ const Weather: React.FC<WeatherProps> = ({ compact = false }) => {
   }
 
   return (
-    <div className="flex items-center space-x-4 glass-panel px-5 py-4 rounded-[1.75rem] transition-all hover:shadow-[0_24px_60px_-34px_rgba(66,45,22,0.5)] text-slate-700 dark:text-slate-100">
+    <div className="flex items-center space-x-4 surface-card surface-card-soft px-5 py-4 rounded-[1.55rem] transition-all text-slate-700 dark:text-slate-100">
       <div className="flex flex-col items-center justify-center w-12 h-12 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-white/60 dark:border-slate-700/60">
         <WeatherIcon />
       </div>
@@ -84,7 +84,7 @@ const Weather: React.FC<WeatherProps> = ({ compact = false }) => {
         <div className="flex items-center space-x-2">
           <span className="text-lg font-[Outfit] font-semibold tracking-tight">{weather.temperature}°C</span>
           <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center bg-white/70 dark:bg-slate-900/70 px-2 py-0.5 rounded-full border border-white/60 dark:border-slate-700/60">
-            <Wind size={10} className="mr-1" /> {weather.windSpeed} km/h
+            <Wind size={10} className="mr-1" /> {weather.windSpeed} 公里/时
           </span>
         </div>
         <div className="flex items-center text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -97,3 +97,4 @@ const Weather: React.FC<WeatherProps> = ({ compact = false }) => {
 };
 
 export default Weather;
+
