@@ -563,10 +563,35 @@ export const fetchPlaylists = async (limit: number = 42, offset: number = 0, cat
         const response = await fetch(`/alger-api/api/top/playlist?${queryParams.toString()}`);
         const data = await response.json();
         const playlists = data.playlists || [];
+        const upscaleCover = (url: string, size: number = 500) => {
+            if (!url) return '';
+            const https = toHttps(url);
+            // Netease images often support `?param=WxH`
+            try {
+                const hasQuery = https.includes('?');
+                const base = hasQuery ? https.split('?')[0] : https;
+                const query = hasQuery ? https.split('?').slice(1).join('?') : '';
+
+                // Remove existing param=... to avoid duplicates
+                const cleaned = query
+                    ? query
+                        .split('&')
+                        .filter(kv => !kv.startsWith('param='))
+                        .join('&')
+                    : '';
+
+                const param = `param=${size}y${size}`;
+                const nextQuery = [cleaned, param].filter(Boolean).join('&');
+                return `${base}?${nextQuery}`;
+            } catch {
+                return https;
+            }
+        };
+
         return playlists.map((list: any) => ({
             id: list.id,
             name: list.name,
-            coverImgUrl: toHttps(list.coverImgUrl || list.picUrl || ''),
+            coverImgUrl: upscaleCover(list.coverImgUrl || list.picUrl || '', 500),
             description: list.description || '',
             trackCount: list.trackCount || 0,
             playCount: list.playCount || 0,
