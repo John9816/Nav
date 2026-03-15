@@ -466,6 +466,36 @@ export const fetchTopLists = async (): Promise<Playlist[]> => {
 };
 
 /**
+ * Fetch MV list (Netease)
+ */
+export const fetchAllMVs = async (
+    limit: number = 42,
+    offset: number = 0,
+    area: string = ''
+): Promise<{ data: any[]; hasMore: boolean }> => {
+    try {
+        const queryParams = new URLSearchParams({
+            limit: String(limit),
+            offset: String(offset),
+            area: area || '',
+            timestamp: String(Date.now()),
+            device: 'mobile'
+        });
+
+        const response = await fetch(`/alger-api/api/mv/all?${queryParams.toString()}`);
+        const json = await response.json();
+
+        // expected: { code, data: [], hasMore }
+        const data = Array.isArray(json.data) ? json.data : [];
+        const hasMore = !!json.hasMore;
+        return { data, hasMore };
+    } catch (e) {
+        console.warn('Fetch MV list failed', e);
+        return { data: [], hasMore: false };
+    }
+};
+
+/**
  * Fetch Netease Playlists
  */
 export interface PlaylistCategory {

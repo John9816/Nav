@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Song, Playlist, LyricLine } from '../types';
+import { Song, Playlist, LyricLine, MVItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import {
   fetchSongUrl, fetchSongDetail, fetchLyrics,
   fetchPlaylistDetails, addToHistory, getHistory, deleteFromHistory,
   fetchTopLists, fetchPlaylists, fetchPlaylistCategories, fetchDailyRecommendSongs, searchSongs, getLikedSongs, toggleLike, checkIsLiked, parseLyrics,
   fetchRandomMusic, fetchAlbumDetails,
-  subscribeCoverResolved
+  subscribeCoverResolved,
+  fetchAllMVs
 } from '../services/musicService';
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle,
@@ -54,7 +55,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [isLiked, setIsLiked] = useState(false);
 
   // UI State
-  const [view, setView] = useState<'home' | 'playlist' | 'history' | 'search' | 'favorites' | 'charts' | 'album' | 'playlists'>('home');
+  const [view, setView] = useState<'home' | 'playlist' | 'history' | 'search' | 'favorites' | 'charts' | 'album' | 'playlists' | 'mv'>('home');
   const [chartSource, setChartSource] = useState<'netease' | 'qq' | 'kuwo'>('netease');
 
   const [playlistSongs, setPlaylistSongs] = useState<Song[]>([]);
@@ -66,6 +67,21 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [searchPage, setSearchPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreResults, setHasMoreResults] = useState(true);
+
+  // MV State
+  const MV_AREAS: Array<{ label: string; value: string }> = [
+    { label: '全部', value: '' },
+    { label: '内地', value: '内地' },
+    { label: '港澳', value: '港澳' },
+    { label: '欧美', value: '欧美' },
+    { label: '日本', value: '日本' },
+    { label: '韩国', value: '韩国' },
+  ];
+  const [mvArea, setMvArea] = useState<string>('');
+  const [mvs, setMvs] = useState<MVItem[]>([]);
+  const [mvOffset, setMvOffset] = useState(0);
+  const [isLoadingMVs, setIsLoadingMVs] = useState(false);
+  const [hasMoreMVs, setHasMoreMVs] = useState(true);
 
   // Search Source State
   const [searchSource, setSearchSource] = useState<'netease' | 'qq' | 'kuwo'>('netease');
@@ -680,6 +696,48 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   }, [view]);
 
 
+  const loadMVs = async (opts?: { reset?: boolean; area?: string }) => {
+      const reset = opts?.reset ?? false;
+      const area = opts?.area ?? mvArea;
+
+      if (isLoadingMVs) return;
+      setIsLoadingMVs(true);
+
+      try {
+          const nextOffset = reset ? 0 : mvOffset;
+          const res = await fetchAllMVs(42, nextOffset, area);
+
+          const mapped: MVItem[] = (res.data || []).map((it: any) => ({
+              id: it.id,
+              name: it.name || it.title || 'MV',
+              artistName: it.artistName || it.artist || it.artists?.[0]?.name,
+              cover: it.cover || it.imgurl || it.picUrl,
+              playCount: it.playCount,
+              duration: it.duration
+          }));
+
+          if (reset) setMvs(mapped);
+          else setMvs(prev => [...prev, ...mapped]);
+
+          const got = mapped.length;
+          setHasMoreMVs(res.hasMore && got > 0);
+          setMvOffset(nextOffset + got);
+      } catch (e) {
+          console.warn('Load MVs failed', e);
+      } finally {
+          setIsLoadingMVs(false);
+      }
+  };
+
+  // When entering MV view, load first page
+  useEffect(() => {
+      if (view === 'mv' && mvs.length === 0 && !isLoadingMVs) {
+          setHasMoreMVs(true);
+          setMvOffset(0);
+          loadMVs({ reset: true, area: mvArea });
+      }
+  }, [view]);
+
   const getSourceLabel = (s: string) => {
       switch(s) {
           case 'netease': return '网易';
@@ -690,10 +748,10 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   };
 
   return (
-    <div 
+    <div
       className={`fixed inset-0 z-40 bg-slate-50 dark:bg-slate-900 flex flex-col pt-16 transition-all duration-300 ease-in-out
-        ${activeView === 'music' 
-           ? 'opacity-100 translate-y-0 visible pointer-events-auto' 
+        ${activeView === 'music'
+           ? 'opacity-100 translate-y-0 visible pointer-events-auto'
            : 'opacity-0 translate-y-4 invisible pointer-events-none'
         }
       `}
@@ -755,6 +813,26 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                              `}
                            >
                                <ListMusic size={18} className="shrink-0 text-blue-500" /> 网易歌单
+                           </button>
+
+                           {/* MV Entry */}
+                           <button
+                             onClick={() => {
+                               closeLyrics();
+                               setView('mv');
+                               setMvArea('');
+                               setMvOffset(0);
+                               setHasMoreMVs(true);
+                               loadMVs({ reset: true, area: '' });
+                             }}
+                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+                               ${view === 'mv'
+                                 ? 'bg-fuchsia-50 text-fuchsia-600 dark:bg-fuchsia-900/20 dark:text-fuchsia-400'
+                                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                               }
+                             `}
+                           >
+                               <PlayCircle size={18} className="shrink-0 text-fuchsia-500" /> MV
                            </button>
                        </div>
                    </div>
@@ -1226,12 +1304,13 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                     </p>
                                                 </div>
                                             </div>
-
+                                            
                                             {/* Category Filters */}
                                             <div className="mb-6 flex flex-col gap-3">
                                                 <div className="flex flex-wrap gap-2">
                                                     <button
                                                         onClick={() => {
+                                                            closeLyrics();
                                                             setSelectedCat('');
                                                             setPlaylistOffset(0);
                                                             setHasMorePlaylists(true);
@@ -1245,6 +1324,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                         <button
                                                             key={c.name}
                                                             onClick={() => {
+                                                                closeLyrics();
                                                                 setSelectedCat(c.name);
                                                                 setPlaylistOffset(0);
                                                                 setHasMorePlaylists(true);
@@ -1257,7 +1337,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                     ))}
                                                 </div>
                                                 <div className="text-xs text-slate-400">
-                                                    提示：分类较多，这里先展示常用前 24 个（后续可做"更多/搜索分类"）。
+                                                    提示：分类较多，这里先展示常用前 24 个（后续可做“更多/搜索分类”）。
                                                 </div>
                                             </div>
 
@@ -1306,6 +1386,80 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                     </button>
                                                 </div>
                                             )}
+                                       </div>
+                                   </div>
+                               )}
+
+                               {/* MV View */}
+                               {view === 'mv' && (
+                                   <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12">
+                                       <div className="px-6 md:px-10 py-8">
+                                           <div className="mb-6 flex items-center gap-3">
+                                               <div className="p-2 bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-600 rounded-xl"><PlayCircle size={24} /></div>
+                                               <div>
+                                                   <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">MV</h3>
+                                                   <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">按地区浏览热门 MV</p>
+                                               </div>
+                                           </div>
+
+                                           <div className="mb-6 flex flex-wrap gap-2">
+                                               {MV_AREAS.map(a => (
+                                                   <button
+                                                       key={a.label}
+                                                       onClick={() => {
+                                                           closeLyrics();
+                                                           setMvArea(a.value);
+                                                           setMvOffset(0);
+                                                           setHasMoreMVs(true);
+                                                           loadMVs({ reset: true, area: a.value });
+                                                       }}
+                                                       className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${mvArea === a.value ? 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-200 dark:bg-fuchsia-900/20 dark:text-fuchsia-400 dark:border-fuchsia-900/50' : 'bg-white/60 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200/60 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                                                   >
+                                                       {a.label}
+                                                   </button>
+                                               ))}
+                                           </div>
+
+                                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                                               {mvs.map(mv => (
+                                                   <div key={mv.id} className="group flex flex-col gap-2">
+                                                       <div className="aspect-video rounded-2xl overflow-hidden shadow-md relative bg-slate-200 dark:bg-slate-800">
+                                                           {mv.cover ? (
+                                                               <img src={mv.cover} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" referrerPolicy="no-referrer" />
+                                                           ) : (
+                                                               <div className="w-full h-full flex items-center justify-center text-slate-400">无封面</div>
+                                                           )}
+                                                           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                                               <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center text-fuchsia-500 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all shadow-xl backdrop-blur-sm">
+                                                                   <Play size={24} fill="currentColor" className="ml-1" />
+                                                               </div>
+                                                           </div>
+                                                       </div>
+                                                       <div className="min-w-0">
+                                                           <div className="font-bold text-slate-800 dark:text-slate-200 text-sm line-clamp-2 leading-snug">{mv.name}</div>
+                                                           {mv.artistName && <div className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{mv.artistName}</div>}
+                                                       </div>
+                                                   </div>
+                                               ))}
+                                               {mvs.length === 0 && (
+                                                   <div className="col-span-full text-center py-20 text-slate-400">
+                                                       {isLoadingMVs ? 'MV加载中...' : '暂无MV数据'}
+                                                   </div>
+                                               )}
+                                           </div>
+
+                                           {mvs.length > 0 && hasMoreMVs && (
+                                               <div className="pt-10 flex justify-center">
+                                                   <button
+                                                       onClick={() => loadMVs({ reset: false, area: mvArea })}
+                                                       disabled={isLoadingMVs}
+                                                       className="flex items-center gap-2 px-8 py-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+                                                   >
+                                                       {isLoadingMVs ? <Loader2 size={16} className="animate-spin" /> : <ArrowDown size={16} />}
+                                                       {isLoadingMVs ? '正在加载...' : '加载更多MV'}
+                                                   </button>
+                                               </div>
+                                           )}
                                        </div>
                                    </div>
                                )}
@@ -1428,7 +1582,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                    <>
                        <button
                          type="button"
-                         onClick={() => setShowLyrics(true)}
+                         onClick={() => setShowLyrics(v => !v)}
                          className="relative w-12 h-12 md:w-14 md:h-14 rounded-lg shadow-md overflow-hidden shrink-0 focus:outline-none"
                          title="打开歌词"
                        >
