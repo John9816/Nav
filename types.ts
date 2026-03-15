@@ -105,6 +105,15 @@ export interface Playlist {
   company?: string;
 }
 
+export interface MVItem {
+  id: number | string;
+  name: string;
+  artistName?: string;
+  cover?: string;
+  playCount?: number;
+  duration?: number;
+}
+
 export interface LyricLine {
   time: number; // Time in seconds
   text: string;
