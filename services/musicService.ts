@@ -495,6 +495,23 @@ export const fetchAllMVs = async (
     }
 };
 
+export const fetchMVUrl = async (id: number | string): Promise<string | null> => {
+    try {
+        const queryParams = new URLSearchParams({
+            id: String(id),
+            timestamp: String(Date.now()),
+            device: 'mobile'
+        });
+        const response = await fetch(`/alger-api/api/mv/url?${queryParams.toString()}`);
+        const json = await response.json();
+        const url = json?.data?.url || json?.url;
+        return url ? toHttps(url) : null;
+    } catch (e) {
+        console.warn('Fetch MV url failed', e);
+        return null;
+    }
+};
+
 /**
  * Fetch Netease Playlists
  */
