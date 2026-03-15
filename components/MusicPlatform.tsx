@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Song, Playlist, LyricLine } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  fetchSongUrl, fetchSongDetail, fetchLyrics, 
+import {
+  fetchSongUrl, fetchSongDetail, fetchLyrics,
   fetchPlaylistDetails, addToHistory, getHistory, deleteFromHistory,
   fetchTopLists, fetchPlaylists, fetchDailyRecommendSongs, searchSongs, getLikedSongs, toggleLike, checkIsLiked, parseLyrics,
-  fetchRandomMusic, fetchAlbumDetails
+  fetchRandomMusic, fetchAlbumDetails,
+  subscribeCoverResolved
 } from '../services/musicService';
 import { 
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle, 
@@ -85,9 +86,54 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   useEffect(() => {
     // Load Top Lists for Sidebar
     fetchTopLists().then(setTopLists).catch(e => console.warn("Failed to load top lists", e));
-    
+
     // Load Daily Recommendations for Home
     fetchDailyRecommendSongs().then(setDailySongs).catch(e => console.warn("Failed to load daily songs", e));
+  }, []);
+
+  // Lazy cover hydration: patch songs in UI when a picId is resolved.
+  // This avoids blocking the initial list render with N extra network requests.
+  useEffect(() => {
+    const unsub = subscribeCoverResolved((picId, url) => {
+      // Patch search results
+      setSearchResults(prev => prev.map(s => {
+        const anyAl: any = s.al as any;
+        if (anyAl?.picId && String(anyAl.picId) === String(picId)) {
+          return { ...s, al: { ...s.al, picUrl: url } };
+        }
+        return s;
+      }));
+
+      // Patch playlist songs (history/favorites/playlist views reuse this state)
+      setPlaylistSongs(prev => prev.map(s => {
+        const anyAl: any = s.al as any;
+        if (anyAl?.picId && String(anyAl.picId) === String(picId)) {
+          return { ...s, al: { ...s.al, picUrl: url } };
+        }
+        return s;
+      }));
+
+      // Patch daily songs on home
+      setDailySongs(prev => prev.map(s => {
+        const anyAl: any = s.al as any;
+        if (anyAl?.picId && String(anyAl.picId) === String(picId)) {
+          return { ...s, al: { ...s.al, picUrl: url } };
+        }
+        return s;
+      }));
+
+      // Patch current song cover
+      setCurrentSong(prev => {
+        if (!prev) return prev;
+        const anyAl: any = prev.al as any;
+        if (anyAl?.picId && String(anyAl.picId) === String(picId)) {
+          return { ...prev, al: { ...prev.al, picUrl: url } };
+        }
+        return prev;
+      });
+    });
+
+    return () => { unsub(); };
   }, []);
 
   // Sync volume
