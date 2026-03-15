@@ -75,7 +75,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [playlistOffset, setPlaylistOffset] = useState(0);
   const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(false);
   const [hasMorePlaylists, setHasMorePlaylists] = useState(true);
-  const [autoLoadPlaylists, setAutoLoadPlaylists] = useState(true);
+  const [autoLoadPlaylists] = useState(true);
 
   // Player State
   const [queue, setQueue] = useState<Song[]>([]);
@@ -118,7 +118,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [mvOffset, setMvOffset] = useState(0);
   const [isLoadingMVs, setIsLoadingMVs] = useState(false);
   const [hasMoreMVs, setHasMoreMVs] = useState(true);
-  const [autoLoadMVs, setAutoLoadMVs] = useState(true);
+  const [autoLoadMVs] = useState(true);
 
   // MV Player Overlay
   const [showMVPlayer, setShowMVPlayer] = useState(false);
@@ -1485,20 +1485,12 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                         </button>
                                                     ))}
                                                 </div>
-                                                <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 select-none">
-                                                  <input
-                                                    type="checkbox"
-                                                    checked={autoLoadPlaylists}
-                                                    onChange={(e) => setAutoLoadPlaylists(e.target.checked)}
-                                                  />
-                                                  滚动到底自动加载下一页
-                                                </label>
                                                 <div className="text-xs text-slate-400">
                                                     提示：分类较多，这里先展示常用前 24 个（后续可做“更多/搜索分类”）。
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-6">
                                                 {playlists.map(list => (
                                                     <div
                                                         key={list.id}
@@ -1580,17 +1572,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                    </button>
                                                ))}
                                              </div>
-                                             <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 select-none">
-                                               <input
-                                                 type="checkbox"
-                                                 checked={autoLoadMVs}
-                                                 onChange={(e) => setAutoLoadMVs(e.target.checked)}
-                                               />
-                                               滚动到底自动加载下一页
-                                             </label>
                                            </div>
 
-                                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-6">
                                                {mvs.map(mv => (
                                                    <div
                                                      key={mv.id}
