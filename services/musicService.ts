@@ -14,6 +14,15 @@ export const urlPromiseCache = new Map<string, Promise<{ url: string, lyric?: st
 // Cache for Cover URLs to avoid repeated API calls
 const coverCache = new Map<string, Promise<string | undefined>>();
 
+// Lazy cover hydration (do not block list rendering)
+type CoverListener = (picId: string, url: string) => void;
+const coverListeners = new Set<CoverListener>();
+
+export const subscribeCoverResolved = (listener: CoverListener) => {
+    coverListeners.add(listener);
+    return () => coverListeners.delete(listener);
+};
+
 // Helper to enforce HTTPS
 const toHttps = (url: string) => {
     if (!url) return '';
@@ -24,18 +33,22 @@ const toHttps = (url: string) => {
 const resolveNeteaseCover = async (picId: string | number): Promise<string | undefined> => {
     if (!picId) return undefined;
     const key = String(picId);
-    
+
     if (coverCache.has(key)) {
         return coverCache.get(key);
     }
 
     const fetchTask = async () => {
         try {
-            // Using the interface provided by user which returns JSON
             const response = await fetch(`/gdstudio-api/api.php?types=pic&source=netease&id=${picId}&size=500`);
             const data = await response.json();
             if (data && data.url) {
-                return toHttps(data.url);
+                const url = toHttps(data.url);
+                // Notify listeners so UI can patch covers without blocking initial render
+                coverListeners.forEach(fn => {
+                    try { fn(key, url); } catch { /* ignore */ }
+                });
+                return url;
             }
         } catch (e) {
             console.warn(`Failed to resolve cover for ${picId}`, e);
@@ -48,6 +61,13 @@ const resolveNeteaseCover = async (picId: string | number): Promise<string | und
     return promise;
 };
 
+// Enqueue cover resolving without blocking.
+// Consumers can subscribe via subscribeCoverResolved() to patch UI.
+export const prefetchNeteaseCover = (picId?: string | number) => {
+    if (!picId) return;
+    void resolveNeteaseCover(picId);
+};
+
 // Helper to map internal source to Parse API platform param (Audio URL)
 const getParsePlatform = (source: string) => {
     return source; // 'netease' | 'qq' | 'kuwo'
@@ -55,7 +75,7 @@ const getParsePlatform = (source: string) => {
 
 // --- Mappers now return Promises to handle async cover fetching ---
 
-const mapApiItemToSong = async (item: any): Promise<Song> => {
+export const mapApiItemToSong = async (item: any): Promise<Song> => {
   const id = item.id || item.rid;
   const name = item.name || item.songName || 'Unknown Title';
   
@@ -68,21 +88,21 @@ const mapApiItemToSong = async (item: any): Promise<Song> => {
   // Album
   const al = item.al || item.album || {};
   let picUrl = toHttps(al.picUrl || item.picUrl || item.img120 || '');
+
+  // Keep picId so UI can be patched later when cover is resolved lazily
+  const picId = al.picId;
   
-  // Try to resolve cover via API if picId exists
-  // We prioritize this if the original picUrl is suspicious or just to ensure we use the requested interface
+  // Lazy cover resolve: do NOT block list rendering
   if (al.picId) {
-      const resolvedUrl = await resolveNeteaseCover(al.picId);
-      if (resolvedUrl) {
-          picUrl = resolvedUrl;
-      }
+      prefetchNeteaseCover(al.picId);
   }
 
-  const album = {
+  const album: any = {
       id: al.id || 0,
       name: al.name || item.albumName || 'Unknown Album',
       picUrl: picUrl
   };
+  if (picId) album.picId = picId;
 
   return {
     id: id,
@@ -96,7 +116,7 @@ const mapApiItemToSong = async (item: any): Promise<Song> => {
 };
 
 // Mapper for GDStudio (MKOnlinePlayer style) response
-const mapGDStudioItemToSong = async (item: any): Promise<Song> => {
+export const mapGDStudioItemToSong = async (item: any): Promise<Song> => {
     let artists: { id: number; name: string }[] = [];
     if (Array.isArray(item.artist)) {
         artists = item.artist.map((a: string) => ({ id: 0, name: a }));
@@ -112,25 +132,25 @@ const mapGDStudioItemToSong = async (item: any): Promise<Song> => {
     }
 
     let picUrl = toHttps(item.pic) || '';
-    
-    // Resolve via API if pic_id exists
+
+    // Lazy cover resolve: do NOT block list rendering
     if (item.pic_id) {
-        const resolvedUrl = await resolveNeteaseCover(item.pic_id);
-        if (resolvedUrl) {
-            picUrl = resolvedUrl;
-        }
+        prefetchNeteaseCover(item.pic_id);
     }
+
+    const album: any = {
+        id: 0,
+        name: item.album || '',
+        picUrl: picUrl
+    };
+    if (item.pic_id) album.picId = String(item.pic_id);
 
     return {
         id: item.id,
         name: item.name,
         ar: artists,
-        al: {
-            id: 0,
-            name: item.album || '',
-            picUrl: picUrl
-        },
-        dt: 0, 
+        al: album,
+        dt: 0,
         source: 'netease',
         url: item.url || undefined
     };
