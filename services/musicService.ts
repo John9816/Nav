@@ -563,7 +563,7 @@ export const fetchPlaylists = async (limit: number = 42, offset: number = 0, cat
         const response = await fetch(`/alger-api/api/top/playlist?${queryParams.toString()}`);
         const data = await response.json();
         const playlists = data.playlists || [];
-        const upscaleCover = (url: string, size: number = 500) => {
+        const upscaleCover = (url: string, size: number = 800) => {
             if (!url) return '';
             const https = toHttps(url);
             // Netease images often support `?param=WxH`
@@ -591,7 +591,7 @@ export const fetchPlaylists = async (limit: number = 42, offset: number = 0, cat
         return playlists.map((list: any) => ({
             id: list.id,
             name: list.name,
-            coverImgUrl: upscaleCover(list.coverImgUrl || list.picUrl || '', 500),
+            coverImgUrl: upscaleCover(list.coverImgUrl || list.picUrl || '', 800),
             description: list.description || '',
             trackCount: list.trackCount || 0,
             playCount: list.playCount || 0,
