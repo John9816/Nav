@@ -7,7 +7,8 @@ import {
   fetchTopLists, fetchPlaylists, fetchPlaylistCategories, fetchDailyRecommendSongs, searchSongs, getLikedSongs, toggleLike, checkIsLiked, parseLyrics,
   fetchRandomMusic, fetchAlbumDetails,
   subscribeCoverResolved,
-  fetchAllMVs
+  fetchAllMVs,
+  fetchMVUrl
 } from '../services/musicService';
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle,
@@ -1422,7 +1423,22 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
                                                {mvs.map(mv => (
-                                                   <div key={mv.id} className="group flex flex-col gap-2">
+                                                   <div
+                                                     key={mv.id}
+                                                     className="group flex flex-col gap-2 cursor-pointer"
+                                                     onClick={async () => {
+                                                       closeLyrics();
+                                                       setToastMessage('正在获取MV播放地址...');
+                                                       const url = await fetchMVUrl(mv.id);
+                                                       setToastMessage(null);
+                                                       if (url) {
+                                                         window.open(url, '_blank');
+                                                       } else {
+                                                         setToastMessage('获取MV地址失败');
+                                                         setTimeout(() => setToastMessage(null), 2000);
+                                                       }
+                                                     }}
+                                                   >
                                                        <div className="aspect-video rounded-2xl overflow-hidden shadow-md relative bg-slate-200 dark:bg-slate-800">
                                                            {mv.cover ? (
                                                                <img src={mv.cover} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" referrerPolicy="no-referrer" />
