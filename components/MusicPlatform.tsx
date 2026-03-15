@@ -727,6 +727,25 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                            >
                                <Sparkles size={18} /> 随机一曲
                            </button>
+
+                           {/* Netease Playlists Entry (PC sidebar) */}
+                           <button
+                             onClick={() => {
+                               setView('playlists');
+                               setSelectedCat('');
+                               setPlaylistOffset(0);
+                               setHasMorePlaylists(true);
+                               loadPlaylists({ reset: true, cat: '' });
+                             }}
+                             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+                               ${view === 'playlists'
+                                 ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                                 : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                               }
+                             `}
+                           >
+                               <ListMusic size={18} className="shrink-0 text-blue-500" /> 网易歌单
+                           </button>
                        </div>
                    </div>
 
