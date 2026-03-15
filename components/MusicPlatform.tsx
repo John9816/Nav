@@ -84,6 +84,11 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [isLoadingMVs, setIsLoadingMVs] = useState(false);
   const [hasMoreMVs, setHasMoreMVs] = useState(true);
 
+  // MV Player Overlay
+  const [showMVPlayer, setShowMVPlayer] = useState(false);
+  const [mvPlayingUrl, setMvPlayingUrl] = useState<string | null>(null);
+  const [mvPlayingTitle, setMvPlayingTitle] = useState<string>('');
+
   // Search Source State
   const [searchSource, setSearchSource] = useState<'netease' | 'qq' | 'kuwo'>('netease');
   const [showSourceMenu, setShowSourceMenu] = useState(false);
@@ -226,6 +231,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
   const loadHistory = async () => {
       closeLyrics();
+      closeMVPlayer();
       if (!user) return;
       setLoading(true);
       const songs = await getHistory(user.id);
@@ -236,6 +242,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
   const loadFavorites = async () => {
       closeLyrics();
+      closeMVPlayer();
       if (!user) {
           if (onAuthRequest) onAuthRequest();
           return;
@@ -249,6 +256,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
   const handleRandomPlay = async () => {
       closeLyrics();
+      closeMVPlayer();
       setToastMessage("正在获取随机音乐...");
       const song = await fetchRandomMusic();
       if (song) {
@@ -267,6 +275,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const handleSearch = async (e?: React.FormEvent) => {
       if (e) e.preventDefault();
       closeLyrics();
+      closeMVPlayer();
       if (!searchQuery.trim()) return;
       setShowSourceMenu(false); // Close menu if open
       setView('search');
@@ -371,6 +380,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const handleAlbumClick = async (e: React.MouseEvent, albumId: string | number, source: string = 'netease') => {
       e.stopPropagation();
       closeLyrics();
+      closeMVPlayer();
       if (source !== 'netease') {
           setToastMessage("暂仅支持网易云音乐专辑查看");
           setTimeout(() => setToastMessage(null), 2000);
@@ -399,6 +409,11 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
   // Player Controls
   const closeLyrics = () => setShowLyrics(false);
+  const closeMVPlayer = () => {
+    setShowMVPlayer(false);
+    setMvPlayingUrl(null);
+    setMvPlayingTitle('');
+  };
 
   const playSong = async (song: Song, newQueue?: Song[]) => {
     let currentQueue = newQueue || queue;
@@ -650,6 +665,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
   const handlePlaylistClick = async (playlist: Playlist) => {
       closeLyrics();
+      closeMVPlayer();
       setLoading(true);
       setSelectedPlaylist(playlist);
       setView('playlist');
@@ -770,7 +786,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        <div className="px-3 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">我的音乐</div>
                        <div className="space-y-1">
                            <button
-                             onClick={() => { closeLyrics(); setView('home'); }}
+                             onClick={() => { closeLyrics(); closeMVPlayer(); setView('home'); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === 'home' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
                            >
                                <LayoutGrid size={18} /> 发现音乐
@@ -800,6 +816,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                            <button
                              onClick={() => {
                                closeLyrics();
+                               closeMVPlayer();
                                setView('playlists');
                                setSelectedCat('');
                                setPlaylistOffset(0);
@@ -820,6 +837,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                            <button
                              onClick={() => {
                                closeLyrics();
+                               closeMVPlayer();
                                setView('mv');
                                setMvArea('');
                                setMvOffset(0);
@@ -843,7 +861,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        <div className="px-3 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">精选榜单</div>
                        <div className="space-y-1">
                            <button
-                             onClick={() => { closeLyrics(); setView('charts'); setChartSource('netease'); }}
+                             onClick={() => { closeLyrics(); closeMVPlayer(); setView('charts'); setChartSource('netease'); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors truncate text-left
                                 ${view === 'charts' && chartSource === 'netease'
                                     ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
@@ -855,7 +873,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                <span>网易云音乐</span>
                            </button>
                            <button
-                             onClick={() => { closeLyrics(); setView('charts'); setChartSource('qq'); }}
+                             onClick={() => { closeLyrics(); closeMVPlayer(); setView('charts'); setChartSource('qq'); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors truncate text-left
                                 ${view === 'charts' && chartSource === 'qq'
                                     ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
@@ -867,7 +885,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                <span>QQ音乐</span>
                            </button>
                            <button
-                             onClick={() => { closeLyrics(); setView('charts'); setChartSource('kuwo'); }}
+                             onClick={() => { closeLyrics(); closeMVPlayer(); setView('charts'); setChartSource('kuwo'); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors truncate text-left
                                 ${view === 'charts' && chartSource === 'kuwo'
                                     ? 'bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400'
@@ -929,10 +947,37 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                    </div>
                )}
 
+               {/* MV Player Overlay */}
+               {showMVPlayer && mvPlayingUrl && (
+                   <div className="absolute inset-0 z-50 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                       <button
+                           onClick={closeMVPlayer}
+                           className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 text-white transition-colors z-50"
+                           title="关闭"
+                       >
+                           <ChevronDown size={24} />
+                       </button>
+
+                       <div className="w-full max-w-5xl">
+                           <div className="text-white/90 font-bold text-sm md:text-base mb-3 truncate">{mvPlayingTitle || 'MV播放'}</div>
+                           <div className="aspect-video w-full bg-black rounded-2xl overflow-hidden shadow-2xl">
+                               <video
+                                   src={mvPlayingUrl}
+                                   className="w-full h-full"
+                                   controls
+                                   autoPlay
+                                   playsInline
+                               />
+                           </div>
+                           <div className="mt-3 text-xs text-white/60 break-all">{mvPlayingUrl}</div>
+                       </div>
+                   </div>
+               )}
+
                {/* Lyrics Overlay - Full Cover, Non-scrolling */}
                {showLyrics && currentSong && (
                    <div className="absolute inset-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl flex flex-col md:flex-row items-center justify-center p-8 gap-8 md:gap-16 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                       <button
+                       <button 
                            onClick={() => setShowLyrics(false)}
                            className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors z-50"
                        >
@@ -1305,7 +1350,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                     </p>
                                                 </div>
                                             </div>
-                                            
+
                                             {/* Category Filters */}
                                             <div className="mb-6 flex flex-col gap-3">
                                                 <div className="flex flex-wrap gap-2">
@@ -1338,7 +1383,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                     ))}
                                                 </div>
                                                 <div className="text-xs text-slate-400">
-                                                    提示：分类较多，这里先展示常用前 24 个（后续可做“更多/搜索分类”）。
+                                                    提示：分类较多，这里先展示常用前 24 个（后续可做"更多/搜索分类"）。
                                                 </div>
                                             </div>
 
@@ -1432,7 +1477,9 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                        const url = await fetchMVUrl(mv.id);
                                                        setToastMessage(null);
                                                        if (url) {
-                                                         window.open(url, '_blank');
+                                                         setMvPlayingUrl(url);
+                                                         setMvPlayingTitle(`${mv.name}${mv.artistName ? ' - ' + mv.artistName : ''}`);
+                                                         setShowMVPlayer(true);
                                                        } else {
                                                          setToastMessage('获取MV地址失败');
                                                          setTimeout(() => setToastMessage(null), 2000);
