@@ -14,7 +14,7 @@ import {
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle,
   List, Download, Search, Loader2,
   Music, Disc, Radio, ArrowLeft, Clock, Mic2, LayoutGrid, Heart, Cloud,
-  ChevronDown, Repeat1, ArrowDown, Menu, Sparkles, Calendar, ListMusic, Trash2, Globe, Server, Info
+  ChevronDown, Repeat1, ArrowDown, Menu, Sparkles, Calendar, ListMusic, PlayCircle, Trash2, Globe, Server, Info
 } from 'lucide-react';
 
 interface MusicPlatformProps {
