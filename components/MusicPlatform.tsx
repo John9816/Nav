@@ -124,6 +124,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [showMVPlayer, setShowMVPlayer] = useState(false);
   const [mvPlayingUrl, setMvPlayingUrl] = useState<string | null>(null);
   const [mvPlayingTitle, setMvPlayingTitle] = useState<string>('');
+  const [mvPlayingIndex, setMvPlayingIndex] = useState<number>(-1);
 
   // Search Source State
   const [searchSource, setSearchSource] = useState<'netease' | 'qq' | 'kuwo'>('netease');
@@ -449,6 +450,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     setShowMVPlayer(false);
     setMvPlayingUrl(null);
     setMvPlayingTitle('');
+    setMvPlayingIndex(-1);
   };
 
   const playSong = async (song: Song, newQueue?: Song[]) => {
@@ -1011,7 +1013,56 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        </button>
 
                        <div className="w-full max-w-5xl">
-                           <div className="text-white/90 font-bold text-sm md:text-base mb-3 truncate">{mvPlayingTitle || 'MV播放'}</div>
+                           <div className="flex items-center justify-between gap-3 mb-3">
+                             <div className="text-white/90 font-bold text-sm md:text-base truncate flex-1">{mvPlayingTitle || 'MV播放'}</div>
+                             <div className="flex items-center gap-2 shrink-0">
+                               <button
+                                 className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors disabled:opacity-40"
+                                 disabled={mvPlayingIndex <= 0}
+                                 onClick={async () => {
+                                   const idx = mvPlayingIndex - 1;
+                                   const prev = mvs[idx];
+                                   if (!prev) return;
+                                   setToastMessage('正在获取MV播放地址...');
+                                   const url = await fetchMVUrl(prev.id);
+                                   setToastMessage(null);
+                                   if (!url) {
+                                     setToastMessage('获取MV地址失败');
+                                     setTimeout(() => setToastMessage(null), 2000);
+                                     return;
+                                   }
+                                   setMvPlayingIndex(idx);
+                                   setMvPlayingUrl(url);
+                                   setMvPlayingTitle(`${prev.name}${prev.artistName ? ' - ' + prev.artistName : ''}`);
+                                 }}
+                               >
+                                 上一个
+                               </button>
+                               <button
+                                 className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors disabled:opacity-40"
+                                 disabled={mvPlayingIndex < 0 || mvPlayingIndex >= mvs.length - 1}
+                                 onClick={async () => {
+                                   const idx = mvPlayingIndex + 1;
+                                   const next = mvs[idx];
+                                   if (!next) return;
+                                   setToastMessage('正在获取MV播放地址...');
+                                   const url = await fetchMVUrl(next.id);
+                                   setToastMessage(null);
+                                   if (!url) {
+                                     setToastMessage('获取MV地址失败');
+                                     setTimeout(() => setToastMessage(null), 2000);
+                                     return;
+                                   }
+                                   setMvPlayingIndex(idx);
+                                   setMvPlayingUrl(url);
+                                   setMvPlayingTitle(`${next.name}${next.artistName ? ' - ' + next.artistName : ''}`);
+                                 }}
+                               >
+                                 下一个
+                               </button>
+                             </div>
+                           </div>
+
                            <div className="aspect-video w-full bg-black rounded-2xl overflow-hidden shadow-2xl">
                                <video
                                    src={mvPlayingUrl}
@@ -1552,6 +1603,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                        if (url) {
                                                          setMvPlayingUrl(url);
                                                          setMvPlayingTitle(`${mv.name}${mv.artistName ? ' - ' + mv.artistName : ''}`);
+                                                         setMvPlayingIndex(mvs.findIndex(x => String(x.id) === String(mv.id)));
                                                          setShowMVPlayer(true);
                                                        } else {
                                                          setToastMessage('获取MV地址失败');
