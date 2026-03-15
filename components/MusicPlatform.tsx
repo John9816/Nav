@@ -34,6 +34,7 @@ const useInfiniteScroll = (opts: {
 };
 
 import { Song, Playlist, LyricLine, MVItem } from '../types';
+import { fetchFirstAppVersion } from '../services/appVersionService';
 import { useAuth } from '../contexts/AuthContext';
 import {
   fetchSongUrl, fetchSongDetail, fetchLyrics,
@@ -125,6 +126,12 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [mvPlayingUrl, setMvPlayingUrl] = useState<string | null>(null);
   const [mvPlayingTitle, setMvPlayingTitle] = useState<string>('');
   const [mvPlayingIndex, setMvPlayingIndex] = useState<number>(-1);
+
+  // App Download
+  const [showAppDownload, setShowAppDownload] = useState(false);
+  const [appDownloadUrl, setAppDownloadUrl] = useState<string | null>(null);
+  const [appDownloadLoading, setAppDownloadLoading] = useState(false);
+  const [appDownloadError, setAppDownloadError] = useState<string | null>(null);
 
   // Search Source State
   const [searchSource, setSearchSource] = useState<'netease' | 'qq' | 'kuwo'>('netease');
@@ -269,6 +276,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const loadHistory = async () => {
       closeLyrics();
       closeMVPlayer();
+      closeAppDownload();
       if (!user) return;
       setLoading(true);
       const songs = await getHistory(user.id);
@@ -280,6 +288,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const loadFavorites = async () => {
       closeLyrics();
       closeMVPlayer();
+      closeAppDownload();
       if (!user) {
           if (onAuthRequest) onAuthRequest();
           return;
@@ -294,6 +303,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const handleRandomPlay = async () => {
       closeLyrics();
       closeMVPlayer();
+      closeAppDownload();
       setToastMessage("正在获取随机音乐...");
       const song = await fetchRandomMusic();
       if (song) {
@@ -313,6 +323,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       if (e) e.preventDefault();
       closeLyrics();
       closeMVPlayer();
+      closeAppDownload();
       if (!searchQuery.trim()) return;
       setShowSourceMenu(false); // Close menu if open
       setView('search');
@@ -418,6 +429,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       e.stopPropagation();
       closeLyrics();
       closeMVPlayer();
+      closeAppDownload();
       if (source !== 'netease') {
           setToastMessage("暂仅支持网易云音乐专辑查看");
           setTimeout(() => setToastMessage(null), 2000);
@@ -451,6 +463,11 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     setMvPlayingUrl(null);
     setMvPlayingTitle('');
     setMvPlayingIndex(-1);
+  };
+
+  const closeAppDownload = () => {
+    setShowAppDownload(false);
+    setAppDownloadError(null);
   };
 
   const playSong = async (song: Song, newQueue?: Song[]) => {
@@ -704,6 +721,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const handlePlaylistClick = async (playlist: Playlist) => {
       closeLyrics();
       closeMVPlayer();
+      closeAppDownload();
       setLoading(true);
       setSelectedPlaylist(playlist);
       setView('playlist');
@@ -840,7 +858,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        <div className="px-3 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">我的音乐</div>
                        <div className="space-y-1">
                            <button
-                             onClick={() => { closeLyrics(); closeMVPlayer(); setView('home'); }}
+                             onClick={() => { closeLyrics(); closeMVPlayer(); closeAppDownload(); setView('home'); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === 'home' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
                            >
                                <LayoutGrid size={18} /> 发现音乐
@@ -871,6 +889,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                              onClick={() => {
                                closeLyrics();
                                closeMVPlayer();
+                               closeAppDownload();
                                setView('playlists');
                                setSelectedCat('');
                                setPlaylistOffset(0);
@@ -892,6 +911,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                              onClick={() => {
                                closeLyrics();
                                closeMVPlayer();
+                               closeAppDownload();
                                setView('mv');
                                setMvArea('');
                                setMvOffset(0);
@@ -915,7 +935,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        <div className="px-3 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">精选榜单</div>
                        <div className="space-y-1">
                            <button
-                             onClick={() => { closeLyrics(); closeMVPlayer(); setView('charts'); setChartSource('netease'); }}
+                             onClick={() => { closeLyrics(); closeMVPlayer(); closeAppDownload(); setView('charts'); setChartSource('netease'); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors truncate text-left
                                 ${view === 'charts' && chartSource === 'netease'
                                     ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
@@ -927,7 +947,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                <span>网易云音乐</span>
                            </button>
                            <button
-                             onClick={() => { closeLyrics(); closeMVPlayer(); setView('charts'); setChartSource('qq'); }}
+                             onClick={() => { closeLyrics(); closeMVPlayer(); closeAppDownload(); setView('charts'); setChartSource('qq'); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors truncate text-left
                                 ${view === 'charts' && chartSource === 'qq'
                                     ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
@@ -939,7 +959,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                <span>QQ音乐</span>
                            </button>
                            <button
-                             onClick={() => { closeLyrics(); closeMVPlayer(); setView('charts'); setChartSource('kuwo'); }}
+                             onClick={() => { closeLyrics(); closeMVPlayer(); closeAppDownload(); setView('charts'); setChartSource('kuwo'); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors truncate text-left
                                 ${view === 'charts' && chartSource === 'kuwo'
                                     ? 'bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400'
@@ -1731,6 +1751,55 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
        {/* Bottom Player Bar - Glassmorphism */}
        <div className="shrink-0 h-20 md:h-24 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 flex items-center px-4 md:px-8 gap-4 md:gap-6 z-50 relative shadow-[0_-5px_30px_-5px_rgba(0,0,0,0.1)]">
+
+           {/* App Download (bottom bar - position C) */}
+           <div className="absolute right-4 md:right-8 -top-10">
+             <button
+               onClick={async () => {
+                 if (showAppDownload) {
+                   closeAppDownload();
+                   return;
+                 }
+                 setShowAppDownload(true);
+                 setAppDownloadError(null);
+                 setAppDownloadLoading(true);
+                 const v = await fetchFirstAppVersion();
+                 setAppDownloadLoading(false);
+                 const url = v?.download_url || null;
+                 setAppDownloadUrl(url);
+                 if (!url) setAppDownloadError('暂无下载地址');
+               }}
+               className="px-4 py-2 rounded-full bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold shadow-lg hover:bg-white dark:hover:bg-slate-900 transition-colors"
+             >
+               App下载
+             </button>
+
+             {showAppDownload && (
+               <div className="mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-3">
+                 <div className="flex items-center justify-between mb-2">
+                   <div className="text-sm font-bold text-slate-800 dark:text-slate-100">App下载</div>
+                   <button onClick={closeAppDownload} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">×</button>
+                 </div>
+
+                 {appDownloadLoading ? (
+                   <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                     <Loader2 size={14} className="animate-spin" /> 正在获取下载地址...
+                   </div>
+                 ) : appDownloadError ? (
+                   <div className="text-xs text-red-500">{appDownloadError}</div>
+                 ) : (
+                   <button
+                     onClick={() => {
+                       if (appDownloadUrl) window.open(appDownloadUrl, '_blank');
+                     }}
+                     className="w-full px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition-colors"
+                   >
+                     立即下载
+                   </button>
+                 )}
+               </div>
+             )}
+           </div>
 
            {/* Progress Bar (Absolute Top) */}
            <div
