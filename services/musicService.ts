@@ -566,23 +566,17 @@ export const fetchPlaylists = async (limit: number = 42, offset: number = 0, cat
         const upscaleCover = (url: string, size: number = 800) => {
             if (!url) return '';
             const https = toHttps(url);
-            // Netease images often support `?param=WxH`
+
+            // Many list endpoints return "dirty" netease cover urls that include multiple transforms,
+            // sometimes ending with `thumbnail=140y140` which makes the image blurry.
+            // Strategy: keep the origin path, drop all query params, then re-append a single
+            // high-res transform.
             try {
-                const hasQuery = https.includes('?');
-                const base = hasQuery ? https.split('?')[0] : https;
-                const query = hasQuery ? https.split('?').slice(1).join('?') : '';
+                const base = https.split('?')[0];
 
-                // Remove existing param=... to avoid duplicates
-                const cleaned = query
-                    ? query
-                        .split('&')
-                        .filter(kv => !kv.startsWith('param='))
-                        .join('&')
-                    : '';
-
-                const param = `param=${size}y${size}`;
-                const nextQuery = [cleaned, param].filter(Boolean).join('&');
-                return `${base}?${nextQuery}`;
+                // Prefer thumbnail (netease style) because some urls already use imageView/thumbnail.
+                // Using only one transform prevents low-res overrides.
+                return `${base}?imageView=1&thumbnail=${size}y${size}`;
             } catch {
                 return https;
             }
