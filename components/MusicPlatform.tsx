@@ -1,4 +1,38 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+
+const useInfiniteScroll = (opts: {
+  enabled: boolean;
+  loading: boolean;
+  hasMore: boolean;
+  onLoadMore: () => void;
+  rootMargin?: string;
+}) => {
+  const { enabled, loading, hasMore, onLoadMore, rootMargin = '600px' } = opts;
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    if (!sentinelRef.current) return;
+
+    const el = sentinelRef.current;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (!first?.isIntersecting) return;
+        if (loading) return;
+        if (!hasMore) return;
+        onLoadMore();
+      },
+      { root: null, rootMargin, threshold: 0 }
+    );
+
+    io.observe(el);
+    return () => io.disconnect();
+  }, [enabled, loading, hasMore, onLoadMore, rootMargin]);
+
+  return { sentinelRef };
+};
+
 import { Song, Playlist, LyricLine, MVItem } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -41,6 +75,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [playlistOffset, setPlaylistOffset] = useState(0);
   const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(false);
   const [hasMorePlaylists, setHasMorePlaylists] = useState(true);
+  const [autoLoadPlaylists, setAutoLoadPlaylists] = useState(true);
 
   // Player State
   const [queue, setQueue] = useState<Song[]>([]);
@@ -83,11 +118,13 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   const [mvOffset, setMvOffset] = useState(0);
   const [isLoadingMVs, setIsLoadingMVs] = useState(false);
   const [hasMoreMVs, setHasMoreMVs] = useState(true);
+  const [autoLoadMVs, setAutoLoadMVs] = useState(true);
 
   // MV Player Overlay
   const [showMVPlayer, setShowMVPlayer] = useState(false);
   const [mvPlayingUrl, setMvPlayingUrl] = useState<string | null>(null);
   const [mvPlayingTitle, setMvPlayingTitle] = useState<string>('');
+  const [mvPlayingIndex, setMvPlayingIndex] = useState<number>(-1);
 
   // Search Source State
   const [searchSource, setSearchSource] = useState<'netease' | 'qq' | 'kuwo'>('netease');
@@ -413,6 +450,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     setShowMVPlayer(false);
     setMvPlayingUrl(null);
     setMvPlayingTitle('');
+    setMvPlayingIndex(-1);
   };
 
   const playSong = async (song: Song, newQueue?: Song[]) => {
@@ -703,6 +741,14 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
       }
   };
 
+  // Infinite scroll: playlists
+  const { sentinelRef: playlistsSentinelRef } = useInfiniteScroll({
+    enabled: view === 'playlists' && autoLoadPlaylists,
+    loading: isLoadingPlaylists,
+    hasMore: hasMorePlaylists,
+    onLoadMore: () => loadPlaylists({ reset: false, cat: selectedCat }),
+  });
+
   // When entering playlists view, load first page if empty
   useEffect(() => {
       if (view === 'playlists' && playlists.length === 0 && !isLoadingPlaylists) {
@@ -745,6 +791,14 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
           setIsLoadingMVs(false);
       }
   };
+
+  // Infinite scroll: MVs
+  const { sentinelRef: mvSentinelRef } = useInfiniteScroll({
+    enabled: view === 'mv' && autoLoadMVs,
+    loading: isLoadingMVs,
+    hasMore: hasMoreMVs,
+    onLoadMore: () => loadMVs({ reset: false, area: mvArea }),
+  });
 
   // When entering MV view, load first page
   useEffect(() => {
@@ -959,7 +1013,56 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        </button>
 
                        <div className="w-full max-w-5xl">
-                           <div className="text-white/90 font-bold text-sm md:text-base mb-3 truncate">{mvPlayingTitle || 'MV播放'}</div>
+                           <div className="flex items-center justify-between gap-3 mb-3">
+                             <div className="text-white/90 font-bold text-sm md:text-base truncate flex-1">{mvPlayingTitle || 'MV播放'}</div>
+                             <div className="flex items-center gap-2 shrink-0">
+                               <button
+                                 className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors disabled:opacity-40"
+                                 disabled={mvPlayingIndex <= 0}
+                                 onClick={async () => {
+                                   const idx = mvPlayingIndex - 1;
+                                   const prev = mvs[idx];
+                                   if (!prev) return;
+                                   setToastMessage('正在获取MV播放地址...');
+                                   const url = await fetchMVUrl(prev.id);
+                                   setToastMessage(null);
+                                   if (!url) {
+                                     setToastMessage('获取MV地址失败');
+                                     setTimeout(() => setToastMessage(null), 2000);
+                                     return;
+                                   }
+                                   setMvPlayingIndex(idx);
+                                   setMvPlayingUrl(url);
+                                   setMvPlayingTitle(`${prev.name}${prev.artistName ? ' - ' + prev.artistName : ''}`);
+                                 }}
+                               >
+                                 上一个
+                               </button>
+                               <button
+                                 className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-colors disabled:opacity-40"
+                                 disabled={mvPlayingIndex < 0 || mvPlayingIndex >= mvs.length - 1}
+                                 onClick={async () => {
+                                   const idx = mvPlayingIndex + 1;
+                                   const next = mvs[idx];
+                                   if (!next) return;
+                                   setToastMessage('正在获取MV播放地址...');
+                                   const url = await fetchMVUrl(next.id);
+                                   setToastMessage(null);
+                                   if (!url) {
+                                     setToastMessage('获取MV地址失败');
+                                     setTimeout(() => setToastMessage(null), 2000);
+                                     return;
+                                   }
+                                   setMvPlayingIndex(idx);
+                                   setMvPlayingUrl(url);
+                                   setMvPlayingTitle(`${next.name}${next.artistName ? ' - ' + next.artistName : ''}`);
+                                 }}
+                               >
+                                 下一个
+                               </button>
+                             </div>
+                           </div>
+
                            <div className="aspect-video w-full bg-black rounded-2xl overflow-hidden shadow-2xl">
                                <video
                                    src={mvPlayingUrl}
@@ -977,7 +1080,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                {/* Lyrics Overlay - Full Cover, Non-scrolling */}
                {showLyrics && currentSong && (
                    <div className="absolute inset-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl flex flex-col md:flex-row items-center justify-center p-8 gap-8 md:gap-16 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                       <button 
+                       <button
                            onClick={() => setShowLyrics(false)}
                            className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors z-50"
                        >
@@ -1382,8 +1485,16 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                         </button>
                                                     ))}
                                                 </div>
+                                                <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 select-none">
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={autoLoadPlaylists}
+                                                    onChange={(e) => setAutoLoadPlaylists(e.target.checked)}
+                                                  />
+                                                  滚动到底自动加载下一页
+                                                </label>
                                                 <div className="text-xs text-slate-400">
-                                                    提示：分类较多，这里先展示常用前 24 个（后续可做"更多/搜索分类"）。
+                                                    提示：分类较多，这里先展示常用前 24 个（后续可做“更多/搜索分类”）。
                                                 </div>
                                             </div>
 
@@ -1419,8 +1530,11 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                 )}
                                             </div>
 
-                                            {/* Load More */}
-                                            {playlists.length > 0 && hasMorePlaylists && (
+                                            {/* Infinite-scroll sentinel */}
+                                            {autoLoadPlaylists && <div ref={playlistsSentinelRef} className="h-10" />}
+
+                                            {/* Load More (manual) */}
+                                            {playlists.length > 0 && hasMorePlaylists && !autoLoadPlaylists && (
                                                 <div className="pt-10 flex justify-center">
                                                     <button
                                                         onClick={() => loadPlaylists({ reset: false, cat: selectedCat })}
@@ -1448,7 +1562,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                </div>
                                            </div>
 
-                                           <div className="mb-6 flex flex-wrap gap-2">
+                                           <div className="mb-6 flex flex-col gap-3">
+                                             <div className="flex flex-wrap gap-2">
                                                {MV_AREAS.map(a => (
                                                    <button
                                                        key={a.label}
@@ -1464,6 +1579,15 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                        {a.label}
                                                    </button>
                                                ))}
+                                             </div>
+                                             <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 select-none">
+                                               <input
+                                                 type="checkbox"
+                                                 checked={autoLoadMVs}
+                                                 onChange={(e) => setAutoLoadMVs(e.target.checked)}
+                                               />
+                                               滚动到底自动加载下一页
+                                             </label>
                                            </div>
 
                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
@@ -1479,6 +1603,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                        if (url) {
                                                          setMvPlayingUrl(url);
                                                          setMvPlayingTitle(`${mv.name}${mv.artistName ? ' - ' + mv.artistName : ''}`);
+                                                         setMvPlayingIndex(mvs.findIndex(x => String(x.id) === String(mv.id)));
                                                          setShowMVPlayer(true);
                                                        } else {
                                                          setToastMessage('获取MV地址失败');
@@ -1511,7 +1636,10 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                )}
                                            </div>
 
-                                           {mvs.length > 0 && hasMoreMVs && (
+                                           {/* Infinite-scroll sentinel */}
+                                           {autoLoadMVs && <div ref={mvSentinelRef} className="h-10" />}
+
+                                           {mvs.length > 0 && hasMoreMVs && !autoLoadMVs && (
                                                <div className="pt-10 flex justify-center">
                                                    <button
                                                        onClick={() => loadMVs({ reset: false, area: mvArea })}
