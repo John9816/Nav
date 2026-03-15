@@ -208,6 +208,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   }, [activeLyricIndex, showLyrics]);
 
   const loadHistory = async () => {
+      closeLyrics();
       if (!user) return;
       setLoading(true);
       const songs = await getHistory(user.id);
@@ -217,6 +218,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   };
 
   const loadFavorites = async () => {
+      closeLyrics();
       if (!user) {
           if (onAuthRequest) onAuthRequest();
           return;
@@ -229,6 +231,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   };
 
   const handleRandomPlay = async () => {
+      closeLyrics();
       setToastMessage("正在获取随机音乐...");
       const song = await fetchRandomMusic();
       if (song) {
@@ -246,6 +249,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
   const handleSearch = async (e?: React.FormEvent) => {
       if (e) e.preventDefault();
+      closeLyrics();
       if (!searchQuery.trim()) return;
       setShowSourceMenu(false); // Close menu if open
       setView('search');
@@ -349,6 +353,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
 
   const handleAlbumClick = async (e: React.MouseEvent, albumId: string | number, source: string = 'netease') => {
       e.stopPropagation();
+      closeLyrics();
       if (source !== 'netease') {
           setToastMessage("暂仅支持网易云音乐专辑查看");
           setTimeout(() => setToastMessage(null), 2000);
@@ -376,6 +381,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   };
 
   // Player Controls
+  const closeLyrics = () => setShowLyrics(false);
+
   const playSong = async (song: Song, newQueue?: Song[]) => {
     let currentQueue = newQueue || queue;
     if (newQueue) {
@@ -625,6 +632,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   };
 
   const handlePlaylistClick = async (playlist: Playlist) => {
+      closeLyrics();
       setLoading(true);
       setSelectedPlaylist(playlist);
       setView('playlist');
@@ -682,14 +690,15 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   };
 
   return (
-    <div
+    <div 
       className={`fixed inset-0 z-40 bg-slate-50 dark:bg-slate-900 flex flex-col pt-16 transition-all duration-300 ease-in-out
-        ${activeView === 'music'
-           ? 'opacity-100 translate-y-0 visible pointer-events-auto'
+        ${activeView === 'music' 
+           ? 'opacity-100 translate-y-0 visible pointer-events-auto' 
            : 'opacity-0 translate-y-4 invisible pointer-events-none'
         }
       `}
     >
+
 
        {/* Main Content Area */}
        <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
@@ -702,7 +711,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        <div className="px-3 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">我的音乐</div>
                        <div className="space-y-1">
                            <button
-                             onClick={() => { setView('home'); }}
+                             onClick={() => { closeLyrics(); setView('home'); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${view === 'home' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
                            >
                                <LayoutGrid size={18} /> 发现音乐
@@ -731,6 +740,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                            {/* Netease Playlists Entry (PC sidebar) */}
                            <button
                              onClick={() => {
+                               closeLyrics();
                                setView('playlists');
                                setSelectedCat('');
                                setPlaylistOffset(0);
@@ -754,7 +764,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                        <div className="px-3 mb-2 text-xs font-bold text-slate-400 uppercase tracking-wider">精选榜单</div>
                        <div className="space-y-1">
                            <button
-                             onClick={() => { setView('charts'); setChartSource('netease'); }}
+                             onClick={() => { closeLyrics(); setView('charts'); setChartSource('netease'); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors truncate text-left
                                 ${view === 'charts' && chartSource === 'netease'
                                     ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
@@ -766,7 +776,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                <span>网易云音乐</span>
                            </button>
                            <button
-                             onClick={() => { setView('charts'); setChartSource('qq'); }}
+                             onClick={() => { closeLyrics(); setView('charts'); setChartSource('qq'); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors truncate text-left
                                 ${view === 'charts' && chartSource === 'qq'
                                     ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
@@ -778,7 +788,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                <span>QQ音乐</span>
                            </button>
                            <button
-                             onClick={() => { setView('charts'); setChartSource('kuwo'); }}
+                             onClick={() => { closeLyrics(); setView('charts'); setChartSource('kuwo'); }}
                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors truncate text-left
                                 ${view === 'charts' && chartSource === 'kuwo'
                                     ? 'bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400'
@@ -1247,7 +1257,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                     ))}
                                                 </div>
                                                 <div className="text-xs text-slate-400">
-                                                    提示：分类较多，这里先展示常用前 24 个（后续可做“更多/搜索分类”）。
+                                                    提示：分类较多，这里先展示常用前 24 个（后续可做"更多/搜索分类"）。
                                                 </div>
                                             </div>
 
@@ -1416,10 +1426,15 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
            <div className="flex-1 md:w-1/3 flex items-center gap-3 md:gap-4 overflow-hidden">
                {currentSong ? (
                    <>
-                       <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-lg shadow-md overflow-hidden shrink-0">
+                       <button
+                         type="button"
+                         onClick={() => setShowLyrics(true)}
+                         className="relative w-12 h-12 md:w-14 md:h-14 rounded-lg shadow-md overflow-hidden shrink-0 focus:outline-none"
+                         title="打开歌词"
+                       >
                            <img src={currentSong.al.picUrl} alt="Cover" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                            <div className="absolute inset-0 bg-black/10 ring-1 ring-inset ring-white/10"></div>
-                       </div>
+                       </button>
                        <div className="min-w-0 flex flex-col justify-center overflow-hidden">
                            <div className="font-bold text-slate-800 dark:text-slate-100 truncate text-sm md:text-base mb-0.5">{currentSong.name}</div>
                            <div className="text-xs text-slate-500 dark:text-slate-400 truncate font-medium">
