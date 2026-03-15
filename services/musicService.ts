@@ -468,9 +468,46 @@ export const fetchTopLists = async (): Promise<Playlist[]> => {
 /**
  * Fetch Netease Playlists
  */
-export const fetchPlaylists = async (limit: number = 42, offset: number = 0): Promise<Playlist[]> => {
+export interface PlaylistCategory {
+    name: string;
+    sub?: Array<{ name: string }>;
+}
+
+export const fetchPlaylistCategories = async (): Promise<PlaylistCategory[]> => {
     try {
         const queryParams = new URLSearchParams({
+            timestamp: String(Date.now()),
+            device: 'mobile'
+        });
+        const response = await fetch(`/alger-api/api/playlist/catlist?${queryParams.toString()}`);
+        const data = await response.json();
+
+        // Netease catlist is often { categories: {0:'语种',...}, sub: [{category:0,name:'华语'}...] }
+        const categories = data.categories || {};
+        const sub = Array.isArray(data.sub) ? data.sub : [];
+
+        const grouped: Record<string, Array<{ name: string }>> = {};
+        sub.forEach((s: any) => {
+            const key = String(s.category ?? '');
+            const groupName = categories[key] || '其他';
+            if (!grouped[groupName]) grouped[groupName] = [];
+            grouped[groupName].push({ name: s.name });
+        });
+
+        return Object.entries(grouped).map(([name, items]) => ({
+            name,
+            sub: items
+        }));
+    } catch (e) {
+        console.warn('Fetch playlist categories failed', e);
+        return [];
+    }
+};
+
+export const fetchPlaylists = async (limit: number = 42, offset: number = 0, cat: string = ''): Promise<Playlist[]> => {
+    try {
+        const queryParams = new URLSearchParams({
+            cat: cat || '',
             limit: String(limit),
             offset: String(offset),
             timestamp: String(Date.now()),
@@ -489,7 +526,7 @@ export const fetchPlaylists = async (limit: number = 42, offset: number = 0): Pr
             source: 'netease'
         }));
     } catch (e) {
-        console.warn("Fetch Netease playlists failed", e);
+        console.warn('Fetch Netease playlists failed', e);
         return [];
     }
 };
