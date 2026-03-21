@@ -131,6 +131,16 @@ export default defineConfig(({ mode }) => {
         outDir: 'dist',
         emptyOutDir: true,
       },
+      optimizeDeps: {
+        include: [
+          '@tiptap/react',
+          '@tiptap/starter-kit',
+          '@tiptap/extension-link',
+          '@tiptap/extension-image',
+          '@tiptap/extension-placeholder',
+          '@tiptap/markdown'
+        ]
+      },
       plugins: [
         react(),
         tailwindcss()

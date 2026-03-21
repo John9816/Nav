@@ -1,19 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import SearchBar from './components/SearchBar';
 import LinkGrid from './components/LinkGrid';
 import Weather from './components/Weather';
 import Sidebar from './components/Sidebar';
 import DailyQuote from './components/DailyQuote';
-import AIStudio from './components/AIStudio';
-import MusicPlatform from './components/MusicPlatform';
 import AuthModal from './components/AuthModal';
-import BookmarkManager from './components/BookmarkManager';
-import Guestbook from './components/Guestbook'; 
 import BookmarkBar from './components/BookmarkBar'; // Import BookmarkBar
 import { CategoryModal, LinkModal } from './components/BookmarkModals';
 import { DEFAULT_CATEGORIES } from './constants';
 import { Category, LinkItem } from './types';
-import { ArrowUp, Sun, Moon, Sparkles, Music, Home, LogOut, LogIn, Heart, Settings, History, MessageSquareQuote, Menu } from 'lucide-react';
+import { ArrowUp, Sun, Moon, Sparkles, Music, Home, LogOut, LogIn, Heart, Settings, History, MessageSquareQuote, Menu, BookOpen } from 'lucide-react';
 import { ChatMessage } from './types';
 import { useAuth } from './contexts/AuthContext';
 import { 
@@ -23,8 +19,23 @@ import {
 } from './services/bookmarkService';
 import { getIconByName } from './utils/iconMap';
 
+const AIStudio = lazy(() => import('./components/AIStudio'));
+const MusicPlatform = lazy(() => import('./components/MusicPlatform'));
+const BookmarkManager = lazy(() => import('./components/BookmarkManager'));
+const Guestbook = lazy(() => import('./components/Guestbook'));
+const SparkCollection = lazy(() => import('./components/SparkCollection'));
+
+const ViewLoader: React.FC<{ label: string }> = ({ label }) => (
+  <div className="flex h-full items-center justify-center bg-slate-50 dark:bg-slate-900">
+    <div className="flex flex-col items-center gap-4 text-slate-400">
+      <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-blue-500 dark:border-slate-700 dark:border-t-blue-400"></div>
+      <p className="text-sm">{label}</p>
+    </div>
+  </div>
+);
+
 function App() {
-  const [view, setView] = useState<'dashboard' | 'studio' | 'music' | 'bookmarks' | 'guestbook'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'studio' | 'music' | 'bookmarks' | 'guestbook' | 'sparks'>('dashboard');
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [activeSection, setActiveSection] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -81,6 +92,8 @@ function App() {
     { id: 'init-image', role: 'model', text: '欢迎来到 AI 绘画模式。请描述你想要生成的画面。' }
   ]);
 
+  const [hasLoadedMusicPlatform, setHasLoadedMusicPlatform] = useState(false);
+
   // Apply theme to document and save to local storage
   useEffect(() => {
     const root = document.documentElement;
@@ -101,6 +114,12 @@ function App() {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (view === 'music' || musicTabRequest !== null) {
+      setHasLoadedMusicPlatform(true);
+    }
+  }, [view, musicTabRequest]);
 
   // Helper to rehydrate icons from raw data (for cache)
   const hydrateCategories = (data: Category[]) => {
@@ -159,13 +178,13 @@ function App() {
         // 2. Fetch fresh data (in background if cached)
         if (!hasCache) {
             setIsLoadingBookmarks(true);
-        }
-        
-        await refreshBookmarks();
-        setIsLoadingBookmarks(false);
+      }
+
+      await refreshBookmarks();
+      setIsLoadingBookmarks(false);
       } else {
         setCategories(DEFAULT_CATEGORIES);
-        if (view === 'bookmarks') setView('dashboard'); // Redirect if managing
+        if (view === 'bookmarks' || view === 'sparks') setView('dashboard'); // Redirect if managing
       }
     };
     loadBookmarks();
@@ -374,6 +393,18 @@ function App() {
              <MessageSquareQuote size={16} />
              <span className="hidden sm:inline">留言</span>
            </button>
+           <button
+             onClick={() => setView('sparks')}
+             className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2 whitespace-nowrap
+               ${view === 'sparks'
+                 ? 'bg-white text-amber-600 shadow-sm dark:bg-slate-700 dark:text-amber-400'
+                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/50'
+               }
+             `}
+           >
+             <BookOpen size={16} />
+             <span className="hidden sm:inline">灵感</span>
+           </button>
         </nav>
 
         {/* Right: Weather & Theme & User */}
@@ -468,6 +499,17 @@ function App() {
                          >
                             <History size={16} className="text-blue-500" />
                             <span>播放历史</span>
+                         </button>
+
+                         <button 
+                            onClick={() => { 
+                                setView('sparks');
+                                setShowUserMenu(false); 
+                            }}
+                            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors border-b border-slate-50 dark:border-slate-700/50"
+                         >
+                            <BookOpen size={16} className="text-amber-500" />
+                            <span>灵感记录</span>
                          </button>
 
                          <button 
@@ -585,61 +627,89 @@ function App() {
         {/* VIEW: STUDIO */}
         {view === 'studio' && (
           <div className="flex-1 h-full overflow-hidden">
-             <AIStudio 
-              chatHistory={chatHistory}
-              setChatHistory={setChatHistory}
-              imageHistory={imageHistory}
-              setImageHistory={setImageHistory}
-              currentSessionId={currentSessionId}
-              setCurrentSessionId={setCurrentSessionId}
-             />
+             <Suspense fallback={<ViewLoader label="正在加载 AI Studio..." />}>
+               <AIStudio 
+                chatHistory={chatHistory}
+                setChatHistory={setChatHistory}
+                imageHistory={imageHistory}
+                setImageHistory={setImageHistory}
+                currentSessionId={currentSessionId}
+                setCurrentSessionId={setCurrentSessionId}
+               />
+             </Suspense>
           </div>
         )}
 
         {/* VIEW: GUESTBOOK */}
         {view === 'guestbook' && (
            <div className="flex-1 h-full overflow-hidden">
-             <Guestbook />
+             <Suspense fallback={<ViewLoader label="正在加载留言页..." />}>
+               <Guestbook />
+             </Suspense>
+           </div>
+        )}
+
+        {/* VIEW: SPARK NOTES */}
+        {view === 'sparks' && (
+           <div className="flex-1 h-full overflow-hidden">
+             <Suspense
+               fallback={
+                 <div className="flex h-full items-center justify-center bg-slate-50 dark:bg-slate-900">
+                   <div className="flex flex-col items-center gap-4 text-slate-400">
+                     <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-200 border-t-amber-500 dark:border-slate-700 dark:border-t-amber-400"></div>
+                     <p className="text-sm">正在加载灵感编辑器...</p>
+                   </div>
+                 </div>
+               }
+             >
+               <SparkCollection onAuthRequest={() => setIsAuthModalOpen(true)} />
+             </Suspense>
            </div>
         )}
 
         {/* VIEW: BOOKMARKS MANAGEMENT */}
         {view === 'bookmarks' && (
            <div className="flex-1 h-full overflow-hidden">
-             <BookmarkManager 
-               categories={categories}
-               onAddCategory={() => {
-                 setEditingCategory(null);
-                 setCategoryModalOpen(true);
-               }}
-               onEditCategory={(cat) => {
-                 setEditingCategory(cat);
-                 setCategoryModalOpen(true);
-               }}
-               onDeleteCategory={handleDeleteCategory}
-               onAddLink={(catId) => {
-                 setTargetCategoryId(catId);
-                 setEditingLink(null);
-                 setLinkModalOpen(true);
-               }}
-               onEditLink={(link) => {
-                 setEditingLink(link);
-                 setLinkModalOpen(true);
-               }}
-               onDeleteLink={handleDeleteLink}
-               refreshBookmarks={refreshBookmarks}
-             />
+             <Suspense fallback={<ViewLoader label="正在加载导航管理..." />}>
+               <BookmarkManager 
+                 categories={categories}
+                 onAddCategory={() => {
+                   setEditingCategory(null);
+                   setCategoryModalOpen(true);
+                 }}
+                 onEditCategory={(cat) => {
+                   setEditingCategory(cat);
+                   setCategoryModalOpen(true);
+                 }}
+                 onDeleteCategory={handleDeleteCategory}
+                 onAddLink={(catId) => {
+                   setTargetCategoryId(catId);
+                   setEditingLink(null);
+                   setLinkModalOpen(true);
+                 }}
+                 onEditLink={(link) => {
+                   setEditingLink(link);
+                   setLinkModalOpen(true);
+                 }}
+                 onDeleteLink={handleDeleteLink}
+                 refreshBookmarks={refreshBookmarks}
+               />
+             </Suspense>
            </div>
         )}
 
         {/* VIEW: MUSIC (Always mounted for background playback) */}
-        <MusicPlatform 
-           activeView={view as any}
-           onViewChange={(v) => setView(v)}
-           requestedTab={musicTabRequest}
-           onTabChangeHandled={handleMusicTabReset}
-           onAuthRequest={() => setIsAuthModalOpen(true)}
-        />
+        {hasLoadedMusicPlatform && (
+          <Suspense fallback={<ViewLoader label="正在加载音乐页面..." />}>
+            <MusicPlatform 
+               activeView={view as any}
+               onViewChange={(v) => setView(v)}
+               requestedTab={musicTabRequest}
+               onTabChangeHandled={handleMusicTabReset}
+               onAuthRequest={() => setIsAuthModalOpen(true)}
+            />
+          </Suspense>
+        )}
 
       </div>
 

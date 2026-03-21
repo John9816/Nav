@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --animate-blob: blob 10s infinite;
@@ -111,4 +112,133 @@ body {
 .animate-music-wave-3 {
   animation: music-wave 0.9s ease-in-out infinite;
   animation-delay: 0.2s;
+}
+
+/* Tiptap Editor */
+.tiptap-editor {
+  position: relative;
+}
+
+.tiptap-editor .tiptap {
+  min-height: 420px;
+  padding: 24px;
+  color: #0f172a;
+  line-height: 1.85;
+  outline: none;
+  font-size: 15px;
+}
+
+.tiptap-editor .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+.tiptap-editor .tiptap h1,
+.tiptap-editor .tiptap h2,
+.tiptap-editor .tiptap h3 {
+  line-height: 1.3;
+  font-weight: 700;
+  margin: 1.2em 0 0.55em;
+}
+
+.tiptap-editor .tiptap h1 {
+  font-size: 1.85rem;
+}
+
+.tiptap-editor .tiptap h2 {
+  font-size: 1.45rem;
+}
+
+.tiptap-editor .tiptap h3 {
+  font-size: 1.2rem;
+}
+
+.tiptap-editor .tiptap p,
+.tiptap-editor .tiptap ul,
+.tiptap-editor .tiptap ol,
+.tiptap-editor .tiptap blockquote,
+.tiptap-editor .tiptap pre {
+  margin: 0.75em 0;
+}
+
+.tiptap-editor .tiptap ul,
+.tiptap-editor .tiptap ol {
+  padding-left: 1.5rem;
+}
+
+.tiptap-editor .tiptap blockquote {
+  border-left: 3px solid rgba(59, 130, 246, 0.35);
+  padding-left: 1rem;
+  color: #475569;
+  background: rgba(248, 250, 252, 0.85);
+  border-radius: 0 14px 14px 0;
+}
+
+.tiptap-editor .tiptap code {
+  background: rgba(148, 163, 184, 0.14);
+  border-radius: 0.4rem;
+  padding: 0.15rem 0.35rem;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.9em;
+}
+
+.tiptap-editor .tiptap pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 1rem;
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+}
+
+.tiptap-editor .tiptap pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.tiptap-editor .tiptap hr {
+  border: none;
+  border-top: 1px solid rgba(148, 163, 184, 0.35);
+  margin: 1.5rem 0;
+}
+
+.tiptap-editor .tiptap a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.tiptap-editor .tiptap img {
+  max-width: 100%;
+  border-radius: 1rem;
+  display: block;
+  margin: 1rem 0;
+}
+
+.dark .tiptap-editor .tiptap {
+  color: #e2e8f0;
+}
+
+.dark .tiptap-editor .tiptap p.is-editor-empty:first-child::before {
+  color: #64748b;
+}
+
+.dark .tiptap-editor .tiptap blockquote {
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.92);
+  border-left-color: rgba(96, 165, 250, 0.4);
+}
+
+.dark .tiptap-editor .tiptap code {
+  background: rgba(51, 65, 85, 0.8);
+}
+
+.dark .tiptap-editor .tiptap hr {
+  border-top-color: rgba(71, 85, 105, 0.7);
+}
+
+.dark .tiptap-editor .tiptap a {
+  color: #60a5fa;
 }

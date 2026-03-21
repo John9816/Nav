@@ -33,3 +33,15 @@ export const deleteSpark = async (sparkId: string) => {
 
   if (error) throw error;
 };
+
+export const updateSpark = async (sparkId: string, content: string): Promise<Spark> => {
+  const { data, error } = await supabase
+    .from('sparks')
+    .update({ content })
+    .eq('id', sparkId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};

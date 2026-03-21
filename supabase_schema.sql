@@ -160,3 +160,18 @@ create table public.guest_limits (
 alter table public.guest_limits enable row level security;
 -- 允许所有用户（包括未登录用户/匿名用户）读写此表
 create policy "Enable all access for guest limits" on public.guest_limits for all using (true);
+
+
+-- Optional: create sparks table if your environment does not have it yet.
+create table public.sparks (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.users(id) not null,
+  type text not null default 'text',
+  content text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+alter table public.sparks enable row level security;
+create policy "Users can view own sparks" on public.sparks for select using (auth.uid() = user_id);
+create policy "Users can insert own sparks" on public.sparks for insert with check (auth.uid() = user_id);
+create policy "Users can update own sparks" on public.sparks for update using (auth.uid() = user_id);
+create policy "Users can delete own sparks" on public.sparks for delete using (auth.uid() = user_id);
