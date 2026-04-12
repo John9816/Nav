@@ -940,6 +940,25 @@ export const fetchLyrics = async (id: string | number, source: string = 'netease
             console.error("Netease lyrics fetch failed", e);
         }
     }
+
+    if (source === 'kuwo') {
+        try {
+            const response = await fetch(`/gdstudio-api/api.php?types=lyric&source=kuwo&id=${id}`);
+            if (!response.ok) {
+                throw new Error(`Kuwo lyric API Error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const raw = data.lyric || data.lrc || '';
+
+            if (raw) {
+                return { lines: parseLyrics(raw), raw };
+            }
+        } catch (e) {
+            console.error("Kuwo lyrics fetch failed", e);
+        }
+    }
+
     return { lines: [], raw: '' };
 };
 
