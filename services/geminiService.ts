@@ -4,19 +4,14 @@ import { ChatMessage } from '../types';
 // CONFIGURATION
 // ==========================================
 const PROVIDERS = {
-  // Existing Provider for DeepSeek
-  DIK3: {
-    BASE_URL: 'https://ai.dik3.cn/v1',
-    API_KEY: 'sk-OY3j53dzW58qxeGqOGlEs66B4ljuAaq4T9769iNRdmq6xZk2',
-  },
-  // New Provider for LongCat
+  // Provider for LongCat
   LONGCAT: {
     BASE_URL: 'https://api.longcat.chat/openai/v1',
     API_KEY: 'ak_2zM3d753H9mC79I7Je0so8dl56U6E', // 请在此处填入您的 LongCat API Key
   }
 };
 
-const DEFAULT_MODEL = 'deepseek-v3.2';
+const DEFAULT_MODEL = 'LongCat-Flash-Chat';
 
 // System instruction updated to Chinese
 const SYSTEM_INSTRUCTION = "你是一个集成在个人导航页中的智能助手。请始终使用中文回答用户的问题。回答要简洁、友好、高效。";
@@ -27,7 +22,7 @@ const SYSTEM_INSTRUCTION = "你是一个集成在个人导航页中的智能助�
 export const sendMessageStream = async function* (messages: ChatMessage[], model: string = DEFAULT_MODEL) {
   
   // Select Provider based on Model
-  let activeProvider = PROVIDERS.DIK3; // Default to Dik3
+  let activeProvider = PROVIDERS.LONGCAT; // Default to LongCat
   
   // Check if the model name starts with 'LongCat' to switch provider
   if (model.startsWith('LongCat')) {
@@ -40,7 +35,7 @@ export const sendMessageStream = async function* (messages: ChatMessage[], model
   const baseUrl = activeProvider.BASE_URL.replace(/\/+$/, '');
 
   if (!apiKey) {
-    throw new Error(`未配置 API Key (${model.startsWith('LongCat') ? 'LongCat' : 'DeepSeek'})。请在 services/geminiService.ts 中配置。`);
+    throw new Error(`未配置 API Key (LongCat)。请在 services/geminiService.ts 中配置。`);
   }
 
   // Convert internal ChatMessage format to OpenAI format

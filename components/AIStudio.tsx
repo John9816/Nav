@@ -24,7 +24,6 @@ interface AIStudioProps {
 type Mode = 'chat' | 'image';
 
 const MODELS = [
-  { id: 'deepseek-v3.2', name: 'DeepSeek V3.2', icon: <Zap size={14} className="text-blue-500" /> },
   { id: 'LongCat-Flash-Chat', name: 'LongCat Flash', icon: <Cpu size={14} className="text-rose-500" /> },
   { id: 'LongCat-Flash-Thinking', name: 'LongCat Thinking', icon: <Bot size={14} className="text-purple-500" /> },
   { id: 'LongCat-Flash-Thinking-2601', name: 'LongCat Thinking 2601', icon: <Sparkles size={14} className="text-orange-500" /> },
