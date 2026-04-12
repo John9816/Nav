@@ -29,6 +29,35 @@ const toHttps = (url: string) => {
     return url.replace(/^http:\/\//i, 'https://');
 };
 
+const buildKuwoCoverUrl = (...candidates: Array<string | undefined>) => {
+    for (const candidate of candidates) {
+        const raw = String(candidate || '').trim();
+        if (!raw) continue;
+
+        if (/^https?:\/\//i.test(raw)) {
+            return toHttps(raw);
+        }
+
+        if (raw.startsWith('//')) {
+            return `https:${raw}`;
+        }
+
+        const normalized = raw.replace(/^\/+/, '');
+
+        if (normalized.startsWith('star/')) {
+            return `https://img4.kuwo.cn/${normalized}`;
+        }
+
+        if (/^\d+\//.test(normalized)) {
+            return `https://img4.kuwo.cn/star/albumcover/${normalized}`;
+        }
+
+        return normalized;
+    }
+
+    return '';
+};
+
 // Helper to resolve Netease Cover URL from GDStudio JSON API
 const resolveNeteaseCover = async (picId: string | number): Promise<string | undefined> => {
     if (!picId) return undefined;
@@ -200,28 +229,47 @@ const mapQQItemToSong = (item: any): Song => {
 };
 
 const mapKuwoItemToSong = (item: any): Song => {
-    const rawId = item.MUSICRID || item.musicrid || '';
-    const id = rawId.replace('MUSIC_', '');
+    const rawId = item.id || item.url_id || item.lyric_id || item.MUSICRID || item.musicrid || '';
+    const id = String(rawId).replace('MUSIC_', '');
     
     const decode = (str: string) => {
         if (!str) return '';
         return str.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
     };
 
-    const name = decode(item.SONGNAME || item.songname || 'Unknown Title');
-    const artistName = decode(item.ARTIST || item.artist || 'Unknown Artist');
-    const albumName = decode(item.ALBUM || item.album || 'Unknown Album');
+    const name = decode(item.name || item.SONGNAME || item.songname || 'Unknown Title');
+    const albumName = decode(item.album || item.ALBUM || item.albumname || 'Unknown Album');
+    const artistList = Array.isArray(item.artist)
+        ? item.artist.map((artist: string) => decode(artist)).filter(Boolean)
+        : decode(item.ARTIST || item.artist || 'Unknown Artist')
+            .split('/')
+            .map((artist: string) => artist.trim())
+            .filter(Boolean);
+
+    const artists = artistList.length > 0
+        ? artistList.map((artist: string) => ({ id: 0, name: artist }))
+        : [{ id: 0, name: 'Unknown Artist' }];
+
+    const durationMs =
+        Number(item.dt || item.duration_ms || 0) ||
+        (item.duration ? parseInt(String(item.duration), 10) * 1000 : 0);
 
     return {
         id: id,
         name: name,
-        ar: [{ id: 0, name: artistName }],
+        ar: artists,
         al: {
             id: 0,
             name: albumName,
-            picUrl: item.hts_MVPIC || item.albumpic || item.web_albumpic_short || ''
+            picUrl: buildKuwoCoverUrl(
+                item.pic,
+                item.pic_id,
+                item.hts_MVPIC,
+                item.albumpic,
+                item.web_albumpic_short
+            )
         },
-        dt: item.duration ? parseInt(item.duration) * 1000 : 0,
+        dt: durationMs,
         source: 'kuwo',
         url: undefined
     };
@@ -669,20 +717,24 @@ export const searchSongs = async (
     if (source === 'kuwo') {
         try {
             const params = new URLSearchParams({
-                vipver: '1', client: 'kt', ft: 'music', cluster: '0', strategy: '2012', encoding: 'utf8', rformat: 'json',
-                mobi: '1', issubtitle: '1', show_copyright_off: '1', pn: String(page - 1), rn: String(limit), all: keywords
+                types: 'search',
+                source: 'kuwo',
+                name: keywords,
+                pages: String(page)
             });
 
-            const response = await fetch(`/kuwo-www-api/search/searchMusicBykeyWord?${params.toString()}`);
-            const text = await response.text();
-            let data: any = {};
-            try { data = JSON.parse(text); } catch (e) { 
-                try { data = JSON.parse(text.replace(/([a-zA-Z0-9_]+?):/g, '"$1":').replace(/'/g, '"')); } catch (e2) {}
+            const response = await fetch(`/gdstudio-api/api.php?${params.toString()}`);
+            if (!response.ok) {
+                throw new Error(`Kuwo search API Error: ${response.status}`);
             }
 
-            const abslist = data.abslist || [];
-            if (abslist.length > 0) {
-                return abslist.map(mapKuwoItemToSong);
+            const data = await response.json();
+            const results = Array.isArray(data)
+                ? data
+                : data?.data || data?.list || data?.result || [];
+
+            if (results.length > 0) {
+                return results.slice(0, limit).map(mapKuwoItemToSong);
             }
             return [];
         } catch (e) {
