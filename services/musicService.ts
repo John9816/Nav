@@ -782,7 +782,7 @@ export const fetchSongUrl = async (
     quality: string = '320k',
     metadata?: { name?: string, artist?: string }
 ): Promise<{ url: string, lyric?: string } | null> => {
-    const cacheKey = `${id}-${quality}`;
+    const cacheKey = `${source}-${id}-${quality}`;
     if (urlPromiseCache.has(cacheKey)) {
         return urlPromiseCache.get(cacheKey)!;
     }
@@ -853,25 +853,22 @@ export const fetchSongUrl = async (
         return promise;
     }
 
-    // Kuwo Music (Yunzhi API)
-    if (source === 'kuwo' && metadata?.name) {
+    // Kuwo Music (GDStudio URL)
+    if (source === 'kuwo') {
         const fetchKuwoTask = async (): Promise<{ url: string, lyric?: string } | null> => {
             try {
-                const searchQuery = metadata.name; 
-                const encodedMsg = encodeURIComponent(searchQuery || '');
-                const response = await fetch(`/yunzhi-api/API/kwyyjx.php?msg=${encodedMsg}&n=1`);
+                const response = await fetch(`/gdstudio-api/api.php?types=url&source=kuwo&id=${id}&br=999`);
                 
-                if (!response.ok) throw new Error(`Yunzhi API Error: ${response.status}`);
-                const json = await response.json();
-                const data = json.data || json;
-                const musicUrl = data.url || data.music_url || data.mp3 || json.url;
-                const lyric = data.lyric || data.lrc || json.lyric; 
+                if (!response.ok) throw new Error(`Kuwo API Error: ${response.status}`);
+                const data = await response.json();
+                const musicUrl = data.url || data.music_url || data.mp3;
+                const lyric = data.lyric || data.lrc;
 
                 if (musicUrl) {
                     return { url: toHttps(musicUrl), lyric: lyric };
                 }
             } catch (e) {
-                console.error("Kuwo Yunzhi API fetch failed", e);
+                console.error("Kuwo GDStudio API fetch failed", e);
             }
             return null;
         };
