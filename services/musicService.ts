@@ -216,10 +216,10 @@ const mapKuwoItemToSong = (item: any): Song => {
         id: id,
         name: name,
         ar: [{ id: 0, name: artistName }],
-        al: { 
-            id: 0, 
-            name: albumName, 
-            picUrl: item.albumpic || item.web_albumpic_short || '' 
+        al: {
+            id: 0,
+            name: albumName,
+            picUrl: item.hts_MVPIC || item.albumpic || item.web_albumpic_short || ''
         },
         dt: item.duration ? parseInt(item.duration) * 1000 : 0,
         source: 'kuwo',
