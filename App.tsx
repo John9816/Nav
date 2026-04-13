@@ -8,9 +8,8 @@ import AuthModal from './components/AuthModal';
 import BookmarkBar from './components/BookmarkBar'; // Import BookmarkBar
 import { CategoryModal, LinkModal } from './components/BookmarkModals';
 import { DEFAULT_CATEGORIES } from './constants';
-import { Category, LinkItem } from './types';
+import { Category, LinkItem, ChatMessage, SharedSongRequest } from './types';
 import { ArrowUp, Sun, Moon, Sparkles, Music, Home, LogOut, LogIn, Heart, Settings, History, MessageSquareQuote, Menu, BookOpen } from 'lucide-react';
-import { ChatMessage } from './types';
 import { useAuth } from './contexts/AuthContext';
 import { 
   fetchUserBookmarks, 
@@ -18,6 +17,7 @@ import {
   addLink, updateLink, deleteLink, getColorClass
 } from './services/bookmarkService';
 import { getIconByName } from './utils/iconMap';
+import { MUSIC_SHARE_PARAM_KEYS, parseSharedSongRequest } from './utils/musicShare';
 
 const AIStudio = lazy(() => import('./components/AIStudio'));
 const MusicPlatform = lazy(() => import('./components/MusicPlatform'));
@@ -35,7 +35,13 @@ const ViewLoader: React.FC<{ label: string }> = ({ label }) => (
 );
 
 function App() {
-  const [view, setView] = useState<'dashboard' | 'studio' | 'music' | 'bookmarks' | 'guestbook' | 'sparks'>('dashboard');
+  const initialSharedSongRequest = typeof window === 'undefined'
+    ? null
+    : parseSharedSongRequest(window.location.href);
+
+  const [view, setView] = useState<'dashboard' | 'studio' | 'music' | 'bookmarks' | 'guestbook' | 'sparks'>(
+    initialSharedSongRequest ? 'music' : 'dashboard'
+  );
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [activeSection, setActiveSection] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -63,6 +69,7 @@ function App() {
 
   // Music Tab Request State (for external control)
   const [musicTabRequest, setMusicTabRequest] = useState<'favorites' | 'history' | null>(null);
+  const [sharedSongRequest, setSharedSongRequest] = useState<SharedSongRequest | null>(initialSharedSongRequest);
   
   // Auth State
   const { user, profile, signOut } = useAuth();
@@ -92,7 +99,7 @@ function App() {
     { id: 'init-image', role: 'model', text: '欢迎来到 AI 绘画模式。请描述你想要生成的画面。' }
   ]);
 
-  const [hasLoadedMusicPlatform, setHasLoadedMusicPlatform] = useState(false);
+  const [hasLoadedMusicPlatform, setHasLoadedMusicPlatform] = useState(Boolean(initialSharedSongRequest));
 
   // Apply theme to document and save to local storage
   useEffect(() => {
@@ -116,10 +123,16 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (view === 'music' || musicTabRequest !== null) {
+    if (view === 'music' || musicTabRequest !== null || sharedSongRequest !== null) {
       setHasLoadedMusicPlatform(true);
     }
-  }, [view, musicTabRequest]);
+  }, [view, musicTabRequest, sharedSongRequest]);
+
+  useEffect(() => {
+    if (sharedSongRequest) {
+      setView('music');
+    }
+  }, [sharedSongRequest]);
 
   // Helper to rehydrate icons from raw data (for cache)
   const hydrateCategories = (data: Category[]) => {
@@ -249,6 +262,16 @@ function App() {
   // Callback to handle music tab resets - Memorized to prevent infinite effect loops in MusicPlatform
   const handleMusicTabReset = useCallback(() => {
     setMusicTabRequest(null);
+  }, []);
+
+  const handleSharedSongHandled = useCallback(() => {
+    setSharedSongRequest(null);
+
+    if (typeof window === 'undefined') return;
+
+    const url = new URL(window.location.href);
+    MUSIC_SHARE_PARAM_KEYS.forEach(key => url.searchParams.delete(key));
+    window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
   }, []);
 
 
@@ -705,7 +728,9 @@ function App() {
                activeView={view as any}
                onViewChange={(v) => setView(v)}
                requestedTab={musicTabRequest}
+               sharedSongRequest={sharedSongRequest}
                onTabChangeHandled={handleMusicTabReset}
+               onSharedSongHandled={handleSharedSongHandled}
                onAuthRequest={() => setIsAuthModalOpen(true)}
             />
           </Suspense>
