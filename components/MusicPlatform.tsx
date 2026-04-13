@@ -258,10 +258,8 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     setView('home');
     playSong(sharedSong, [sharedSong]);
     setToastMessage(`正在打开分享歌曲：${sharedSong.name}`);
-    const timer = window.setTimeout(() => setToastMessage(null), 2200);
+    window.setTimeout(() => setToastMessage(null), 2200);
     onSharedSongHandled();
-
-    return () => window.clearTimeout(timer);
   }, [sharedSongRequest, onSharedSongHandled]);
 
   // Determine active lyric index
@@ -2012,8 +2010,12 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
        </div>
 
        {toastMessage && (
-           <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-slate-800/90 backdrop-blur text-white px-6 py-3 rounded-full text-sm shadow-xl animate-in fade-in slide-in-from-top-4 z-[100] flex items-center gap-2 w-max max-w-[90vw] truncate">
-               <Disc size={16} className="animate-spin shrink-0" />
+           <div className="fixed top-20 right-4 md:right-6 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl text-slate-700 dark:text-slate-100 px-4 py-3 rounded-2xl text-sm shadow-lg border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-right-4 z-[100] flex items-center gap-3 w-[min(360px,calc(100vw-2rem))]">
+               {toastMessage.includes('正在') ? (
+                   <Loader2 size={16} className="animate-spin shrink-0 text-blue-500" />
+               ) : (
+                   <Info size={16} className="shrink-0 text-slate-400" />
+               )}
                <span className="truncate">{toastMessage}</span>
            </div>
        )}
