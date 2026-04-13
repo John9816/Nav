@@ -33,7 +33,7 @@ const useInfiniteScroll = (opts: {
   return { sentinelRef };
 };
 
-import { Song, Playlist, LyricLine, MVItem } from '../types';
+import { Song, Playlist, LyricLine, MVItem, SharedSongRequest } from '../types';
 import { fetchFirstAppVersion } from '../services/appVersionService';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -45,7 +45,7 @@ import {
   fetchAllMVs,
   fetchMVUrl
 } from '../services/musicService';
-import { buildSongShareUrl } from '../utils/musicShare';
+import { buildSongFromSharedRequest, buildSongShareUrl } from '../utils/musicShare';
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle,
   List, Download, Search, Loader2,
@@ -57,12 +57,14 @@ interface MusicPlatformProps {
   activeView: 'dashboard' | 'studio' | 'music' | 'bookmarks' | 'guestbook';
   onViewChange: (view: any) => void;
   requestedTab: 'favorites' | 'history' | null;
+  sharedSongRequest: SharedSongRequest | null;
   onTabChangeHandled: () => void;
+  onSharedSongHandled: () => void;
   onAuthRequest: () => void;
 }
 
 const MusicPlatform: React.FC<MusicPlatformProps> = ({
-  activeView, onViewChange, requestedTab, onTabChangeHandled, onAuthRequest
+  activeView, onViewChange, requestedTab, sharedSongRequest, onTabChangeHandled, onSharedSongHandled, onAuthRequest
 }) => {
   const { user } = useAuth();
 
@@ -245,6 +247,22 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   useEffect(() => {
       setShowFullDesc(false);
   }, [selectedPlaylist?.id]);
+
+  useEffect(() => {
+    if (!sharedSongRequest) return;
+
+    const sharedSong = buildSongFromSharedRequest(sharedSongRequest);
+    closeLyrics();
+    closeMVPlayer();
+    closeAppDownload();
+    setView('home');
+    playSong(sharedSong, [sharedSong]);
+    setToastMessage(`正在打开分享歌曲：${sharedSong.name}`);
+    const timer = window.setTimeout(() => setToastMessage(null), 2200);
+    onSharedSongHandled();
+
+    return () => window.clearTimeout(timer);
+  }, [sharedSongRequest, onSharedSongHandled]);
 
   // Determine active lyric index
   const activeLyricIndex = useMemo(() => {
