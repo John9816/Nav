@@ -91,17 +91,6 @@ export interface Song {
   lyric?: string; // Raw lyric text
 }
 
-export interface SharedSongRequest {
-  id: string;
-  source: string;
-  name?: string;
-  artists?: string[];
-  album?: string;
-  albumId?: string;
-  cover?: string;
-  duration?: number;
-}
-
 export interface Playlist {
   id: number | string;
   name: string;

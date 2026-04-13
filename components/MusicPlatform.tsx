@@ -33,7 +33,7 @@ const useInfiniteScroll = (opts: {
   return { sentinelRef };
 };
 
-import { Song, Playlist, LyricLine, MVItem, SharedSongRequest } from '../types';
+import { Song, Playlist, LyricLine, MVItem } from '../types';
 import { fetchFirstAppVersion } from '../services/appVersionService';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -45,7 +45,7 @@ import {
   fetchAllMVs,
   fetchMVUrl
 } from '../services/musicService';
-import { buildSongFromSharedRequest, buildSongShareUrl } from '../utils/musicShare';
+import { buildSongShareUrl } from '../utils/musicShare';
 import {
   Play, Pause, SkipBack, SkipForward, Volume2, Repeat, Shuffle,
   List, Download, Search, Loader2,
@@ -57,14 +57,12 @@ interface MusicPlatformProps {
   activeView: 'dashboard' | 'studio' | 'music' | 'bookmarks' | 'guestbook';
   onViewChange: (view: any) => void;
   requestedTab: 'favorites' | 'history' | null;
-  sharedSongRequest: SharedSongRequest | null;
   onTabChangeHandled: () => void;
-  onSharedSongHandled: () => void;
   onAuthRequest: () => void;
 }
 
 const MusicPlatform: React.FC<MusicPlatformProps> = ({
-  activeView, onViewChange, requestedTab, sharedSongRequest, onTabChangeHandled, onSharedSongHandled, onAuthRequest
+  activeView, onViewChange, requestedTab, onTabChangeHandled, onAuthRequest
 }) => {
   const { user } = useAuth();
 
@@ -247,22 +245,6 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
   useEffect(() => {
       setShowFullDesc(false);
   }, [selectedPlaylist?.id]);
-
-  useEffect(() => {
-    if (!sharedSongRequest) return;
-
-    const sharedSong = buildSongFromSharedRequest(sharedSongRequest);
-    closeLyrics();
-    closeMVPlayer();
-    closeAppDownload();
-    setView('home');
-    playSong(sharedSong, [sharedSong]);
-    setToastMessage(`正在打开分享歌曲：${sharedSong.name}`);
-    const timer = window.setTimeout(() => setToastMessage(null), 2200);
-    onSharedSongHandled();
-
-    return () => window.clearTimeout(timer);
-  }, [sharedSongRequest, onSharedSongHandled]);
 
   // Determine active lyric index
   const activeLyricIndex = useMemo(() => {
@@ -689,57 +671,18 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
     e.stopPropagation();
 
     const shareUrl = buildSongShareUrl(song);
-    const artistText = song.ar.map(artist => artist.name).filter(Boolean).join(' / ');
-    const shareTitle = artistText ? `${song.name} - ${artistText}` : song.name;
-    const shareText = `分享一首歌：${shareTitle}`;
 
-    const copyShareUrl = async () => {
+    try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
         setToastMessage('分享链接已复制');
         window.setTimeout(() => setToastMessage(null), 2000);
-        return true;
-      }
-      return false;
-    };
-
-    try {
-      if (typeof navigator !== 'undefined' && 'share' in navigator) {
-        await navigator.share({
-          title: shareTitle,
-          text: shareText,
-          url: shareUrl,
-        });
-        setToastMessage('分享已发送');
-        window.setTimeout(() => setToastMessage(null), 1600);
-        return;
-      }
-
-      const copied = await copyShareUrl();
-      if (!copied) {
+      } else {
         window.prompt('复制歌曲分享链接', shareUrl);
       }
     } catch (error) {
-      const errorName = error && typeof error === 'object' && 'name' in error
-        ? String((error as { name?: string }).name)
-        : '';
-
-      if (errorName === 'AbortError') {
-        return;
-      }
-
       console.error('Share song failed', error);
-
-      try {
-        const copied = await copyShareUrl();
-        if (!copied) {
-          window.prompt('复制歌曲分享链接', shareUrl);
-        }
-      } catch (copyError) {
-        console.error('Copy share link failed', copyError);
-        setToastMessage('分享失败，请重试');
-        window.setTimeout(() => setToastMessage(null), 2000);
-      }
+      window.prompt('复制歌曲分享链接', shareUrl);
     }
   };
 
@@ -1428,7 +1371,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                        <button
                                                          onClick={(e) => handleShareSong(e, song)}
                                                          className="p-2 text-slate-400 hover:text-blue-500 transition-colors"
-                                                         title="分享"
+                                                         title="复制分享链接"
                                                          type="button"
                                                        >
                                                            <Share2 size={16} />
@@ -1456,7 +1399,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                        <button
                                                          onClick={(e) => handleShareSong(e, song)}
                                                          className="p-2 text-slate-400 hover:text-blue-500 transition-colors"
-                                                         title="分享"
+                                                         title="复制分享链接"
                                                          type="button"
                                                        >
                                                            <Share2 size={16} />
@@ -1829,7 +1772,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                                                        <button
                                                          onClick={(e) => handleShareSong(e, song)}
                                                          className="shrink-0 p-2 rounded-full text-slate-400 hover:text-blue-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                                                         title="分享"
+                                                         title="复制分享链接"
                                                          type="button"
                                                        >
                                                            <Share2 size={16} />
@@ -1947,7 +1890,7 @@ const MusicPlatform: React.FC<MusicPlatformProps> = ({
                          type="button"
                          onClick={(e) => handleShareSong(e, currentSong)}
                          className="shrink-0 text-slate-400 hover:text-blue-500 transition-colors active:scale-90"
-                         title="分享歌曲"
+                         title="复制分享链接"
                        >
                            <Share2 size={18} />
                        </button>
